@@ -330,7 +330,30 @@ input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--ac
 .lock-card input{width:100%;height:40px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 12px;font-size:17px;font-weight:600;text-align:center;letter-spacing:.2em;outline:none;font-family:var(--mono)}
 .lock-card input:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(43,90,138,.08)}
 @media(max-width:1024px){.stg-layout{grid-template-columns:1fr}.stg-nav{display:flex;flex-wrap:wrap;border-radius:var(--r);margin-bottom:8px}.stg-nav-item{flex:1;min-width:80px;text-align:center;font-size:10px;padding:6px 4px;border-bottom:none;border-right:1px solid var(--border)}.stg-nav-item:last-child{border-right:none}}
-@media(max-width:768px){.view{padding:12px}.expand-grid{grid-template-columns:1fr}.mis-grid{grid-template-columns:1fr}.srow{grid-template-columns:repeat(2,1fr)}.fg-3{grid-template-columns:1fr 1fr}.nav-tab{padding:0 8px;font-size:9.5px}.app-title small{display:none}}
+@media(max-width:768px){
+  .view{padding:12px}.expand-grid{grid-template-columns:1fr}.mis-grid{grid-template-columns:1fr}.srow{grid-template-columns:repeat(2,1fr)}.fg-3{grid-template-columns:1fr 1fr}.app-title small{display:none}
+  /* The header used to let logo/nav/actions wrap independently inside one
+     flex row — on a phone that produced unpredictable multi-row wrapping
+     that overlapped the page content below it. Stacking them as three
+     explicit full-width rows, with the nav turned into a horizontally
+     swipeable strip (the standard mobile pattern for a tab bar too wide
+     to fit), makes the layout predictable at any width instead. */
+  .app-header{flex-direction:column;align-items:stretch;padding:8px 12px;gap:6px}
+  .app-logo{border-right:none;margin-right:0;padding:4px 0}
+  .nav-tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;padding-bottom:2px}
+  .nav-tabs::-webkit-scrollbar{height:3px}
+  .nav-tab{flex-shrink:0;padding:0 10px;height:34px;font-size:9.5px}
+  .header-actions{margin-left:0;width:100%;justify-content:space-between;padding-top:6px;border-top:1px solid var(--border);flex-wrap:wrap}
+  .view{min-height:calc(100vh - 130px)}
+  .modal{max-width:100%!important;width:100%;margin:0;max-height:100vh;border-radius:0}
+  .modal-backdrop{padding:0;align-items:stretch}
+  .mis-tile,.enq-tile{min-width:100%}
+  table.mis-table,table{font-size:10px}
+}
+@media(max-width:420px){
+  .srow{grid-template-columns:1fr}
+  .header-actions .user-badge .user-role{display:none}
+}
 .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 /* Keep delete column fixed even when other columns are hidden */
 #tbody td:last-child,
