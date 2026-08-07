@@ -1073,7 +1073,28 @@ let _db = null, _auth = null, _syncEnabled = false, _persistTimer = null;
 // this, which meant a teammate's real update could be silently ignored (and later overwritten)
 // if it arrived within 2 seconds of your own save.
 const _clientId = 'c_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
-function getFirebaseConfig() { try { return JSON.parse(localStorage.getItem('fob_fb_config') || 'null'); } catch (e) { return null; } }
+// Built-in fallback so clearing browser data doesn't force re-entering the
+// Firebase config every time. This is safe to embed — a Firebase web
+// config identifies the project, it isn't a secret credential; real
+// protection comes from Firebase Sign-In (already required) and Database
+// Rules, not from hiding this. localStorage's own saved copy still wins
+// if present, so changing config via the setup screen still works normally.
+const BUILTIN_FIREBASE_CONFIG = {
+  apiKey: "AIzaSyADhhWExaekdwwHUbhClPT_k5JPbnxGLC0",
+  authDomain: "fob-manager-64dcc.firebaseapp.com",
+  databaseURL: "https://fob-manager-64dcc-default-rtdb.firebaseio.com",
+  projectId: "fob-manager-64dcc",
+  storageBucket: "fob-manager-64dcc.firebasestorage.app",
+  messagingSenderId: "974497909567",
+  appId: "1:974497909567:web:ed2b3a5ddc8de5585ca18a"
+};
+function getFirebaseConfig() {
+  try {
+    const saved = JSON.parse(localStorage.getItem('fob_fb_config') || 'null');
+    if (saved && saved.apiKey) return saved;
+  } catch (e) { /* fall through to built-in */ }
+  return BUILTIN_FIREBASE_CONFIG;
+}
 function saveFirebaseConfig() {
   const raw = (document.getElementById('setup-config')?.value || '').trim();
   const errEl = document.getElementById('setup-error');
@@ -1106,7 +1127,10 @@ function saveFirebaseConfig() {
     errEl.style.display = 'block';
   }
 }
-function resetFirebaseConfig() { if (!confirm('Remove Firebase config?')) return; localStorage.removeItem('fob_fb_config'); location.reload(); }
+function hasCustomFirebaseConfig() {
+  try { const saved = JSON.parse(localStorage.getItem('fob_fb_config') || 'null'); return !!(saved && saved.apiKey); } catch (e) { return false; }
+}
+function resetFirebaseConfig() { if (!confirm('Remove your custom Firebase config? This will fall back to the built-in default project.')) return; localStorage.removeItem('fob_fb_config'); location.reload(); }
 function initFirebase(cfg) {
   try {
     if (!firebase.apps.length) firebase.initializeApp(cfg);
@@ -8051,7 +8075,7 @@ function renderSettings() {
               <button class="btn btn-secondary btn-sm" onclick="exportCurrentList()">📊 Export Excel</button>
               <button class="btn btn-danger btn-sm" onclick="resetFactory()">🔄 Reset to Factory</button>
               <button class="btn btn-danger btn-sm" onclick="openDeleteAll()">🗑️ Delete All Items</button>
-              ${getFirebaseConfig() ? `<button class="btn btn-secondary btn-sm" onclick="resetFirebaseConfig()">🔥 Remove Firebase</button>` : `<button class="btn btn-info btn-sm" onclick="openFirebaseSetup()">🔥 Setup Firebase</button>`}
+              ${hasCustomFirebaseConfig() ? `<button class="btn btn-secondary btn-sm" onclick="resetFirebaseConfig()">🔥 Remove Custom Firebase Config</button>` : `<button class="btn btn-info btn-sm" onclick="openFirebaseSetup()">🔥 Use a Different Firebase Project</button>`}
             </div>
             <div style="font-size:11px;color:var(--text3);margin-top:4px">
               <div><strong>Items:</strong> ${app.items.length}</div>
