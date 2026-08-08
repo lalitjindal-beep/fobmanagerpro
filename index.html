@@ -1087,13 +1087,18 @@ const DEF_S = {
   team:DEF_TEAM
 };
 
+// Inventory table/mobile-card rendering is batched (see renderInventory) so
+// a 50,000-item catalog doesn't render every row into the DOM at once —
+// these need to exist before any render function that references them runs.
+const INV_BATCH_SIZE = 200;
+let _invRenderedCount = INV_BATCH_SIZE;
+
 let app = {
   settings: JSON.parse(JSON.stringify(DEF_S)),
   items: INITIAL_ITEMS.map(r=>({...r, currency: r.currency||'EUR', prodRemarks: r.prodRemarks||'', salesperson: r.salesperson||'', priceHistory: r.priceHistory||[], pdfAttachment: r.pdfAttachment||null, refCode: r.refCode||''})),
   quotations:[], dispatchPlans:[], customers:[], enquiries:[],
   customerOrders:[], orderDispatches:[], orderGroups:[], readinessUpdates:[],
-  pendingApprovals:[], activityLog:[], payments:[], qualityIssues:[],
-  _nextId: INITIAL_ITEMS.length+1,
+  pendingApprovals:[], activityLog:[], payments:[], qualityIssues:[],  _nextId: INITIAL_ITEMS.length+1,
   currentView:'inventory', selectedIds:new Set(),
   expandedId:null, filterCat:'ALL', sortKey:null, sortDir:1, searchQ:'',
   settingsTab:'company', quoteMode:'quotation',
@@ -2309,7 +2314,10 @@ function renderInventoryMobileCards() {
   const rows = getFiltered();
   if (!rows.length) { el.innerHTML = '<div class="empty-state"><h3>No items found</h3></div>'; return; }
   const decimals = app.settings.system.fobDecimals || 4;
-  el.innerHTML = rows.map(r => {
+  const totalCount = rows.length;
+  const visibleCount = Math.min(_invRenderedCount, totalCount);
+  const visibleRows = rows.slice(0, visibleCount);
+  let html = visibleRows.map(r => {
     const eur = calcFOB(r.pp, r.marg, r.fob, r.exrate);
     const sym = curSym(r.currency || 'EUR');
     const color = getCategoryColor(r.category);
@@ -2325,6 +2333,10 @@ function renderInventoryMobileCards() {
       </div>
     </div>`;
   }).join('');
+  if (visibleCount < totalCount) {
+    html += `<div id="inv-load-more-row" style="text-align:center;padding:14px"><button class="btn btn-secondary btn-sm" onclick="loadMoreInventoryRows()">⬇️ Load ${Math.min(INV_BATCH_SIZE, totalCount - visibleCount)} more (${totalCount - visibleCount} remaining)</button></div>`;
+  }
+  el.innerHTML = html;
 }
 function openMobileItemDetail(id) {
   const row = getItem(id);
@@ -2508,18 +2520,69 @@ function getFiltered() {
   return rows;
 }
 
+// Rendering all 50,000 rows into the table at once makes the page heavy to
+// open, scroll, and search — even though the screen can only show ~20-30
+// rows at a time. Instead we render an initial batch, and grow it (like an
+// infinite-scroll feed) as the user actually scrolls down, so the DOM only
+// ever holds as many rows as have been reached rather than the whole catalog.
+let _invLastFilterKey = '';
+
 function renderInventory() {
   buildFilterBar();
   renderSummary();
   const user = getCurrentUser();
   const rows = getFiltered();
-  document.getElementById('row-count').textContent = `Showing ${rows.length} of ${app.items.length} items`;
+
+  // Reset back to the first batch whenever the actual filtered/sorted result
+  // set changes (new search, new category, new sort, items added/removed) —
+  // otherwise switching filters would keep whatever scroll depth you were
+  // previously at.
+  const filterKey = app.filterCat + '|' + app.searchQ + '|' + app.sortKey + '|' + app.sortDir + '|' + rows.length;
+  if (filterKey !== _invLastFilterKey) {
+    _invRenderedCount = INV_BATCH_SIZE;
+    _invLastFilterKey = filterKey;
+  }
+
+  const totalCount = rows.length;
+  const visibleCount = Math.min(_invRenderedCount, totalCount);
+  document.getElementById('row-count').textContent = totalCount > visibleCount
+    ? `Showing ${visibleCount} of ${totalCount} matching items (${app.items.length} total) — scroll down for more`
+    : `Showing ${rows.length} of ${app.items.length} items`;
   updateSelBar();
   if (!rows.length) { document.getElementById('tbody').innerHTML = '<tr><td colspan="18" style="text-align:center;padding:36px;color:var(--text3);font-weight:500">No items found. Add your first item!</td></tr>'; return; }
-  document.getElementById('tbody').innerHTML = rows.map(r => rowHTML(r, user)).join('');
+
+  const visibleRows = rows.slice(0, visibleCount);
+  let html = visibleRows.map(r => rowHTML(r, user)).join('');
+  if (visibleCount < totalCount) {
+    html += `<tr id="inv-load-more-row"><td colspan="18" style="text-align:center;padding:14px"><button class="btn btn-secondary btn-sm" onclick="loadMoreInventoryRows()">⬇️ Load ${Math.min(INV_BATCH_SIZE, totalCount - visibleCount)} more (${totalCount - visibleCount} remaining)</button></td></tr>`;
+  }
+  document.getElementById('tbody').innerHTML = html;
   highlightDuplicates();
   renderInventoryMobileCards();
 }
+
+function loadMoreInventoryRows() {
+  _invRenderedCount += INV_BATCH_SIZE;
+  renderInventory();
+}
+
+// Auto-load the next batch as the user scrolls near the bottom of the
+// currently-rendered rows, so scrolling feels continuous instead of
+// requiring a manual click every 200 rows. Throttled to one check per
+// animation frame so it doesn't fire repeatedly during a single scroll.
+let _invScrollTicking = false;
+window.addEventListener('scroll', () => {
+  if (app.currentView !== 'inventory') return;
+  if (_invScrollTicking) return;
+  _invScrollTicking = true;
+  requestAnimationFrame(() => {
+    _invScrollTicking = false;
+    const loadMoreRow = document.getElementById('inv-load-more-row');
+    if (!loadMoreRow) return;
+    const rect = loadMoreRow.getBoundingClientRect();
+    if (rect.top < window.innerHeight + 800) loadMoreInventoryRows();
+  });
+}, { passive: true });
 
 function buildTooltipHTML(row) {
   const decimals = app.settings.system.fobDecimals || 4;
