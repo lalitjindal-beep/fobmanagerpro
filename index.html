@@ -364,6 +364,76 @@ input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--ac
   .srow{grid-template-columns:1fr}
   .header-actions .user-badge .user-role{display:none}
 }
+/* ══════════════════════════════════════════════════════════════════════
+   MOBILE APP SHELL — a genuinely different navigation paradigm on phones
+   (bottom tab bar + FAB + slide-up sheet), not just a squeezed desktop
+   layout. Desktop keeps the top nav exactly as before; this only takes
+   over below 768px. */
+.bottom-nav{display:none}
+.mobile-fab{display:none}
+@media(max-width:768px){
+  .nav-tabs{display:none!important}
+  .header-actions{display:none!important}
+  .app-header{padding:10px 14px;flex-direction:row;align-items:center;justify-content:space-between}
+  .app-logo{padding:0}
+  body{padding-bottom:70px}
+
+  .bottom-nav{
+    display:flex;position:fixed;left:0;right:0;bottom:0;z-index:250;
+    background:var(--surface);border-top:1px solid var(--border);
+    box-shadow:0 -2px 10px rgba(0,0,0,.06);
+    padding-bottom:env(safe-area-inset-bottom,0);
+  }
+  .bnav-item{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;padding:8px 2px 6px;background:none;border:none;color:var(--text3);font-family:var(--font);cursor:pointer;position:relative}
+  .bnav-item .bnav-icon{font-size:19px;line-height:1}
+  .bnav-item .bnav-label{font-size:9px;font-weight:600;letter-spacing:.01em}
+  .bnav-item.active{color:var(--accent2)}
+  .bnav-item .bnav-badge{position:absolute;top:4px;right:calc(50% - 16px);min-width:15px;height:15px;background:var(--red);color:#fff;border-radius:8px;font-size:8.5px;font-weight:700;display:flex;align-items:center;justify-content:center;padding:0 3px}
+
+  .mobile-fab{
+    display:flex;position:fixed;right:16px;bottom:calc(70px + env(safe-area-inset-bottom,0px));z-index:240;
+    width:52px;height:52px;border-radius:50%;background:var(--accent);color:#fff;
+    align-items:center;justify-content:center;font-size:26px;border:none;
+    box-shadow:0 4px 14px rgba(0,0,0,.22);cursor:pointer;
+  }
+  .mobile-fab:active{transform:scale(.94)}
+
+  .sheet-backdrop{display:none;position:fixed;inset:0;background:rgba(26,26,24,.4);z-index:260}
+  .sheet-backdrop.open{display:block}
+  .more-sheet{position:fixed;left:0;right:0;bottom:0;z-index:261;background:var(--surface);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform .25s ease;max-height:80vh;overflow-y:auto;padding:8px 16px calc(20px + env(safe-area-inset-bottom,0px))}
+  .more-sheet.open{transform:translateY(0)}
+  .sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:8px auto 14px}
+  .sheet-user-row{display:flex;align-items:center;gap:10px;padding:10px 4px 16px;border-bottom:1px solid var(--border);margin-bottom:10px}
+  .sheet-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+  .sheet-item{display:flex;flex-direction:column;align-items:center;gap:6px;padding:14px 6px;border-radius:12px;background:var(--surface2);cursor:pointer;border:none;font-family:var(--font);color:var(--text)}
+  .sheet-item .sheet-icon{font-size:22px}
+  .sheet-item .sheet-label{font-size:10px;font-weight:600;text-align:center}
+  .sheet-footer{display:flex;gap:8px;margin-top:16px;padding-top:14px;border-top:1px solid var(--border)}
+  .sheet-footer button{flex:1}
+
+  /* Card-based item browser replacing the dense desktop table */
+  #btn-add-item{display:none} /* redundant with the FAB on mobile */
+  .item-cards{display:none;flex-direction:column;gap:8px}
+  .item-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 14px;cursor:pointer}
+  .item-card:active{background:var(--surface2)}
+  .item-card-top{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}
+  .item-card .ic-name{font-weight:700;font-size:13px;color:var(--accent2)}
+  .item-card .ic-ref{font-size:9.5px;color:var(--text3)}
+  .item-card .ic-price{font-weight:700;font-size:14px;color:var(--green)}
+  .item-card .ic-meta{font-size:10.5px;color:var(--text2);margin-top:6px;display:flex;gap:8px;flex-wrap:wrap}
+  .table-wrap{display:block}
+  #view-inventory.mobile-cards .table-wrap{display:none}
+  #view-inventory.mobile-cards .item-cards{display:flex}
+
+  .mobile-page-backdrop{z-index:270}
+  .mobile-page{max-width:100%!important;width:100%;height:100%;max-height:100vh;margin:0;border-radius:0;display:flex;flex-direction:column}
+  /* expandHTML() sets its column layout via an inline style (built for the
+     desktop 3-column expand-row), which normally beats any external CSS
+     rule — including media queries. Overriding it here forces the fields
+     to stack in a single readable column on this mobile page specifically,
+     without touching the desktop expand-row this same markup is also used for. */
+  .mobile-page .expand-grid{grid-template-columns:1fr!important;gap:14px;padding:14px}
+}
 .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 /* Keep delete column fixed even when other columns are hidden */
 #tbody td:last-child,
@@ -574,6 +644,28 @@ table{min-width:820px}
   </div>
 </header>
 
+<!-- ══ MOBILE APP SHELL ══ -->
+<nav class="bottom-nav" id="bottom-nav"></nav>
+<button class="mobile-fab" id="mobile-fab" style="display:none" onclick="handleFabClick()">+</button>
+<div class="sheet-backdrop" id="more-sheet-backdrop" onclick="closeMoreSheet()"></div>
+<div class="more-sheet" id="more-sheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-user-row">
+    <div class="user-avatar" id="sheet-user-avatar">?</div>
+    <div style="flex:1">
+      <div style="font-weight:700;font-size:13px" id="sheet-user-name">User</div>
+      <div style="font-size:10px;color:var(--text3)" id="sheet-user-role"></div>
+    </div>
+    <span id="sheet-conn-badge" class="conn-badge conn-offline"><span class="conn-dot"></span><span id="sheet-conn-text">Offline</span></span>
+  </div>
+  <div class="sheet-grid" id="more-sheet-items"></div>
+  <div class="sheet-footer">
+    <button class="btn btn-secondary btn-sm" onclick="saveFile()">💾 Backup</button>
+    <button class="btn btn-secondary btn-sm" style="border-color:var(--red);color:var(--red)" onclick="signOut()">Sign Out</button>
+  </div>
+</div>
+<div class="modal-backdrop mobile-page-backdrop" id="modal-mobile-item"><div class="modal mobile-page"><div class="modal-header"><button onclick="closeModal('modal-mobile-item')" style="background:rgba(255,255,255,.15);border:none;color:#fff;padding:6px 12px;border-radius:6px;cursor:pointer;font-size:12px;font-weight:700;font-family:var(--font)">← Back</button><h2 id="mip-title" style="flex:1;text-align:center">Item</h2><span style="width:60px"></span></div><div class="modal-body" id="mip-body" style="flex:1;overflow-y:auto"></div></div></div>
+
 <!-- INVENTORY -->
 <div id="view-inventory" class="view active">
   <div class="srow" id="inv-summary"></div>
@@ -590,6 +682,7 @@ table{min-width:820px}
     <span id="hidden-cols-hint" style="display:none;align-items:center;gap:4px;background:var(--amber-bg);color:var(--amber);padding:4px 10px;border-radius:var(--r-full);font-size:11px;font-weight:600;cursor:pointer" onclick="jumpToColumnSettings()" title="Click to manage which columns are shown">👁️‍🗨️ <span>0 columns hidden</span></span>
   </div>
   <div class="sel-bar" id="sel-bar"><span class="sel-count" id="sel-count">0 selected</span><div style="margin-left:auto;display:flex;gap:5px;flex-wrap:wrap"><button class="btn btn-amber btn-sm" onclick="openQModal('quotation')">📄 Quote</button><button class="btn btn-amber btn-sm" onclick="openQModal('proforma')">🧾 Proforma</button><button class="btn btn-secondary btn-sm" onclick="openDModal()">🚚 Dispatch</button><button class="btn btn-secondary btn-sm" onclick="clearSelection()">✕ Clear</button></div></div>
+  <div class="item-cards" id="item-cards"></div>
   <div class="table-wrap">
     <table id="inv-table">
       <colgroup>
@@ -2067,6 +2160,9 @@ function switchView(v) {
   if (v === 'team') renderTeamDashboard();
   if (v === 'settings') renderSettings();
   if (v === 'no-access') renderNoAccess();
+  updateBottomNavActive(v);
+  updateFab(v);
+  closeMoreSheet();
 }
 // Shows/hides nav tabs and picks the right landing view for the signed-in
 // user's role. Call after login and whenever the current user changes.
@@ -2080,8 +2176,164 @@ function applyRoleNav() {
   restrictedTabs.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = (isProcurement || isUnassigned) ? 'none' : ''; });
   procurementOnlyTabs.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = isProcurement ? '' : 'none'; });
   sharedTabs.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = isUnassigned ? 'none' : ''; });
+  renderBottomNav();
+  renderMoreSheetItems();
   switchView(isUnassigned ? 'no-access' : isProcurement ? 'products-safe' : 'inventory');
 }
+// ══════════════════════════════════════════════════════════════════════
+// ── MOBILE APP SHELL ─────────────────────────────────────────────────
+// A genuinely different navigation model on phones — bottom tab bar,
+// floating action button, slide-up "More" sheet, and a card-based item
+// browser — rather than the desktop layout just squeezed narrower.
+// Everything here routes through the same switchView()/data functions
+// the desktop UI already uses, so both stay fully connected to one
+// underlying app state (same idea as a shopping app's app vs. website:
+// different shell, same account/data underneath).
+function isMobileViewport() { return window.innerWidth <= 768; }
+
+const BOTTOM_NAV_CONFIG = {
+  default: [
+    { view: 'action', icon: '🌅', label: 'Home' },
+    { view: 'procurement', icon: '📋', label: 'Enquiries' },
+    { view: 'inventory', icon: '📦', label: 'Items' },
+    { view: 'orders', icon: '🧾', label: 'Orders' }
+  ],
+  procurement: [
+    { view: 'procurement', icon: '📋', label: 'Enquiries' },
+    { view: 'products-safe', icon: '📦', label: 'Items' },
+    { view: 'orders-safe', icon: '🧾', label: 'Orders' },
+    { view: 'quality', icon: '⚠️', label: 'Quality' }
+  ]
+};
+// Everything NOT already in the bottom bar for that role lands in More.
+const MORE_SHEET_CONFIG = {
+  default: [
+    { view: 'quotations', icon: '📄', label: 'Quotes' },
+    { view: 'payments', icon: '💰', label: 'Payments' },
+    { view: 'quality', icon: '⚠️', label: 'Quality' },
+    { view: 'dispatch', icon: '🚚', label: 'Dispatch' },
+    { view: 'mis', icon: '📊', label: 'MIS' },
+    { view: 'team', icon: '👥', label: 'Team' },
+    { view: 'settings', icon: '⚙️', label: 'Settings' }
+  ],
+  procurement: []
+};
+// Primary create-action per view, for the FAB. Views without an obvious
+// single "add new" action (Orders, MIS, Action Center…) simply hide it.
+const FAB_CONFIG = {
+  inventory: { fn: 'addItem', perm: null },
+  procurement: { fn: 'openNewEnquiry', perm: null },
+  quality: { fn: 'openQualityIssueForm', perm: null },
+  payments: { fn: 'openAddPayment', perm: null }
+};
+
+function renderBottomNav() {
+  const nav = document.getElementById('bottom-nav');
+  if (!nav) return;
+  const role = getCurrentUser().role;
+  const config = BOTTOM_NAV_CONFIG[role] || BOTTOM_NAV_CONFIG.default;
+  nav.innerHTML = config.map(t => `<button class="bnav-item" data-bview="${t.view}" onclick="switchView('${t.view}')"><span class="bnav-icon">${t.icon}</span><span class="bnav-label">${t.label}</span><span class="bnav-badge" id="bnav-badge-${t.view}" style="display:none"></span></button>`).join('')
+    + `<button class="bnav-item" id="bnav-more" onclick="openMoreSheet()"><span class="bnav-icon">⋯</span><span class="bnav-label">More</span></button>`;
+  syncBottomNavBadges();
+}
+function renderMoreSheetItems() {
+  const el = document.getElementById('more-sheet-items');
+  if (!el) return;
+  const role = getCurrentUser().role;
+  const items = MORE_SHEET_CONFIG[role] || MORE_SHEET_CONFIG.default;
+  el.innerHTML = items.map(t => `<button class="sheet-item" onclick="switchView('${t.view}');closeMoreSheet()"><span class="sheet-icon">${t.icon}</span><span class="sheet-label">${t.label}</span></button>`).join('');
+}
+function openMoreSheet() {
+  const user = getCurrentUser();
+  document.getElementById('sheet-user-avatar').textContent = (user.name || user.email || '?').charAt(0).toUpperCase();
+  document.getElementById('sheet-user-name').textContent = user.name || user.email || 'User';
+  document.getElementById('sheet-user-role').innerHTML = getUserRoleBadge(user.role);
+  const connBadge = document.getElementById('conn-badge');
+  if (connBadge) {
+    document.getElementById('sheet-conn-badge').className = connBadge.className;
+    document.getElementById('sheet-conn-text').textContent = document.getElementById('conn-text').textContent;
+  }
+  document.getElementById('more-sheet-backdrop').classList.add('open');
+  document.getElementById('more-sheet').classList.add('open');
+}
+function closeMoreSheet() {
+  document.getElementById('more-sheet-backdrop').classList.remove('open');
+  document.getElementById('more-sheet').classList.remove('open');
+}
+// Mirrors the top nav badge system (enquiry follow-ups, quality issues,
+// pending approvals) onto the bottom bar so nothing gets missed just
+// because someone's on their phone instead of the desktop nav.
+function syncBottomNavBadges() {
+  const map = { procurement: 'enquiry-badge-header', quality: 'quality-badge-header' };
+  Object.entries(map).forEach(([view, sourceId]) => {
+    const source = document.getElementById(sourceId);
+    const target = document.getElementById('bnav-badge-' + view);
+    if (!target) return;
+    if (source && source.style.display !== 'none' && source.textContent) {
+      target.textContent = source.textContent;
+      target.style.display = 'flex';
+    } else target.style.display = 'none';
+  });
+}
+function updateBottomNavActive(v) {
+  document.querySelectorAll('.bnav-item').forEach(el => el.classList.toggle('active', el.dataset.bview === v));
+}
+function updateFab(v) {
+  const fab = document.getElementById('mobile-fab');
+  if (!fab) return;
+  if (!isMobileViewport()) { fab.style.display = 'none'; return; }
+  const cfg = FAB_CONFIG[v];
+  if (cfg && (!cfg.perm || hasPermission(cfg.perm))) { fab.style.display = 'flex'; fab.dataset.fabFn = cfg.fn; }
+  else fab.style.display = 'none';
+}
+function handleFabClick() {
+  const fn = document.getElementById('mobile-fab')?.dataset.fabFn;
+  if (fn && typeof window[fn] === 'function') window[fn]();
+}
+
+// ── Card-based item browser (mobile) ─────────────────────────────────
+// Browsing is card-first on a phone; tapping drills into a full-screen
+// detail page that reuses the exact same detail content the desktop
+// expand-row already shows (expandHTML) — same tested fields and edit
+// controls, just presented as a page instead of an inline table row.
+function renderInventoryMobileCards() {
+  const el = document.getElementById('item-cards');
+  const invView = document.getElementById('view-inventory');
+  if (!el || !invView) return;
+  if (!isMobileViewport()) { invView.classList.remove('mobile-cards'); return; }
+  invView.classList.add('mobile-cards');
+  const user = getCurrentUser();
+  const rows = getFiltered();
+  if (!rows.length) { el.innerHTML = '<div class="empty-state"><h3>No items found</h3></div>'; return; }
+  const decimals = app.settings.system.fobDecimals || 4;
+  el.innerHTML = rows.map(r => {
+    const eur = calcFOB(r.pp, r.marg, r.fob, r.exrate);
+    const sym = curSym(r.currency || 'EUR');
+    const color = getCategoryColor(r.category);
+    return `<div class="item-card" onclick="openMobileItemDetail(${r.id})">
+      <div class="item-card-top">
+        <div><div class="ic-name">${esc(r.item || '—')}</div><div class="ic-ref">${esc(r.refCode || '—')}</div></div>
+        <div class="ic-price">${sym}${eur.toFixed(decimals)}</div>
+      </div>
+      <div class="ic-meta">
+        <span style="background:${color.bg};color:${color.text};padding:1px 8px;border-radius:10px;font-weight:600">${esc(r.category || '—')}</span>
+        <span>Qty: ${r.qty ?? '—'}</span>
+        ${r.team ? `<span>${esc(r.team)}</span>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+function openMobileItemDetail(id) {
+  const row = getItem(id);
+  if (!row) return;
+  const user = getCurrentUser();
+  document.getElementById('mip-title').textContent = row.item || 'Item';
+  document.getElementById('mip-body').innerHTML = expandHTML(row, user);
+  openModal('modal-mobile-item');
+}
+
+window.addEventListener('resize', () => { if (app.currentView === 'inventory') renderInventoryMobileCards(); updateFab(app.currentView); });
+
 function renderNoAccess() {
   const el = document.getElementById('no-access-detail');
   if (!el) return;
@@ -2242,6 +2494,7 @@ function renderInventory() {
   if (!rows.length) { document.getElementById('tbody').innerHTML = '<tr><td colspan="18" style="text-align:center;padding:36px;color:var(--text3);font-weight:500">No items found. Add your first item!</td></tr>'; return; }
   document.getElementById('tbody').innerHTML = rows.map(r => rowHTML(r, user)).join('');
   highlightDuplicates();
+  renderInventoryMobileCards();
 }
 
 function buildTooltipHTML(row) {
@@ -2659,6 +2912,7 @@ function addItem() {
   renderInventory();
   app.expandedId = newItem.id;
   setTimeout(() => {
+    if (isMobileViewport()) { openMobileItemDetail(newItem.id); return; }
     const el = document.getElementById('irow-' + newItem.id);
     if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.click(); }
     const codeInput = document.getElementById('itemCode-' + newItem.id);
@@ -5283,6 +5537,7 @@ function updateReminderBadges() {
     if (newlyOverdue) playNotificationSound('overdue');
   }
   app._lastKnownOverdueIds = currentOverdueIds;
+  syncBottomNavBadges();
 }
 
 function fmtMoney(cur, n) { return curSym(cur) + (n || 0).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
