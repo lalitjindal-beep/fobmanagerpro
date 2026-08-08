@@ -371,6 +371,8 @@ input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--ac
    over below 768px. */
 .bottom-nav{display:none}
 .mobile-fab{display:none}
+.sheet-backdrop{display:none}
+.more-sheet{display:none}
 @media(max-width:768px){
   .nav-tabs{display:none!important}
   .header-actions{display:none!important}
@@ -400,7 +402,7 @@ input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--ac
 
   .sheet-backdrop{display:none;position:fixed;inset:0;background:rgba(26,26,24,.4);z-index:260}
   .sheet-backdrop.open{display:block}
-  .more-sheet{position:fixed;left:0;right:0;bottom:0;z-index:261;background:var(--surface);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform .25s ease;max-height:80vh;overflow-y:auto;padding:8px 16px calc(20px + env(safe-area-inset-bottom,0px))}
+  .more-sheet{display:block;position:fixed;left:0;right:0;bottom:0;z-index:261;background:var(--surface);border-radius:16px 16px 0 0;transform:translateY(100%);transition:transform .25s ease;max-height:80vh;overflow-y:auto;padding:8px 16px calc(20px + env(safe-area-inset-bottom,0px))}
   .more-sheet.open{transform:translateY(0)}
   .sheet-handle{width:36px;height:4px;background:var(--border);border-radius:2px;margin:8px auto 14px}
   .sheet-user-row{display:flex;align-items:center;gap:10px;padding:10px 4px 16px;border-bottom:1px solid var(--border);margin-bottom:10px}
@@ -676,6 +678,7 @@ table{min-width:820px}
     <button class="btn btn-primary btn-sm" onclick="addItem()" id="btn-add-item">＋ Add</button>
     <button class="btn btn-info btn-sm" onclick="downloadBulkTemplate()">📊 Template</button>
     <button class="btn btn-secondary btn-sm" onclick="document.getElementById('file-bulk').click()">📤 Import/Update</button>
+    <button class="btn btn-amber btn-sm" id="btn-undo-import" style="display:none" onclick="undoLastImport()">↩️ Undo Last Import</button>
     <button class="btn btn-secondary btn-sm" onclick="exportCurrentList()">📊 Export List</button>
     <button class="btn btn-amber btn-sm" onclick="showDuplicateManager()">🔍 Find Duplicates</button>
     <button class="btn btn-secondary btn-sm" onclick="resetAllColumnWidths()" title="Reset all column widths back to default">↔ Reset Columns</button>
@@ -2448,12 +2451,33 @@ function renderSummary() {
     <div class="scard"><div class="val" style="color:${dupCount > 0 ? 'var(--amber)' : 'var(--green)'}">${dupCount}</div><div class="lbl">Duplicates</div></div>
     <div class="scard"><div class="val">${app.customers.length}</div><div class="lbl">Customers</div></div>`;
 }
+// Cap on how many category pills we'll render inline before switching to a
+// dropdown. Large bulk imports (thousands of rows) can easily introduce
+// hundreds of near-duplicate category strings (extra spaces, different
+// capitalization, typos) — rendering one pill per unique value used to blow
+// up the toolbar into dozens of wrapped rows and break the header layout.
+const FILTER_PILL_CAP = 12;
 function buildFilterBar() {
+  const el = document.getElementById('filter-pills');
   const cats = [...new Set(app.items.map(r => r.category).filter(Boolean))].sort();
-  let h = `<button class="pill ${app.filterCat === 'ALL' ? 'active' : ''}" data-cat="ALL">All</button>`;
-  cats.forEach(c => { h += `<button class="pill ${app.filterCat === c ? 'active' : ''}" data-cat="${esc(c)}">${c}</button>`; });
-  document.getElementById('filter-pills').innerHTML = h;
-  document.querySelectorAll('#filter-pills .pill').forEach(btn => { btn.addEventListener('click', () => setFilter(btn.dataset.cat)); });
+  if (cats.length > FILTER_PILL_CAP) {
+    // Too many distinct categories to show as pills without breaking the
+    // toolbar — use a compact dropdown instead. Keeps the bar a single tidy
+    // row no matter how many category values exist in the data.
+    const opts = cats.map(c => `<option value="${esc(c)}" ${app.filterCat === c ? 'selected' : ''}>${esc(c)}</option>`).join('');
+    el.innerHTML = `<button class="pill ${app.filterCat === 'ALL' ? 'active' : ''}" data-cat="ALL">All</button>
+      <select class="pill" id="filter-cat-select" style="cursor:pointer;padding:0 6px 0 10px;max-width:220px">
+        <option value="ALL">Category… (${cats.length})</option>${opts}
+      </select>`;
+    document.querySelectorAll('#filter-pills .pill[data-cat]').forEach(btn => { btn.addEventListener('click', () => setFilter(btn.dataset.cat)); });
+    const sel = document.getElementById('filter-cat-select');
+    if (sel) sel.addEventListener('change', e => setFilter(e.target.value));
+  } else {
+    let h = `<button class="pill ${app.filterCat === 'ALL' ? 'active' : ''}" data-cat="ALL">All</button>`;
+    cats.forEach(c => { h += `<button class="pill ${app.filterCat === c ? 'active' : ''}" data-cat="${esc(c)}">${c}</button>`; });
+    el.innerHTML = h;
+    document.querySelectorAll('#filter-pills .pill').forEach(btn => { btn.addEventListener('click', () => setFilter(btn.dataset.cat)); });
+  }
 }
 function setFilter(cat) { app.filterCat = cat; buildFilterBar(); renderInventory(); }
 function clearSearch() { document.getElementById('search').value = ''; app.searchQ = ''; applyFilters(); }
@@ -3137,6 +3161,18 @@ function downloadBulkTemplate() {
   XLSX.writeFile(wb, 'FOB_Import_Template.xlsx');
 }
 
+// Bulk imports of many thousands of rows have two failure modes the old
+// version hit: (1) it looked up each row against the FULL inventory with
+// .find() — fine for a handful of items, but O(n²) overall, so a 50,000-row
+// file into a 50,000-item catalog meant billions of comparisons and either
+// froze the tab for minutes or crashed it outright; (2) it ran entirely
+// synchronously with zero progress feedback, so there was no way to tell a
+// frozen tab from one that was still working. This version builds an O(1)
+// lookup map up front, processes rows in small chunks via setTimeout so the
+// browser stays responsive and paints a real progress bar, and records an
+// undo snapshot so a bad import can be reversed (see undoLastImport below).
+const BULK_IMPORT_CHUNK_SIZE = 500;
+
 function bulkImport(e) {
   if (!hasPermission('canImport')) { notify('You don\'t have permission to import', 'error'); return; }
   const file = e.target.files[0];
@@ -3147,74 +3183,154 @@ function bulkImport(e) {
       const wb = XLSX.read(ev.target.result, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json(ws);
-      let added = 0, updated = 0, errors = [];
+      if (!data.length) { notify('No rows found in that file', 'warning'); e.target.value = ''; return; }
+
+      // O(1) duplicate lookup instead of scanning app.items per row.
+      const codeMap = new Map();
+      app.items.forEach(it => { const c = (it.item || '').trim().toUpperCase(); if (c) codeMap.set(c, it); });
+
       const d = app.settings.defaults;
-      
-      data.forEach((row, idx) => {
-        const itemCode = String(row.item || '').trim();
-        if (!itemCode) { errors.push('Row ' + (idx+2) + ': Missing item code'); return; }
-        
-        const existing = getItemByCode(itemCode);
-        const newData = {
-          item: itemCode,
-          refCode: String(row.refCode || '').trim(),
-          category: String(row.category || 'OTHER').trim().toUpperCase(),
-          type: String(row.type || '').trim(),
-          material: String(row.material || '').trim(),
-          weight: parseFloat(row.weight) || 0,
-          qty: String(row.qty || '1'),
-          pp: parseFloat(row.pp) || 0,
-          marg: parseFloat(row.marg) || d.margin || 15,
-          fob: parseFloat(row.fob) || d.fob || 5,
-          exrate: parseFloat(row.exrate) || d.exrate || 87,
-          currency: String(row.currency || d.currency || 'EUR').trim().toUpperCase(),
-          remarks: String(row.remarks || '').trim(),
-          comment: String(row.comment || '').trim(),
-          salesperson: String(row.salesperson || '').trim(),
-          prodRemarks: String(row.prodRemarks || '').trim()
-        };
-        
-        if (existing) {
-          let changed = false;
-          Object.keys(newData).forEach(key => {
-            if (key === 'item') return;
-            const newVal = newData[key];
-            if (newVal !== undefined && newVal !== null && newVal !== '') {
-              if (existing[key] !== newVal) {
-                existing[key] = newVal;
-                changed = true;
-              }
-            }
-          });
-          if (changed) {
-            updated++;
-          }
-        } else {
-          const newItem = {
-            id: uid(),
-            ...newData,
-            priceHistory: [],
-            photo: null,
-            pdfAttachment: null
+      let added = 0, updated = 0, errors = [];
+      const importOp = { addedIds: [], updatedSnapshots: {} };
+
+      const overlay = document.getElementById('upload-overlay');
+      const status = document.getElementById('upload-status');
+      const bar = document.getElementById('upload-progress-bar');
+      const percent = document.getElementById('upload-percent');
+      if (overlay) { overlay.style.display = 'flex'; overlay.classList.add('show'); }
+      if (status) status.textContent = `Importing 0 / ${data.length} rows…`;
+
+      let idx = 0;
+      function processChunk() {
+        const end = Math.min(idx + BULK_IMPORT_CHUNK_SIZE, data.length);
+        for (; idx < end; idx++) {
+          const row = data[idx];
+          const itemCode = String(row.item || '').trim();
+          if (!itemCode) { errors.push('Row ' + (idx + 2) + ': Missing item code'); continue; }
+          const searchCode = itemCode.toUpperCase();
+          const existing = codeMap.get(searchCode);
+          const newData = {
+            item: itemCode,
+            refCode: String(row.refCode || '').trim(),
+            category: String(row.category || 'OTHER').trim().toUpperCase(),
+            type: String(row.type || '').trim(),
+            material: String(row.material || '').trim(),
+            weight: parseFloat(row.weight) || 0,
+            qty: String(row.qty || '1'),
+            pp: parseFloat(row.pp) || 0,
+            marg: parseFloat(row.marg) || d.margin || 15,
+            fob: parseFloat(row.fob) || d.fob || 5,
+            exrate: parseFloat(row.exrate) || d.exrate || 87,
+            currency: String(row.currency || d.currency || 'EUR').trim().toUpperCase(),
+            remarks: String(row.remarks || '').trim(),
+            comment: String(row.comment || '').trim(),
+            salesperson: String(row.salesperson || '').trim(),
+            prodRemarks: String(row.prodRemarks || '').trim()
           };
-          app.items.push(newItem);
-          added++;
+
+          if (existing) {
+            let changed = false;
+            let snapshotTaken = false;
+            Object.keys(newData).forEach(key => {
+              if (key === 'item') return;
+              const newVal = newData[key];
+              if (newVal !== undefined && newVal !== null && newVal !== '') {
+                if (existing[key] !== newVal) {
+                  if (!snapshotTaken) { importOp.updatedSnapshots[existing.id] = { ...existing }; snapshotTaken = true; }
+                  existing[key] = newVal;
+                  changed = true;
+                }
+              }
+            });
+            if (changed) updated++;
+          } else {
+            const newItem = { id: uid(), ...newData, priceHistory: [], photo: null, pdfAttachment: null };
+            app.items.push(newItem);
+            codeMap.set(searchCode, newItem);
+            importOp.addedIds.push(newItem.id);
+            added++;
+          }
         }
-      });
-      
-      if (added || updated) {
-        const bUser = getCurrentUser();
-        app.activityLog.unshift({ id: Date.now(), timestamp: new Date().toISOString(), user: bUser.name || bUser.email || 'System', userRole: bUser.role || 'unknown', action: 'BULK_IMPORT', details: { added: added, updated: updated, errors: errors.length }, itemId: null });
-        if (app.activityLog.length > 150) app.activityLog = app.activityLog.slice(0, 150);
+        const pct = Math.round((idx / data.length) * 100);
+        if (bar) bar.style.width = pct + '%';
+        if (percent) percent.textContent = pct + '%';
+        if (status) status.textContent = `Importing ${idx} / ${data.length} rows…`;
+        if (idx < data.length) {
+          setTimeout(processChunk, 0);
+        } else {
+          finishImport();
+        }
       }
-      persist();
-      renderAll();
-      const msg = `✅ Added ${added} items, Updated ${updated} items` + (errors.length ? ` | ${errors.length} errors` : '');
-      notify(msg, added || updated ? 'success' : 'warning');
-    } catch (err) { notify('Import error: ' + err.message, 'error'); }
+
+      function finishImport() {
+        if (added || updated) {
+          const bUser = getCurrentUser();
+          app.activityLog.unshift({ id: Date.now(), timestamp: new Date().toISOString(), user: bUser.name || bUser.email || 'System', userRole: bUser.role || 'unknown', action: 'BULK_IMPORT', details: { added: added, updated: updated, errors: errors.length }, itemId: null });
+          if (app.activityLog.length > 150) app.activityLog = app.activityLog.slice(0, 150);
+          saveLastImportBackup(importOp);
+        }
+        persist();
+        renderAll();
+        if (overlay) { overlay.classList.remove('show'); overlay.style.display = 'none'; }
+        const msg = `✅ Added ${added} items, Updated ${updated} items` + (errors.length ? ` | ${errors.length} errors` : '');
+        notify(msg, added || updated ? 'success' : 'warning');
+        updateUndoImportButton();
+      }
+
+      processChunk();
+    } catch (err) {
+      const overlay = document.getElementById('upload-overlay');
+      if (overlay) { overlay.classList.remove('show'); overlay.style.display = 'none'; }
+      notify('Import error: ' + err.message, 'error');
+    }
   };
   r.readAsArrayBuffer(file);
   e.target.value = '';
+}
+
+// ── UNDO LAST IMPORT ────────────────────────────────────────────────────
+// Rather than duplicating the entire (potentially huge) item list for undo,
+// we only remember what the import actually touched: the ids it added, and
+// a pre-change copy of every item it modified. That stays small even for a
+// 50,000-row import, so it's cheap to keep in localStorage across a reload.
+let _lastImportOp = null;
+function saveLastImportBackup(op) {
+  _lastImportOp = op;
+  try {
+    localStorage.setItem('fob_pro_last_import', JSON.stringify({ ts: Date.now(), addedIds: op.addedIds, updatedSnapshots: op.updatedSnapshots }));
+  } catch (err) { /* best-effort — in-memory copy still allows undo this session */ }
+}
+function loadLastImportBackup() {
+  try {
+    const raw = localStorage.getItem('fob_pro_last_import');
+    if (raw) _lastImportOp = JSON.parse(raw);
+  } catch (err) { _lastImportOp = null; }
+}
+function canUndoImport() {
+  return !!(_lastImportOp && ((_lastImportOp.addedIds && _lastImportOp.addedIds.length) || (_lastImportOp.updatedSnapshots && Object.keys(_lastImportOp.updatedSnapshots).length)));
+}
+function updateUndoImportButton() {
+  const btn = document.getElementById('btn-undo-import');
+  if (!btn) return;
+  btn.style.display = canUndoImport() ? 'inline-flex' : 'none';
+}
+function undoLastImport() {
+  if (!canUndoImport()) { notify('Nothing to undo', 'warning'); return; }
+  const addedCount = _lastImportOp.addedIds.length;
+  const updatedCount = Object.keys(_lastImportOp.updatedSnapshots).length;
+  if (!confirm(`Undo last import? This removes ${addedCount} added item(s) and reverts ${updatedCount} updated item(s) back to their values before the import.`)) return;
+  const addedSet = new Set(_lastImportOp.addedIds);
+  app.items = app.items.filter(it => !addedSet.has(it.id));
+  Object.entries(_lastImportOp.updatedSnapshots).forEach(([id, snap]) => {
+    const idx = app.items.findIndex(it => it.id === Number(id));
+    if (idx > -1) app.items[idx] = snap;
+  });
+  _lastImportOp = null;
+  try { localStorage.removeItem('fob_pro_last_import'); } catch (err) { /* ignore */ }
+  persist();
+  renderAll();
+  updateUndoImportButton();
+  notify('✅ Import undone', 'success');
 }
 
 // ── QUOTATION WITH CUSTOMER AUTOCOMPLETE ────────────────────────────────────────────
@@ -8980,11 +9096,13 @@ function initColumnResize() {
 (function startApp() {
   loadLS();
   loadGitHubConfig();
+  loadLastImportBackup();
   if (app.activityLog.length > 150) {
     app.activityLog = app.activityLog.slice(0, 150);
     persist();
   }
   renderAll();
+  updateUndoImportButton();
   applyColumnWidths();
   applyColumnVisibility();
   initColumnResize();
