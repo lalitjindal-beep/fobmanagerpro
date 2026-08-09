@@ -80,11 +80,13 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .search-clear{position:absolute;right:8px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;color:var(--text3);font-size:13px;display:none;padding:2px 4px;border-radius:4px}
 .search-clear:hover{color:var(--text);background:var(--surface2)}
 .filter-pills{display:flex;gap:4px;flex-wrap:wrap}
-.pill{height:26px;padding:0 10px;border:1px solid var(--border);border-radius:var(--r-full);background:var(--surface);color:var(--text2);font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap}
+.pill{height:26px;padding:0 10px;border:1px solid var(--border);border-radius:var(--r-full);background-color:var(--surface);color:var(--text2);font-size:10px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap}
 .pill:hover{border-color:var(--accent2);color:var(--accent2);background:var(--accent-light)}
 .pill.active{background:var(--accent);color:#fff;border-color:var(--accent)}
 .tsep{width:1px;height:20px;background:var(--border);margin:0 4px}
-.btn{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 12px;border-radius:var(--r-sm);border:1px solid;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap}
+.btn{display:inline-flex;align-items:center;gap:5px;height:30px;padding:0 12px;border-radius:var(--r-sm);border:1px solid;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--font);white-space:nowrap;transition:transform .1s,box-shadow .15s,filter .15s}
+.btn:hover{filter:brightness(1.04);box-shadow:var(--shadow-sm)}
+.btn:active{transform:scale(.97)}
 .btn-primary{background:var(--accent);border-color:var(--accent);color:#fff}
 .btn-primary:hover{background:var(--accent2);border-color:var(--accent2);box-shadow:var(--shadow-sm)}
 .btn-success{background:var(--green);border-color:var(--green);color:#fff}
@@ -167,14 +169,14 @@ input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--ac
 .panel-card h3{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--text3);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
 .field-group{margin-bottom:10px}
 .field-label{font-size:10px;font-weight:600;color:var(--text2);margin-bottom:3px;text-transform:uppercase;display:block}
-.field-input{width:100%;height:28px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 8px;font-family:var(--font);font-size:12px;font-weight:400;color:var(--text);background:var(--surface);outline:none}
+.field-input{width:100%;height:28px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 8px;font-family:var(--font);font-size:12px;font-weight:400;color:var(--text);background-color:var(--surface);outline:none}
 .field-input:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(43,90,138,.08)}
 .field-input.ib{color:var(--blue-input);font-weight:600;background:var(--blue-bg);border-color:#bfdbfe}
 .field-input:disabled{opacity:.6;cursor:not-allowed;background:var(--surface2)}
 .field-input.dup-error{border-color:var(--red)!important;background:var(--red-bg)!important}
 .field-textarea{width:100%;border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 8px;font-family:var(--font);font-size:12px;font-weight:400;color:var(--text);background:var(--surface);outline:none;resize:vertical;min-height:56px}
 .field-textarea:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(43,90,138,.08)}
-.field-select{width:100%;height:28px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 6px;font-family:var(--font);font-size:12px;font-weight:400;color:var(--text);background:var(--surface);outline:none;cursor:pointer}
+.field-select{width:100%;height:28px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 6px;font-family:var(--font);font-size:12px;font-weight:400;color:var(--text);background-color:var(--surface);outline:none;cursor:pointer}
 .field-select:focus{border-color:var(--accent2)}
 .field-row{display:flex;gap:8px;align-items:flex-end}.field-row .field-group{flex:1}
 .field-unit{font-size:10.5px;font-weight:600;color:var(--text3);font-family:var(--mono);padding-bottom:5px}
@@ -210,13 +212,14 @@ input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--ac
 .sel-bar{background:var(--amber-bg);border:1px solid #d4c08a;border-radius:var(--r);padding:10px 14px;margin-bottom:12px;display:none;align-items:center;gap:10px;box-shadow:var(--shadow-xs)}
 .sel-bar.visible{display:flex}
 .sel-count{font-size:12px;font-weight:700;color:var(--amber)}
-.modal-backdrop{position:fixed;inset:0;background:rgba(26,26,24,.4);z-index:300;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px)}
+.modal-backdrop{position:fixed;inset:0;background:rgba(26,26,24,.4);z-index:300;display:none;align-items:center;justify-content:center;padding:16px;backdrop-filter:blur(4px);opacity:0;transition:opacity .18s ease}
+.modal-backdrop.open.anim-in{opacity:1}
 @media print{
   @page{margin:14mm 12mm}
   body *{visibility:hidden}
   .modal-backdrop.open,.modal-backdrop.open *{visibility:visible;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   .modal-backdrop.open{position:absolute;inset:0;background:none;padding:0;backdrop-filter:none;display:block}
-  .modal-backdrop.open .modal{max-width:100%;max-height:none;box-shadow:none;border:none;border-radius:0;display:block}
+  .modal-backdrop.open .modal{max-width:100%;max-height:none;box-shadow:none;border:none;border-radius:0;display:block;opacity:1!important;transform:none!important}
   .modal-backdrop.open .modal-close,.modal-backdrop.open .modal-footer,.modal-backdrop.open .no-print{display:none!important}
   .modal-backdrop.open .modal-body{overflow:visible;padding:12mm 6mm}
   .modal-backdrop.open .modal-header{background:none!important;padding:0 6mm 8mm;border-bottom:2px solid var(--accent);margin-bottom:4mm}
@@ -229,7 +232,8 @@ input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--ac
   .enq-attach-remove{display:none!important}
 }
 .modal-backdrop.open{display:flex}
-.modal{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);max-width:900px;width:100%;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;border:1px solid var(--border)}
+.modal{background:var(--surface);border-radius:var(--r-lg);box-shadow:var(--shadow-lg);max-width:900px;width:100%;max-height:92vh;overflow:hidden;display:flex;flex-direction:column;border:1px solid var(--border);opacity:0;transform:scale(.96) translateY(10px);transition:transform .22s cubic-bezier(.16,1,.3,1),opacity .18s ease}
+.modal-backdrop.open.anim-in .modal{opacity:1;transform:scale(1) translateY(0)}
 .modal-header{background:var(--accent);padding:14px 20px;display:flex;align-items:center;gap:10px}
 .modal-header h2{color:#fff;font-size:12.5px;font-weight:700;text-transform:uppercase;flex:1}
 .modal-close{background:rgba(255,255,255,.15);border:none;color:rgba(255,255,255,.8);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;font-weight:700}
@@ -240,19 +244,54 @@ input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--ac
 .modal-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:6px;justify-content:flex-end;background:var(--surface2);flex-wrap:wrap}
 .form-sec{margin-bottom:18px}
 .form-sec-title{font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--accent2);margin-bottom:10px;padding-bottom:6px;border-bottom:2px solid var(--accent-light)}
+.form-avatar{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:700;margin:0 auto 6px;transition:background .2s}
+.req-mark{color:var(--red);margin-left:2px}
+.form-note{margin-top:4px;padding:10px 12px;background:var(--purple-bg);border-radius:var(--r);font-size:10.5px;color:var(--purple);line-height:1.55;display:flex;gap:8px;align-items:flex-start}
+.form-note span:first-child{flex-shrink:0}
 .fg{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:11px}
 .fg-2{grid-template-columns:1fr 1fr}.fg-3{grid-template-columns:1fr 1fr 1fr}.fg-full{grid-column:1/-1}
 .ff label{display:block;font-size:9.5px;font-weight:600;color:var(--text2);margin-bottom:3px;text-transform:uppercase}
-.ff input,.ff select,.ff textarea{width:100%;border:1px solid var(--border);border-radius:var(--r-sm);padding:5px 8px;font-family:var(--font);font-size:12px;font-weight:400;color:var(--text);background:var(--surface);outline:none}
+.ff input,.ff select,.ff textarea{width:100%;border:1px solid var(--border);border-radius:var(--r-sm);padding:5px 8px;font-family:var(--font);font-size:12px;font-weight:400;color:var(--text);background-color:var(--surface);outline:none;transition:border-color .15s,box-shadow .15s}
 .ff input:focus,.ff select:focus,.ff textarea:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(43,90,138,.08)}
 .ff textarea{resize:vertical;min-height:50px;line-height:1.5}
+/* ── Custom dropdown skin — every <select> in the app, whatever markup or
+   inline sizing it was built with, gets the same themed chevron, border,
+   and focus glow as the rest of the form controls instead of the browser's
+   raw native control. padding-right/appearance/background need !important
+   here specifically because a good number of selects across the app set
+   their own inline padding/height for sizing — this only overrides the
+   two properties needed to make room for and draw the arrow, nothing else. */
+select{
+  -webkit-appearance:none;-moz-appearance:none;appearance:none;
+  background-color:var(--surface);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%232b5a8a' stroke-width='1.6' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;
+  background-position:right 9px center;
+  background-size:10px 6px;
+  padding-right:26px!important;
+  border:1px solid var(--border);
+  border-radius:var(--r-sm);
+  color:var(--text);
+  font-family:var(--font);
+  cursor:pointer;
+  color-scheme:light;
+  transition:border-color .15s,box-shadow .15s,background-color .1s;
+}
+select:hover{border-color:var(--border2)}
+select:focus{outline:none;border-color:var(--accent2);box-shadow:0 0 0 3px rgba(43,90,138,.08)}
+select:disabled{opacity:.55;cursor:not-allowed;background-color:var(--surface2)}
+select::-ms-expand{display:none}
+select option{background:var(--surface);color:var(--text)}
+/* Narrow unit-style selects (e.g. weight g/kg) need less reserved space
+   for the arrow so short values don't look squeezed. */
+select[style*="width:55px"],select[style*="width:70px"],select[style*="width:96px"]{padding-right:22px!important;background-position:right 6px center}
 .qt{width:100%;border-collapse:collapse;font-size:11.5px}
 .qt th{background:var(--surface2);padding:6px 8px;text-align:left;font-size:9px;font-weight:600;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border)}
 .qt th.td-r{text-align:right}
 .qt th.td-c{text-align:center}
 .qt td{padding:6px 8px;border-bottom:1px solid #ece8e2;vertical-align:middle}
 .qt tr:last-child td{border-bottom:none}
-.qt input,.qt select{border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-family:var(--font);font-size:11px;font-weight:400;background:var(--surface);outline:none}
+.qt input,.qt select{border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-family:var(--font);font-size:11px;font-weight:400;background-color:var(--surface);outline:none}
 .qt input:focus,.qt select:focus{outline:none;border-color:var(--accent2);box-shadow:0 0 0 2px rgba(43,90,138,.08)}
 .qt-total td{font-weight:700;background:var(--green-bg);color:var(--green);font-family:var(--mono);font-size:12px}
 .stg-layout{display:grid;grid-template-columns:180px 1fr;gap:14px}
@@ -267,7 +306,7 @@ input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--ac
 .s-item:last-child{border-bottom:none}
 .s-info{flex:1}.s-info strong{display:block;font-size:12px;font-weight:600;color:var(--text)}.s-info small{font-size:10.5px;color:var(--text3)}
 .s-ctl{min-width:170px;margin-left:12px}
-.s-ctl input,.s-ctl select,.s-ctl textarea{width:100%;border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 8px;font-size:12px;font-weight:400;outline:none;background:var(--surface);font-family:var(--font)}
+.s-ctl input,.s-ctl select,.s-ctl textarea{width:100%;border:1px solid var(--border);border-radius:var(--r-sm);padding:6px 8px;font-size:12px;font-weight:400;outline:none;background-color:var(--surface);font-family:var(--font)}
 .s-ctl input:focus,.s-ctl select:focus{border-color:var(--accent2)}
 .s-ctl textarea{min-height:50px;resize:vertical;font-size:11px}
 .doc-list{display:flex;flex-direction:column;gap:8px}
@@ -287,9 +326,9 @@ input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--ac
 .doc-info{flex:1}.doc-info strong{display:block;font-size:13px;font-weight:600}.doc-info span{font-size:11px;font-weight:500;color:var(--text3)}
 .doc-actions{display:flex;gap:5px;flex-wrap:wrap}
 .srow{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:14px}
-.scard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:8px 6px;text-align:center;box-shadow:var(--shadow-xs)}
-.scard .val{font-size:22px;font-weight:700;color:var(--text);font-family:var(--mono);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
-.scard .lbl{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;margin-top:4px}
+.scard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:8px 6px;text-align:center;box-shadow:var(--shadow-xs);overflow:hidden}
+.scard .val{font-size:22px;font-weight:700;color:var(--text);font-family:var(--mono);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block}
+.scard .lbl{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mis-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
 .mis-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;box-shadow:var(--shadow-xs)}
 .mis-card h3{font-size:9.5px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
@@ -491,9 +530,9 @@ table{min-width:820px}
 .enq-thread{display:flex;flex-direction:column;gap:8px;max-height:280px;overflow-y:auto;padding:4px 2px;margin:10px 0}
 .enq-thread-msg{background:var(--surface2);border-radius:var(--r-sm);padding:8px 10px;font-size:11.5px}
 .enq-thread-msg small{color:var(--text3);font-size:9px;display:block;margin-bottom:2px}
-.enq-tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;flex:1;min-width:110px;box-shadow:var(--shadow-xs)}
-.enq-tile .n{font-size:19px;font-weight:700;color:var(--text)}
-.enq-tile .l{font-size:9.5px;color:var(--text2);text-transform:uppercase;font-weight:600;letter-spacing:.02em}
+.enq-tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:10px 14px;flex:1;min-width:110px;box-shadow:var(--shadow-xs);overflow:hidden}
+.enq-tile .n{font-size:19px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block}
+.enq-tile .l{font-size:9.5px;color:var(--text2);text-transform:uppercase;font-weight:600;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .enq-tile.red .n{color:var(--red)}.enq-tile.amber .n{color:var(--amber)}.enq-tile.green .n{color:var(--green)}.enq-tile.purple .n{color:var(--purple)}
 .enq-attach-chip{display:inline-flex;align-items:center;gap:5px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);padding:3px 8px;font-size:10.5px;margin:2px 4px 2px 0}
 .enq-attach-chip img{width:20px;height:20px;object-fit:cover;border-radius:3px}
@@ -504,9 +543,9 @@ table{min-width:820px}
 .enq-acct-stat{font-size:10.5px;color:var(--text2)}
 .enq-acct-stat b{color:var(--text)}
 .enq-sla-badge{padding:2px 8px;border-radius:var(--r-full);font-size:9px;font-weight:700;white-space:nowrap}
-.mis-tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;flex:1;min-width:130px;box-shadow:var(--shadow-xs)}
-.mis-tile .n{font-size:20px;font-weight:700;color:var(--text)}
-.mis-tile .l{font-size:9.5px;color:var(--text2);text-transform:uppercase;font-weight:600;letter-spacing:.02em}
+.mis-tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;flex:1;min-width:130px;box-shadow:var(--shadow-xs);overflow:hidden}
+.mis-tile .n{font-size:20px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block}
+.mis-tile .l{font-size:9.5px;color:var(--text2);text-transform:uppercase;font-weight:600;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mis-tile .delta{font-size:9.5px;font-weight:700;margin-top:2px}
 .mis-tile .delta.up{color:var(--green)}.mis-tile .delta.down{color:var(--red)}
 .mis-table{width:100%;border-collapse:collapse;font-size:11px}
@@ -515,6 +554,17 @@ table{min-width:820px}
 .mis-table tr:hover td{background:var(--surface2)}
 .mis-progress{height:8px;background:var(--surface2);border-radius:4px;overflow:hidden;flex:1}
 .mis-progress .fill{height:100%}
+.perm-matrix-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow-xs)}
+.perm-matrix{width:100%;border-collapse:collapse;font-size:11.5px;min-width:480px}
+.perm-matrix th{background:var(--surface2);padding:9px 10px;text-align:center;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);border-bottom:2px solid var(--border)}
+.perm-matrix th:first-child{text-align:left}
+.perm-matrix td{padding:8px 10px;border-bottom:1px solid var(--border);text-align:center;background:var(--surface)}
+.perm-matrix td:first-child{text-align:left;color:var(--text2);font-weight:500}
+.perm-matrix tbody tr:hover td{background:var(--surface2)}
+.perm-group-row td{background:var(--accent-light)!important;color:var(--accent2);font-size:9.5px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;padding:7px 10px;border-bottom:1px solid var(--border2)}
+.perm-check{width:16px;height:16px;accent-color:var(--accent2);cursor:pointer;vertical-align:middle}
+.perm-role-head{display:flex;flex-direction:column;align-items:center;gap:2px}
+.perm-role-head small{font-weight:400;text-transform:none;font-size:8.5px;color:var(--text3);letter-spacing:0}
 .mis-target-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
 .mis-target-row .name{min-width:90px;font-weight:600;font-size:11.5px}
 .mis-target-row .pct{min-width:48px;text-align:right;font-size:11px;font-weight:700}
@@ -1004,6 +1054,8 @@ table{min-width:820px}
   <p style="color:var(--text3);font-size:11px">It'll then open full-screen like a regular app, with its own icon — no browser bar.</p>
 </div><div class="modal-footer"><button class="btn btn-primary" onclick="closeModal('modal-ios-install')">Got it</button></div></div></div>
 <div class="modal-backdrop" id="modal-customer-360"><div class="modal" style="max-width:820px"><div class="modal-header"><h2 id="c360-title">🤝 Customer</h2><button class="modal-close" onclick="closeModal('modal-customer-360')">✕</button></div><div class="modal-body" id="c360-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-customer-360')">Close</button></div></div></div>
+<div class="modal-backdrop" id="modal-customer"><div class="modal" style="max-width:640px"><div class="modal-header"><h2 id="cust-form-title">👤 New Customer</h2><button class="modal-close" onclick="closeModal('modal-customer')">✕</button></div><div class="modal-body" id="cust-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-customer')">Cancel</button><button class="btn btn-success" onclick="saveCustomerForm()">💾 Save Customer</button></div></div></div>
+<div class="modal-backdrop" id="modal-team-member"><div class="modal" style="max-width:480px"><div class="modal-header"><h2>👥 Add Team Member</h2><button class="modal-close" onclick="closeModal('modal-team-member')">✕</button></div><div class="modal-body" id="team-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-team-member')">Cancel</button><button class="btn btn-success" onclick="saveTeamMemberForm()">💾 Add Member</button></div></div></div>
 
 <input type="file" id="file-load" accept=".json" style="display:none" onchange="handleFileLoad(event)">
 <input type="file" id="file-photo" accept="image/*" style="display:none">
@@ -5990,10 +6042,10 @@ function buildLedgerHTML(customer) {
   let html = `<div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px">`;
   (l.currencies.length ? l.currencies : ['EUR']).forEach(c => {
     const bal = l.balance[c] || 0;
-    html += `<div style="flex:1;min-width:150px;border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;background:${bal > 0.01 ? 'var(--amber-bg)' : 'var(--green-bg)'}">
-      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text3)">${c} Balance</div>
-      <div style="font-size:17px;font-weight:700;color:${bal > 0.01 ? 'var(--amber)' : 'var(--green)'}">${fmtMoney(c, bal)}</div>
-      <div style="font-size:9.5px;color:var(--text3)">Order Value ${fmtMoney(c, l.orderValue[c] || 0)} — Received ${fmtMoney(c, (l.received[c] || 0) + (l.credits[c] || 0))}</div>
+    html += `<div style="flex:1;min-width:150px;border:1px solid var(--border);border-radius:var(--r);padding:10px 12px;background:${bal > 0.01 ? 'var(--amber-bg)' : 'var(--green-bg)'};overflow:hidden">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${c} Balance</div>
+      <div style="font-size:17px;font-weight:700;color:${bal > 0.01 ? 'var(--amber)' : 'var(--green)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${esc(fmtMoney(c, bal))}">${fmtMoney(c, bal)}</div>
+      <div style="font-size:9.5px;color:var(--text3);overflow-wrap:break-word">Order Value ${fmtMoney(c, l.orderValue[c] || 0)} — Received ${fmtMoney(c, (l.received[c] || 0) + (l.credits[c] || 0))}</div>
     </div>`;
   });
   html += `</div>
@@ -6828,7 +6880,7 @@ function openOrderStatement(customer, itemId) {
   const thStyle = 'padding:8px;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--text3);border-bottom:2px solid var(--border);background:var(--surface2)';
   let html = `<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
     <div><strong style="font-size:14px">${esc(customer)}</strong><br><span style="font-family:var(--mono);color:var(--accent2);font-size:12px">${esc(itemRow?.item || '')}</span></div>
-    <div style="text-align:right"><div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:600">Currently Pending</div><div style="font-size:18px;font-weight:700;color:${pending > 0.0001 ? 'var(--amber)' : 'var(--green)'}">${pending.toLocaleString()}</div></div>
+    <div style="text-align:right;overflow:hidden"><div style="font-size:9px;color:var(--text3);text-transform:uppercase;font-weight:600">Currently Pending</div><div style="font-size:18px;font-weight:700;color:${pending > 0.0001 ? 'var(--amber)' : 'var(--green)'};white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="${pending.toLocaleString()}">${pending.toLocaleString()}</div></div>
   </div>
   <table style="width:100%;border-collapse:collapse;font-size:11.5px">
     <thead><tr>
@@ -9288,42 +9340,42 @@ function s_set(path, value) {
 
 function renderPermissionsUI() {
   const roles = ['admin', 'manager', 'user'];
-  const permLabels = {
-    canDelete: 'Delete Items',
-    canEditPrice: 'Edit PP Price',
-    canApprove: 'Approve Price Changes',
-    canManageTeam: 'Manage Team',
-    canEditAll: 'Edit All Fields',
-    canEditMargin: 'Edit Margin %',
-    canEditFOB: 'Edit FOB %',
-    canEditExrate: 'Edit Ex Rate',
-    canUploadPhoto: 'Upload Photos',
-    canUploadPDF: 'Upload Drawings/PDF',
-    canEditTechSpecs: 'Edit Technical Specs',
-    canEditSalesperson: 'Edit Salesperson',
-    canEditQty: 'Edit Quantity',
-    canEditWeight: 'Edit Weight',
-    canEditType: 'Edit Type/Description',
-    canEditMaterial: 'Edit Material',
-    canAddItem: 'Add Items',
-    canImport: 'Bulk Import',
-    canEditRefCode: 'Edit Ref Code'
-  };
-  let html = '';
-  roles.forEach(role => {
-    const perms = getUserPermissions(role);
-    html += `<div style="padding:10px 0;border-bottom:1px solid var(--border)"><strong style="font-size:13px;text-transform:capitalize;color:var(--accent)">${role}</strong>`;
-    Object.keys(permLabels).forEach(key => {
-      const checked = perms[key] ? 'checked' : '';
-      html += `<label style="font-size:11px;margin-left:12px;display:inline-flex;align-items:center;gap:4px"><input type="checkbox" ${checked} onchange="updateRolePermission('${role}','${key}',this.checked)"> ${permLabels[key]}</label>`;
+  const roleMeta = { admin: { icon: '🔑', label: 'Admin' }, manager: { icon: '📋', label: 'Manager' }, user: { icon: '👤', label: 'User' } };
+  // Grouped so related toggles sit together instead of one long ragged run
+  // of 19 checkboxes per role — much easier to scan "who can touch pricing"
+  // at a glance than the flat list this used to be.
+  const permGroups = [
+    { title: '💰 Pricing & Approvals', keys: { canEditPrice: 'Edit PP Price', canEditMargin: 'Edit Margin %', canEditFOB: 'Edit FOB %', canEditExrate: 'Edit Ex Rate', canApprove: 'Approve Price Changes' } },
+    { title: '📦 Item Data', keys: { canEditAll: 'Edit All Fields', canEditQty: 'Edit Quantity', canEditWeight: 'Edit Weight', canEditType: 'Edit Type/Description', canEditMaterial: 'Edit Material', canEditTechSpecs: 'Edit Technical Specs', canEditSalesperson: 'Edit Salesperson', canEditRefCode: 'Edit Ref Code' } },
+    { title: '📎 Attachments', keys: { canUploadPhoto: 'Upload Photos', canUploadPDF: 'Upload Drawings/PDF' } },
+    { title: '🗂️ Item Management', keys: { canAddItem: 'Add Items', canDelete: 'Delete Items', canImport: 'Bulk Import' } },
+    { title: '👥 Team', keys: { canManageTeam: 'Manage Team' } }
+  ];
+  let rows = '';
+  permGroups.forEach(group => {
+    rows += `<tr class="perm-group-row"><td colspan="${roles.length + 1}">${group.title}</td></tr>`;
+    Object.entries(group.keys).forEach(([key, label]) => {
+      rows += `<tr><td>${label}</td>`;
+      roles.forEach(role => {
+        const perms = getUserPermissions(role);
+        const checked = perms[key] ? 'checked' : '';
+        rows += `<td><input class="perm-check" type="checkbox" ${checked} onchange="updateRolePermission('${role}','${key}',this.checked)"></td>`;
+      });
+      rows += '</tr>';
     });
-    html += '</div>';
   });
-  html += `<div style="margin-top:10px;padding:10px 12px;background:var(--purple-bg);border-radius:var(--r);font-size:11px;color:var(--purple);line-height:1.6">
-    <strong>🔧 Procurement role isn't listed here on purpose.</strong> These checkboxes apply to the regular Inventory/Orders screens, which Procurement never opens — his access is a fixed, separate set of views (Products/Orders with no pricing or customer data, plus Quality) rather than something controlled by these toggles.
-  </div>`;
-  html += `<div style="margin-top:10px"><button class="btn btn-success btn-sm" onclick="persist();notify('Permissions saved!','success')">💾 Save Permissions</button></div>`;
-  return html;
+  return `
+    <p style="font-size:11px;color:var(--text3);margin-bottom:12px">Tick a box to grant that permission to the role in its column. These apply to the regular Inventory/Orders/Quotation screens.</p>
+    <div class="perm-matrix-wrap">
+      <table class="perm-matrix">
+        <thead><tr><th>Permission</th>${roles.map(r => `<th><div class="perm-role-head">${roleMeta[r].icon} ${roleMeta[r].label}</div></th>`).join('')}</tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+    <div class="form-note" style="margin-top:12px">
+      <span>🔧</span><span><strong>Procurement role isn't listed here on purpose.</strong> His access is a fixed, separate set of views (Products/Orders with no pricing or customer data, plus Quality and Samples) rather than something controlled by these toggles.</span>
+    </div>
+    <div style="margin-top:14px"><button class="btn btn-success btn-sm" onclick="persist();notify('Permissions saved!','success')">💾 Save Permissions</button></div>`;
 }
 
 function s_updateTeam(index, field, value) {
@@ -9350,15 +9402,36 @@ function s_removeTeam(index) {
 }
 
 function s_addTeam() {
-  const email = prompt('Enter team member email:');
-  if (!email) return;
-  const name = prompt('Enter name:') || email.split('@')[0];
-  const role = prompt('Role (admin/manager/user/procurement):') || 'user';
+  document.getElementById('team-form-body').innerHTML = `
+    <div class="form-avatar" id="team-avatar">👤</div>
+    <div class="form-sec">
+      <div class="fg fg-2">
+        <div class="ff fg-full"><label>Email<span class="req-mark">*</span></label><input id="team-email" type="email" placeholder="name@company.com" oninput="const n=document.getElementById('team-name');if(!n.dataset.touched)n.value=this.value.split('@')[0];document.getElementById('team-avatar').textContent=(n.value||this.value).slice(0,2).toUpperCase()||'👤'"></div>
+        <div class="ff fg-full"><label>Name</label><input id="team-name" placeholder="Full name" oninput="this.dataset.touched='1';document.getElementById('team-avatar').textContent=(this.value||document.getElementById('team-email').value).slice(0,2).toUpperCase()||'👤'"></div>
+        <div class="ff fg-full"><label>Role</label><select id="team-role">
+          <option value="user">👤 User</option>
+          <option value="manager">📋 Manager</option>
+          <option value="admin">🔑 Admin</option>
+          <option value="procurement">🔧 Procurement</option>
+        </select></div>
+      </div>
+      <div class="form-note"><span>ℹ️</span><span>Procurement gets a masked view — no customer names, pricing, or contact details anywhere in the app. Other roles are controlled from Permissions.</span></div>
+    </div>`;
+  openModal('modal-team-member');
+  setTimeout(() => document.getElementById('team-email')?.focus(), 150);
+}
+function saveTeamMemberForm() {
+  const email = document.getElementById('team-email').value.trim();
+  if (!email) { notify('Enter an email address', 'warning'); return; }
+  if ((app.settings.team || []).some(t => (t.email || '').toLowerCase() === email.toLowerCase())) { notify('That email is already on the team', 'warning'); return; }
+  const name = document.getElementById('team-name').value.trim() || email.split('@')[0];
+  const role = document.getElementById('team-role').value;
   app.settings.team.push({ email, name, role, active: true });
   persist();
+  closeModal('modal-team-member');
   renderSettings();
   renderTeamDashboard();
-  notify('Team member added!', 'success');
+  notify('✅ Team member added!', 'success');
 }
 
 function toggleColumn(key, checked) { 
@@ -9396,43 +9469,78 @@ function renderCustomerList(q) {
   el.innerHTML = html;
 }
 
-function addCustomer() {
-  const name = prompt('Customer name:');
-  if (!name) return;
-  const email = prompt('Email (optional):') || '';
-  const phone = prompt('Phone (optional):') || '';
-  const address = prompt('Address (optional):') || '';
-  const gst = prompt('GST (optional):') || '';
-  const country = prompt('Country (optional — shown to Procurement role instead of the name):') || '';
-  const nickname = prompt('Nickname/alias (optional — shown to Procurement role instead of the name, takes priority over country):') || '';
-  app.customers.push({ id: Date.now(), name, email, phone, address, gst, country, nickname, createdAt: new Date().toISOString() });
-  persist();
-  renderCustomerList();
-  notify('Customer added!', 'success');
+function customerInitials(name) {
+  const parts = (name || '').trim().split(/\s+/).filter(Boolean);
+  if (!parts.length) return '👤';
+  return parts.length === 1 ? parts[0].slice(0, 2).toUpperCase() : (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
 }
-
-function editCustomer(id) {
-  const c = app.customers.find(c => c.id == id);
-  if (!c) return;
-  const name = prompt('Customer name:', c.name);
-  if (name === null) return;
-  const email = prompt('Email:', c.email || '');
-  const phone = prompt('Phone:', c.phone || '');
-  const address = prompt('Address:', c.address || '');
-  const gst = prompt('GST:', c.gst || '');
-  const country = prompt('Country (shown to Procurement role instead of the name):', c.country || '');
-  const nickname = prompt('Nickname/alias (shown to Procurement role instead of the name, takes priority over country):', c.nickname || '');
-  c.name = name || c.name;
-  c.email = email;
-  c.phone = phone;
-  c.address = address;
-  c.gst = gst;
-  c.country = country;
-  c.nickname = nickname;
+function updateCustomerAvatarPreview() {
+  const av = document.getElementById('cust-avatar');
+  if (av) av.textContent = customerInitials(document.getElementById('cust-name')?.value || '');
+}
+function customerFormHTML(c) {
+  c = c || {};
+  return `
+    <div class="form-avatar" id="cust-avatar">${customerInitials(c.name)}</div>
+    <div class="form-sec">
+      <div class="form-sec-title">Basic Info</div>
+      <div class="fg fg-2">
+        <div class="ff fg-full"><label>Customer / Company Name<span class="req-mark">*</span></label><input id="cust-name" value="${esc(c.name || '')}" placeholder="e.g. BRAT-MET SP. Z O.O." oninput="updateCustomerAvatarPreview()" autocomplete="off"></div>
+        <div class="ff"><label>Nickname / Alias</label><input id="cust-nickname" value="${esc(c.nickname || '')}" placeholder="e.g. Poland Client A"></div>
+        <div class="ff"><label>Country</label><input id="cust-country" value="${esc(c.country || '')}" placeholder="e.g. Poland"></div>
+      </div>
+      <div class="form-note"><span>🔒</span><span>Nickname or Country is shown to the Procurement role instead of the real name — nickname takes priority if both are filled.</span></div>
+    </div>
+    <div class="form-sec">
+      <div class="form-sec-title">Contact Details</div>
+      <div class="fg fg-2">
+        <div class="ff"><label>Email</label><input id="cust-email" type="email" value="${esc(c.email || '')}" placeholder="name@company.com"></div>
+        <div class="ff"><label>Phone</label><input id="cust-phone" value="${esc(c.phone || '')}" placeholder="+00 000 000 0000"></div>
+        <div class="ff fg-full"><label>Address</label><textarea id="cust-address" rows="2" placeholder="Street, city, postal code…">${esc(c.address || '')}</textarea></div>
+      </div>
+    </div>
+    <div class="form-sec">
+      <div class="form-sec-title">Business Details</div>
+      <div class="fg fg-2">
+        <div class="ff"><label>GST / Tax ID</label><input id="cust-gst" value="${esc(c.gst || '')}" placeholder="e.g. VAT / GST number"></div>
+      </div>
+    </div>`;
+}
+function openCustomerForm(id) {
+  app._customerFormId = id || null;
+  const c = id ? app.customers.find(x => x.id == id) : null;
+  document.getElementById('cust-form-title').textContent = c ? '✏️ Edit Customer' : '👤 New Customer';
+  document.getElementById('cust-form-body').innerHTML = customerFormHTML(c);
+  openModal('modal-customer');
+  setTimeout(() => document.getElementById('cust-name')?.focus(), 150);
+}
+function addCustomer() { openCustomerForm(null); }
+function editCustomer(id) { openCustomerForm(id); }
+function saveCustomerForm() {
+  const name = document.getElementById('cust-name').value.trim();
+  if (!name) { notify('Enter the customer / company name', 'warning'); document.getElementById('cust-name').focus(); return; }
+  const fields = {
+    name,
+    nickname: document.getElementById('cust-nickname').value.trim(),
+    country: document.getElementById('cust-country').value.trim(),
+    email: document.getElementById('cust-email').value.trim(),
+    phone: document.getElementById('cust-phone').value.trim(),
+    address: document.getElementById('cust-address').value.trim(),
+    gst: document.getElementById('cust-gst').value.trim()
+  };
+  const id = app._customerFormId;
+  if (id) {
+    const c = app.customers.find(x => x.id == id);
+    if (c) Object.assign(c, fields);
+    notify('✅ Customer updated', 'success');
+  } else {
+    app.customers.push({ id: Date.now(), ...fields, createdAt: new Date().toISOString() });
+    notify('✅ Customer added', 'success');
+  }
   persist();
+  closeModal('modal-customer');
   renderCustomerList();
   renderQuality();
-  notify('Customer updated!', 'success');
 }
 
 function delCustomer(id) {
@@ -9624,11 +9732,22 @@ function printCurrentModal() {
 }
 function openModal(id) {
   const el = document.getElementById(id);
-  if (el) el.classList.add('open');
+  if (!el) return;
+  el.classList.remove('anim-in');
+  el.classList.add('open');
+  // Force a reflow before adding anim-in so the fade/scale-in transition
+  // actually plays instead of the browser collapsing display:none→flex and
+  // opacity 0→1 into a single frame with nothing to animate from — this one
+  // fix is what makes every modal in the app (not just this one) ease in
+  // instead of just snapping into place.
+  void el.offsetWidth;
+  el.classList.add('anim-in');
 }
 function closeModal(id) {
   const el = document.getElementById(id);
-  if (el) el.classList.remove('open');
+  if (!el) return;
+  el.classList.remove('open');
+  el.classList.remove('anim-in');
 }
 
 // ── COLUMN VISIBILITY (hides header + data together, like Excel's hide column) ──
@@ -9814,7 +9933,7 @@ function initColumnResize() {
   document.addEventListener('keydown', function(e) {
     if (e.ctrlKey && e.key === 's') { e.preventDefault(); persist(); notify('Saved!', 'success'); }
     if (e.ctrlKey && e.key === 'f') { e.preventDefault(); document.getElementById('search')?.focus(); }
-    if (e.key === 'Escape') { document.querySelectorAll('.modal-backdrop.open').forEach(el => el.classList.remove('open')); }
+    if (e.key === 'Escape') { document.querySelectorAll('.modal-backdrop.open').forEach(el => { el.classList.remove('open'); el.classList.remove('anim-in'); }); }
   });
   // Re-check enquiry follow-up/SLA deadlines periodically, so an overdue
   // chime still fires from date rollover even if you leave the app open
