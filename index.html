@@ -9373,7 +9373,10 @@ function findCustomerByName(name) {
   if (!name) return null;
   return app.customers.find(c => (c.name || '').toLowerCase() === (name || '').toLowerCase()) || null;
 }
-const GAS_SCRIPT_CODE = `function doPost(e) {
+const GAS_SCRIPT_CODE = `function doGet(e) {
+  return ContentService.createTextOutput('FOB Manager Pro email script is running. POST to this URL to send mail.');
+}
+function doPost(e) {
   try {
     var to = e.parameter.to;
     var subject = e.parameter.subject;
@@ -9414,6 +9417,20 @@ function renderEmailSetupHTML() {
       <div class="form-note"><span>${me?.gasUrl ? '✅' : 'ℹ️'}</span><span>${me?.gasUrl ? 'Your Gmail is connected — you can send email from Enquiries, Quotations, Samples and Payments.' : "Your account (" + esc(getCurrentUser().email || '') + ") doesn't have a Send-URL yet — add it in Settings → Team once you've deployed the script above."}</span></div>
       <div style="margin-top:10px"><button class="btn btn-secondary btn-sm" onclick="showStgTab('team_mgmt')">👥 Go to Team Management</button></div>
     </div>
+    ${me?.gasUrl ? `<div class="form-sec">
+      <div class="form-sec-title">Is the deployment itself reachable?</div>
+      <p style="font-size:11px;color:var(--text2);line-height:1.6;margin-bottom:8px">Open your Send-URL directly in a new tab. You should see the text "FOB Manager Pro email script is running." If instead you see a Google sign-in page, an error, or nothing loads, the deployment's access isn't set correctly — go back into Apps Script → Deploy → Manage deployments → edit (pencil icon) → make sure <strong>Who has access</strong> is set to <strong>Anyone</strong>, then re-deploy (this creates a new version, so the URL sometimes changes — re-copy it into Team afterward).</p>
+      <a href="${esc(me.gasUrl)}" target="_blank"><button class="btn btn-secondary btn-sm" type="button">🔗 Open My Send-URL</button></a>
+    </div>` : ''}
+    <div class="form-sec">
+      <div class="form-sec-title">Common reasons it doesn't send</div>
+      <ul style="font-size:11px;color:var(--text2);line-height:1.9;padding-left:18px;margin:0">
+        <li><strong>Wrong access level</strong> — must be "Anyone," not "Anyone with a Google account" or "Only myself."</li>
+        <li><strong>Copied the wrong URL</strong> — use the Web app URL from Deploy → Manage deployments (ends in <code>/exec</code>), not the editor's preview/test URL (ends in <code>/dev</code>).</li>
+        <li><strong>Edited the script after deploying</strong> — Apps Script doesn't auto-update a live deployment; you need Deploy → Manage deployments → edit → Deploy again after any code change.</li>
+        <li><strong>Landed in Spam</strong> — the very first email from a brand-new script sometimes gets flagged; check the recipient's spam folder once.</li>
+      </ul>
+    </div>
     <div class="form-sec">
       <div class="form-sec-title">4. Test it</div>
       <div class="fg fg-2">
@@ -9433,28 +9450,59 @@ function sendTestEmail() {
   });
 }
 // Core send — every "Send Email" button in the app funnels through here.
-// Uses mode:'no-cors' because Apps Script Web Apps don't return
-// browser-readable CORS headers on cross-origin POSTs — the request still
-// goes through and Gmail still sends it, we just can't read the JSON
-// response back to confirm it, so this reports success optimistically.
+// Deliberately NOT using fetch(): Apps Script Web Apps 302-redirect POST
+// requests to a script.googleusercontent.com URL, and fetch() can silently
+// drop the form data across that redirect — the request "succeeds" but
+// e.parameter arrives empty in doPost, so nothing gets sent and nothing
+// errors either. A real browser form submission through a hidden iframe
+// follows that redirect the normal way, the way clicking Submit on any
+// web form would, so the parameters actually arrive.
 function sendAppEmail({ toEmail, toName, subject, message, onDone }) {
   const url = getMyGasUrl();
   if (!url) { notify('Connect your Gmail first — see Settings → Email Setup, then paste your Send-URL in Settings → Team', 'warning'); if (onDone) onDone(false); return; }
   if (!toEmail) { notify('No recipient email address', 'warning'); if (onDone) onDone(false); return; }
   const user = getCurrentUser();
-  const fd = new FormData();
-  fd.append('to', toEmail);
-  fd.append('subject', subject || '');
-  fd.append('message', message || '');
-  fd.append('replyTo', user.email || '');
-  fd.append('fromName', user.name || user.email || '');
-  fetch(url, { method: 'POST', mode: 'no-cors', body: fd }).then(() => {
+  const frameName = 'gas-send-frame-' + Date.now();
+  const iframe = document.createElement('iframe');
+  iframe.name = frameName;
+  iframe.style.display = 'none';
+  document.body.appendChild(iframe);
+
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = url;
+  form.target = frameName;
+  form.style.display = 'none';
+  const fields = { to: toEmail, subject: subject || '', message: message || '', replyTo: user.email || '', fromName: user.name || user.email || '' };
+  Object.entries(fields).forEach(([k, v]) => {
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = k; inp.value = v;
+    form.appendChild(inp);
+  });
+  document.body.appendChild(form);
+
+  let settled = false;
+  const cleanup = () => setTimeout(() => { form.remove(); iframe.remove(); }, 3000);
+  iframe.onload = () => {
+    if (settled) return;
+    settled = true;
     notify('✅ Email sent to ' + toEmail, 'success');
     if (onDone) onDone(true);
-  }).catch(err => {
-    notify('❌ Failed to send: ' + (err?.message || 'Check your internet connection'), 'error');
-    if (onDone) onDone(false);
-  });
+    cleanup();
+  };
+  // Some browsers don't reliably fire onload for a cross-origin iframe
+  // navigation — if it hasn't fired after a few seconds, the form was
+  // still submitted either way, so report success rather than leave the
+  // button stuck on "Sending…" forever.
+  setTimeout(() => {
+    if (settled) return;
+    settled = true;
+    notify('✅ Email sent to ' + toEmail + ' — check your Gmail Sent folder to confirm', 'success');
+    if (onDone) onDone(true);
+    cleanup();
+  }, 3500);
+
+  form.submit();
 }
 // Compose modal shared by every context (Enquiry, Quotation, Sample, Payment) —
 // prefilled per-context but always editable before it actually sends.
