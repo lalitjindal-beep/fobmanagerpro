@@ -73,6 +73,9 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .view{display:none;padding:20px 24px;min-height:calc(100vh - 56px)}
 .view.active{display:block}
 .toolbar{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;box-shadow:var(--shadow-xs)}
+#fab-scroll-top{position:fixed;right:20px;bottom:24px;z-index:500;width:46px;height:46px;border-radius:50%;background:var(--primary,#2563eb);color:#fff;border:none;box-shadow:0 4px 14px rgba(0,0,0,.25);font-size:18px;cursor:pointer;display:none;align-items:center;justify-content:center;transition:opacity .15s ease}
+#fab-scroll-top.show{display:flex}
+#fab-scroll-top:active{transform:scale(.94)}
 .search-wrap{position:relative;flex:1;min-width:200px;max-width:320px}
 .search-icon{position:absolute;left:10px;top:50%;transform:translateY(-50%);color:var(--text3);pointer-events:none;font-size:12px}
 .search-input{width:100%;height:32px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 28px 0 30px;font-family:var(--font);font-size:12px;font-weight:400;background:var(--surface);color:var(--text);outline:none}
@@ -791,6 +794,8 @@ table{min-width:820px}
     <div class="filter-pills" id="filter-pills"></div>
     <div class="tsep"></div>
     <button class="btn btn-primary btn-sm" onclick="addItem()" id="btn-add-item">＋ Add</button>
+    <button class="btn btn-secondary btn-sm" onclick="jumpToListTop()" title="Jump to the first row">⤒ Top</button>
+    <button class="btn btn-secondary btn-sm" onclick="jumpToListBottom()" title="Load and jump to the last row">⤓ Bottom</button>
     <button class="btn btn-info btn-sm" onclick="downloadBulkTemplate()">📊 Template</button>
     <button class="btn btn-secondary btn-sm" onclick="document.getElementById('file-bulk').click()">📤 Import/Update</button>
     <button class="btn btn-amber btn-sm" id="btn-undo-import" style="display:none" onclick="undoLastImport()">↩️ Undo Last Import</button>
@@ -1848,6 +1853,26 @@ function getItemByCode(code) {
   const searchCode = code.trim().toUpperCase();
   return app.items.find(r => (r.item || '').trim().toUpperCase() === searchCode);
 }
+// Auto-generates a unique item code from a category's prefix (Settings →
+// Category Prefixes), e.g. CASTING -> CS0001, CS0002, ... Falls back to the
+// first 2 letters of the category name if no prefix is configured. Scans
+// existing codes for the highest number already used with that prefix so
+// it keeps counting up correctly even with 50k+ existing items, and skips
+// past any code that's already taken just in case of gaps/manual codes.
+function generateItemCode(category) {
+  const prefixes = (app.settings && app.settings.categoryPrefixes) || {};
+  const prefix = (prefixes[category] || String(category || 'IT').replace(/[^A-Z]/gi, '').slice(0, 2).toUpperCase() || 'IT');
+  const re = new RegExp('^' + prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '(\\d+)$', 'i');
+  let maxN = 0;
+  for (const it of app.items) {
+    const m = (it.item || '').match(re);
+    if (m) { const n = parseInt(m[1], 10); if (n > maxN) maxN = n; }
+  }
+  let n = maxN + 1;
+  let code = prefix + String(n).padStart(4, '0');
+  while (getItemByCode(code)) { n++; code = prefix + String(n).padStart(4, '0'); }
+  return code;
+}
 function getStatus(raw) {
   const orig = (raw || '').trim();
   if (!orig) return null;
@@ -1978,10 +2003,10 @@ function playNotificationSound(kind) {
 function today() { return new Date().toISOString().split('T')[0]; }
 
 function normalizeSearch(text) { return (text || '').toLowerCase().replace(/[^a-z0-9]/g, ''); }
-function matchesSearch(item, searchQ) {
-  if (!searchQ) return true;
-  const normalized = normalizeSearch(searchQ);
-  if (!normalized) return true;
+// normalizedQ is pre-computed once by getFiltered() and passed in, instead
+// of every one of 50k items re-normalizing the same constant search string.
+function matchesSearch(item, normalizedQ) {
+  if (!normalizedQ) return true;
   const fields = [
     item.item, item.refCode, item.category, item.type, 
     item.material, item.remarks, item.comment, 
@@ -1989,25 +2014,26 @@ function matchesSearch(item, searchQ) {
   ];
   return fields.some(field => {
     if (!field) return false;
-    return normalizeSearch(field).includes(normalized);
+    return normalizeSearch(field).includes(normalizedQ);
   });
 }
 
 // ── DUPLICATE FINDER ──────────────────────────────────────────────────
 function findDuplicates() {
-  const map = new Map(), dup = [];
-  app.items.forEach(item => {
+  const map = new Map();
+  const dupIds = new Set();
+  for (const item of app.items) {
     const code = (item.item || '').trim().toUpperCase();
-    if (!code || code === '0' || code === 'NAN') return;
-    if (map.has(code)) {
-      const ex = map.get(code);
-      if (!ex.dup) ex.dup = [];
-      ex.dup.push(item.id);
-      if (!dup.includes(item.id)) dup.push(item.id);
-      if (!dup.includes(ex.id)) dup.push(ex.id);
-    } else map.set(code, { id: item.id, code, dup: [] });
-  });
-  return { duplicates: dup, duplicateIds: new Set(dup) };
+    if (!code || code === '0' || code === 'NAN') continue;
+    const existing = map.get(code);
+    if (existing) {
+      dupIds.add(item.id);
+      dupIds.add(existing.id);
+    } else {
+      map.set(code, item);
+    }
+  }
+  return { duplicates: [...dupIds], duplicateIds: dupIds };
 }
 
 function showDuplicateManager() {
@@ -2573,20 +2599,22 @@ function handleFabClick() {
 // detail page that reuses the exact same detail content the desktop
 // expand-row already shows (expandHTML) — same tested fields and edit
 // controls, just presented as a page instead of an inline table row.
-function renderInventoryMobileCards() {
+function renderInventoryMobileCards(rowsIn) {
   const el = document.getElementById('item-cards');
   const invView = document.getElementById('view-inventory');
   if (!el || !invView) return;
   if (!isMobileViewport()) { invView.classList.remove('mobile-cards'); return; }
   invView.classList.add('mobile-cards');
   const user = getCurrentUser();
-  const rows = getFiltered();
+  const rows = rowsIn || getFiltered();
   if (!rows.length) { el.innerHTML = '<div class="empty-state"><h3>No items found</h3></div>'; return; }
   const decimals = app.settings.system.fobDecimals || 4;
   const totalCount = rows.length;
   const visibleCount = Math.min(_invRenderedCount, totalCount);
-  const visibleRows = rows.slice(0, visibleCount);
-  let html = visibleRows.map(r => {
+  const hasMore = visibleCount < totalCount;
+  const visibleRows = _invAnchorEnd ? rows.slice(totalCount - visibleCount, totalCount) : rows.slice(0, visibleCount);
+  const loadMoreBtn = `<div id="inv-load-more-row" style="text-align:center;padding:14px"><button class="btn btn-secondary btn-sm" onclick="loadMoreInventoryRows()">${_invAnchorEnd ? '⬆️' : '⬇️'} Load ${Math.min(INV_BATCH_SIZE, totalCount - visibleCount)} more (${totalCount - visibleCount} remaining)</button></div>`;
+  let cardsHtml = visibleRows.map(r => {
     const eur = calcFOB(r.pp, r.marg, r.fob, r.exrate);
     const sym = curSym(r.currency || 'EUR');
     const color = getCategoryColor(r.category);
@@ -2602,9 +2630,7 @@ function renderInventoryMobileCards() {
       </div>
     </div>`;
   }).join('');
-  if (visibleCount < totalCount) {
-    html += `<div id="inv-load-more-row" style="text-align:center;padding:14px"><button class="btn btn-secondary btn-sm" onclick="loadMoreInventoryRows()">⬇️ Load ${Math.min(INV_BATCH_SIZE, totalCount - visibleCount)} more (${totalCount - visibleCount} remaining)</button></div>`;
-  }
+  const html = _invAnchorEnd ? (hasMore ? loadMoreBtn : '') + cardsHtml : cardsHtml + (hasMore ? loadMoreBtn : '');
   el.innerHTML = html;
 }
 function openMobileItemDetail(id) {
@@ -2713,14 +2739,14 @@ function exportCurrentList() {
 }
 
 // ── INVENTORY RENDER ──────────────────────────────────────────────────────
-function renderSummary() {
+function renderSummary(dupCountIn) {
   const cats = new Set(app.items.map(r => r.category).filter(Boolean));
   const coded = app.items.filter(r => r.item && r.item !== '0' && r.item !== 'nan').length;
   const decimals = app.settings.system.fobDecimals || 4;
   const avgE = app.items.length ? app.items.reduce((s, r) => s + calcFOB(r.pp, r.marg, r.fob, r.exrate), 0) / app.items.length : 0;
   const totalQV = app.quotations.reduce((s, q) => s + q.total, 0);
   const pending = app.pendingApprovals.filter(a => a.status === 'pending').length;
-  const dupCount = findDuplicates().duplicateIds.size;
+  const dupCount = dupCountIn !== undefined ? dupCountIn : findDuplicates().duplicateIds.size;
   document.getElementById('inv-summary').innerHTML = `
     <div class="scard"><div class="val">${app.items.length}</div><div class="lbl">Items</div></div>
     <div class="scard"><div class="val">${cats.size}</div><div class="lbl">Categories</div></div>
@@ -2775,9 +2801,10 @@ function applyFiltersDebounced() {
 function applyFilters() { app.searchQ = document.getElementById('search').value.toLowerCase().trim(); document.getElementById('search-clear').style.display = app.searchQ ? 'block' : 'none'; renderInventory(); }
 
 function getFiltered() {
+  const normalizedQ = normalizeSearch(app.searchQ);
   let rows = app.items.filter(r => {
     if (app.filterCat !== 'ALL' && r.category !== app.filterCat) return false;
-    return matchesSearch(r, app.searchQ);
+    return matchesSearch(r, normalizedQ);
   });
   if (app.sortKey) {
     rows.sort((a, b) => {
@@ -2795,12 +2822,31 @@ function getFiltered() {
 // infinite-scroll feed) as the user actually scrolls down, so the DOM only
 // ever holds as many rows as have been reached rather than the whole catalog.
 let _invLastFilterKey = '';
+// When true, the rendered window is anchored to the END of the filtered
+// list (used by "Jump to bottom") instead of the start — so we only ever
+// build DOM for one batch of rows, never all 50k at once.
+let _invAnchorEnd = false;
+// Cached duplicate-id set, reused across pagination-only renders (see
+// renderInventory's `paginateOnly` below) so scrolling doesn't repeatedly
+// re-scan all 50k items just to re-decide something that hasn't changed.
+let _invDupIdsCache = null;
+// Cached filtered+sorted row list, reused the same way — filtering/sorting
+// 50k rows on every single "load more" scroll tick was the main source of
+// scroll jank; it's now only recomputed when search/filter/sort/data
+// actually changes.
+let _invFilteredCache = null;
 
-function renderInventory() {
-  buildFilterBar();
-  renderSummary();
+// `paginateOnly` is set by loadMoreInventoryRows() and the infinite-scroll
+// trigger — those only reveal more of the already-filtered list, so the
+// category pills, summary cards, and duplicate scan (all O(n) full-dataset
+// passes) are skipped and the cached results reused. Anything that can
+// actually change those — add/edit/delete, import, search, filter, sort,
+// jump-to-top/bottom — calls renderInventory() with no args and gets a
+// full recompute.
+function renderInventory(opts) {
+  const paginateOnly = !!(opts && opts.paginateOnly);
   const user = getCurrentUser();
-  const rows = getFiltered();
+  const rows = (paginateOnly && _invFilteredCache) ? _invFilteredCache : (_invFilteredCache = getFiltered());
 
   // Reset back to the first batch whenever the actual filtered/sorted result
   // set changes (new search, new category, new sort, items added/removed) —
@@ -2809,38 +2855,122 @@ function renderInventory() {
   const filterKey = app.filterCat + '|' + app.searchQ + '|' + app.sortKey + '|' + app.sortDir + '|' + rows.length;
   if (filterKey !== _invLastFilterKey) {
     _invRenderedCount = INV_BATCH_SIZE;
+    _invAnchorEnd = false;
     _invLastFilterKey = filterKey;
+  }
+
+  let dupIds;
+  if (paginateOnly && _invDupIdsCache) {
+    dupIds = _invDupIdsCache;
+  } else {
+    buildFilterBar();
+    dupIds = findDuplicates().duplicateIds;
+    _invDupIdsCache = dupIds;
+    renderSummary(dupIds.size);
   }
 
   const totalCount = rows.length;
   const visibleCount = Math.min(_invRenderedCount, totalCount);
-  document.getElementById('row-count').textContent = totalCount > visibleCount
+  let countHtml = totalCount > visibleCount
     ? `Showing ${visibleCount} of ${totalCount} matching items (${app.items.length} total) — scroll down for more`
     : `Showing ${rows.length} of ${app.items.length} items`;
+  if (dupIds.size > 0) {
+    countHtml += ` | <span style="color:var(--amber)">⚠️ ${dupIds.size} duplicates found</span> <button class="btn btn-amber btn-xs" onclick="showDuplicateManager()">Manage</button>`;
+  }
+  document.getElementById('row-count').innerHTML = countHtml;
   updateSelBar();
   if (!rows.length) { document.getElementById('tbody').innerHTML = '<tr><td colspan="18" style="text-align:center;padding:36px;color:var(--text3);font-weight:500">No items found. Add your first item!</td></tr>'; return; }
 
-  const visibleRows = rows.slice(0, visibleCount);
-  let html = visibleRows.map(r => rowHTML(r, user)).join('');
-  if (visibleCount < totalCount) {
-    html += `<tr id="inv-load-more-row"><td colspan="18" style="text-align:center;padding:14px"><button class="btn btn-secondary btn-sm" onclick="loadMoreInventoryRows()">⬇️ Load ${Math.min(INV_BATCH_SIZE, totalCount - visibleCount)} more (${totalCount - visibleCount} remaining)</button></td></tr>`;
+  const hasMore = visibleCount < totalCount;
+  const loadMoreBtn = `<tr id="inv-load-more-row"><td colspan="18" style="text-align:center;padding:14px"><button class="btn btn-secondary btn-sm" onclick="loadMoreInventoryRows()">${_invAnchorEnd ? '⬆️' : '⬇️'} Load ${Math.min(INV_BATCH_SIZE, totalCount - visibleCount)} more (${totalCount - visibleCount} remaining)</button></td></tr>`;
+
+  let html;
+  if (_invAnchorEnd) {
+    // Anchored to the end: show the LAST `visibleCount` rows, and "load
+    // more" pulls in earlier rows above them.
+    const visibleRows = rows.slice(totalCount - visibleCount, totalCount);
+    html = (hasMore ? loadMoreBtn : '') + visibleRows.map(r => rowHTML(r, user)).join('');
+  } else {
+    const visibleRows = rows.slice(0, visibleCount);
+    html = visibleRows.map(r => rowHTML(r, user)).join('') + (hasMore ? loadMoreBtn : '');
   }
   document.getElementById('tbody').innerHTML = html;
-  highlightDuplicates();
-  renderInventoryMobileCards();
+  highlightDuplicates(dupIds);
+  renderInventoryMobileCards(rows);
 }
 
 function loadMoreInventoryRows() {
   _invRenderedCount += INV_BATCH_SIZE;
+  renderInventory({ paginateOnly: true });
+}
+
+// Expands the rendered batch (if needed) so a specific item's row actually
+// exists in the DOM, then scrolls to it. Used after add/duplicate, and by
+// the "Jump to bottom" control, so we're never stuck scrollIntoView-ing an
+// element that was never rendered because it's row #48,000-something.
+function revealItemRow(id, opts) {
+  const rows = getFiltered();
+  const idx = rows.findIndex(r => r.id === id);
+  if (idx === -1) return false;
+  _invAnchorEnd = false;
+  if (idx + 1 > _invRenderedCount) {
+    _invRenderedCount = idx + 1;
+    renderInventory();
+  }
+  setTimeout(() => {
+    if (isMobileViewport() && opts && opts.mobileDetail) { openMobileItemDetail(id); return; }
+    const el = document.getElementById('irow-' + id);
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      if (opts && opts.click) el.click();
+    }
+    if (opts && opts.focusCode) {
+      const codeInput = document.getElementById('itemCode-' + id);
+      if (codeInput) setTimeout(() => codeInput.focus(), 300);
+    }
+  }, 100);
+  return true;
+}
+
+// Toolbar "Top" / "Bottom" controls for jumping across a 50k-row list
+// without manually clicking "Load more" hundreds of times. Both only ever
+// render ONE batch (INV_BATCH_SIZE rows) — "Bottom" renders the last batch
+// via the end-anchored mode above, instead of forcing all 50k rows into the
+// DOM at once (which is what was causing the page to freeze).
+function jumpToListTop() {
+  _invAnchorEnd = false;
+  _invRenderedCount = INV_BATCH_SIZE;
   renderInventory();
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  const list = document.getElementById('view-inventory');
+  if (list) list.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+function jumpToListBottom() {
+  const rows = getFiltered();
+  if (!rows.length) return;
+  _invAnchorEnd = true;
+  _invRenderedCount = INV_BATCH_SIZE;
+  renderInventory();
+  setTimeout(() => {
+    const tbody = document.getElementById('tbody');
+    const lastRow = tbody && tbody.lastElementChild;
+    if (lastRow) lastRow.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    else window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+  }, 100);
 }
 
 // Auto-load the next batch as the user scrolls near the bottom of the
 // currently-rendered rows, so scrolling feels continuous instead of
-// requiring a manual click every 200 rows. Throttled to one check per
+// requiring a manual click every 200 rows. Also toggles a floating
+// "back to top" button once you've scrolled far enough that the toolbar
+// (with the Top/Bottom buttons) has scrolled off screen — otherwise, after
+// jumping to the bottom of a 50k-item list, there'd be no way back up
+// without scrolling all the way manually. Throttled to one check per
 // animation frame so it doesn't fire repeatedly during a single scroll.
 let _invScrollTicking = false;
 window.addEventListener('scroll', () => {
+  const fab = document.getElementById('fab-scroll-top');
+  if (fab) fab.classList.toggle('show', window.scrollY > 400);
   if (app.currentView !== 'inventory') return;
   if (_invScrollTicking) return;
   _invScrollTicking = true;
@@ -3126,6 +3256,9 @@ function updF(id, field, value) {
       }
       return;
     }
+    // The user is now typing their own code by hand, so stop auto-syncing
+    // it to the category prefix.
+    row._autoCode = false;
   }
   
   if (field === 'pp' && !hasPermission('canEditPrice') && user.role !== 'admin') {
@@ -3134,6 +3267,13 @@ function updF(id, field, value) {
   }
   const oldValue = row[field];
   row[field] = value;
+  // If the code hasn't been hand-edited yet, keep it in sync with the
+  // category's prefix so switching category (e.g. CASTING -> FORGING)
+  // regenerates the code (e.g. CS0004 -> FG0012) instead of leaving a
+  // mismatched prefix behind.
+  if (field === 'category' && row._autoCode) {
+    row.item = generateItemCode(value);
+  }
   persist();
   if (field === 'comment') {
     const st = getStatus(value);
@@ -3144,6 +3284,10 @@ function updF(id, field, value) {
     logActivity('FIELD_UPDATE', { item: row.item, field: field, oldValue: oldValue, newValue: value }, id);
   }
   if (['pp', 'marg', 'fob', 'exrate', 'currency'].includes(field)) calcUpdate(id);
+  // Category/code changes affect the code+category badge shown in the
+  // collapsed row too, so refresh the (small, batch-limited) rendered
+  // window rather than just patching the expand panel.
+  if (['category', 'item'].includes(field)) renderInventory();
 }
 
 function calcUpdate(id) {
@@ -3251,11 +3395,12 @@ function resetDef(id) {
 function addItem() {
   if (!hasPermission('canAddItem')) { notify('You don\'t have permission to add items', 'error'); return; }
   const d = app.settings.defaults;
+  const defaultCategory = 'OTHER';
   const newItem = {
     id: uid(),
-    item: '',
+    item: generateItemCode(defaultCategory),
     refCode: '',
-    category: 'OTHER',
+    category: defaultCategory,
     type: '',
     material: '',
     weight: 0,
@@ -3271,20 +3416,18 @@ function addItem() {
     prodRemarks: '',
     priceHistory: [],
     photo: null,
-    pdfAttachment: null
+    pdfAttachment: null,
+    // Marks the code as auto-generated from the category prefix — while
+    // this stays true, changing the category dropdown regenerates the
+    // code to match. Typing a custom code by hand clears the flag.
+    _autoCode: true
   };
-  app.items.push(newItem);
+  app.items.unshift(newItem);
   persist();
   renderInventory();
   app.expandedId = newItem.id;
-  setTimeout(() => {
-    if (isMobileViewport()) { openMobileItemDetail(newItem.id); return; }
-    const el = document.getElementById('irow-' + newItem.id);
-    if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'center' }); el.click(); }
-    const codeInput = document.getElementById('itemCode-' + newItem.id);
-    if (codeInput) setTimeout(() => codeInput.focus(), 300);
-  }, 100);
-  notify('New item added - enter item code', 'success');
+  revealItemRow(newItem.id, { mobileDetail: true, click: true, focusCode: true });
+  notify(`New item added — code ${newItem.item} (edit if needed)`, 'success');
 }
 
 function deleteItem(id) {
@@ -3312,9 +3455,10 @@ function dupItem(id) {
   }
   newItem.item = newCode;
   newItem.priceHistory = [];
-  app.items.push(newItem);
+  app.items.unshift(newItem);
   persist();
   renderInventory();
+  revealItemRow(newItem.id);
   notify('Item duplicated with code: ' + newCode, 'success');
 }
 
@@ -3462,8 +3606,8 @@ function toggleAll(checked) { getFiltered().forEach(r => { if (checked) app.sele
 function clearSelection() { app.selectedIds.clear(); renderInventory(); }
 function updateSelBar() { const n = app.selectedIds.size; document.getElementById('sel-bar').className = 'sel-bar' + (n > 0 ? ' visible' : ''); document.getElementById('sel-count').textContent = n + ' item' + (n !== 1 ? 's' : '') + ' selected'; }
 
-function highlightDuplicates() {
-  const dupIds = findDuplicates().duplicateIds;
+function highlightDuplicates(dupIdsIn) {
+  const dupIds = dupIdsIn || findDuplicates().duplicateIds;
   document.querySelectorAll('#tbody tr.item-row').forEach(tr => {
     const id = parseInt(tr.id.replace('irow-', ''));
     if (dupIds.has(id)) {
@@ -3481,15 +3625,6 @@ function highlightDuplicates() {
       if (badge) badge.remove();
     }
   });
-  const count = dupIds.size;
-  const el = document.getElementById('row-count');
-  if (el) {
-    let html = `Showing ${getFiltered().length} of ${app.items.length} items`;
-    if (count > 0) {
-      html += ` | <span style="color:var(--amber)">⚠️ ${count} duplicates found</span> <button class="btn btn-amber btn-xs" onclick="showDuplicateManager()">Manage</button>`;
-    }
-    el.innerHTML = html;
-  }
 }
 
 // ── BULK IMPORT ──────────────────────────────────────────────────────────
@@ -10766,5 +10901,6 @@ function initColumnResize() {
   setInterval(() => { if (typeof updateReminderBadges === 'function') updateReminderBadges(); }, 3 * 60 * 1000);
 })();
 </script>
+<button id="fab-scroll-top" onclick="jumpToListTop()" title="Back to top">⤒</button>
 </body>
 </html>
