@@ -397,6 +397,17 @@ select[style*="width:55px"],select[style*="width:70px"],select[style*="width:96p
 .usearch-item .utitle{font-size:12.5px;font-weight:600;color:var(--text)}
 .usearch-item .usub{font-size:10.5px;color:var(--text3)}
 .usearch-empty{padding:30px 16px;text-align:center;color:var(--text3);font-size:12px}
+/* ── Custom searchable customer picker ────────────────────────────────────
+   Replaces <input list="datalist">, which renders with unthemed, jarring
+   browser-native dropdown chrome that looks nothing like the rest of the
+   app's fields (compare it next to a real <select> like "Assign To") —
+   this is a small JS-driven typeahead styled to match. */
+.cpicker-wrap{position:relative}
+.cpicker-panel{position:absolute;top:calc(100% + 4px);left:0;right:0;background:var(--surface);border:1px solid var(--border);border-radius:var(--r-sm);box-shadow:var(--shadow-lg);z-index:80;max-height:220px;overflow-y:auto}
+.cpicker-opt{padding:8px 10px;font-size:12px;color:var(--text);cursor:pointer;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.cpicker-opt:hover,.cpicker-opt.active{background:var(--surface2)}
+.cpicker-sub{color:var(--text3);font-size:10.5px}
+.cpicker-empty{padding:10px;font-size:11px;color:var(--text3)}
 .setup-card{background:var(--surface);border-radius:var(--r-lg);padding:32px 40px;max-width:540px;width:100%;box-shadow:var(--shadow-lg)}
 .setup-card h1{font-size:17px;font-weight:700;color:var(--text)}
 .setup-card h2{font-size:12.5px;font-weight:700;color:var(--text);margin:14px 0 6px;padding-top:12px;border-top:1px solid var(--border)}
@@ -3837,6 +3848,7 @@ function buildQModal() {
       <div class="ff fg-full"><label>Notes</label><textarea id="q-notes" rows="2" onchange="getQData()">${esc(data.notes)}</textarea></div>
     </div></div>`;
   body.innerHTML = html;
+  initCustomerPicker('q-customer');
   const titleEl = document.getElementById('qm-title');
   if (titleEl) {
     const kind = app.quoteMode === 'proforma' ? 'Proforma' : 'Quotation';
@@ -5129,6 +5141,8 @@ function refreshOrderDatalists() {
   if (itemList) {
     itemList.innerHTML = app.items.filter(r => r.item).map(r => `<option value="${esc(r.item)}">`).join('');
   }
+  initCustomerPicker('ord-filter-customer');
+  initCustomerPicker('or-customer');
 }
 
 // ── ORDER GROUPS (ties multiple item-lots together as one "order", with a
@@ -6189,6 +6203,7 @@ function openAddPayment(customer, type) {
       <div class="ff fg-full"><label>Reference (UTR / Txn ID / Cheque No.)</label><input id="ap-reference" placeholder="e.g. UTR1234567890"></div>
       <div class="ff fg-full"><label>Notes</label><textarea id="ap-notes" rows="2" placeholder="Optional notes"></textarea></div>
     </div>`;
+  initCustomerPicker('ap-customer');
   openModal('modal-add-payment');
 }
 function savePayment() {
@@ -6364,6 +6379,7 @@ function openQualityIssueForm(itemId, issueId) {
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px" id="qc-photo-strip"></div>
       <button class="btn btn-secondary btn-sm" type="button" onclick="triggerQcPhotoUpload()">📷 Add Photo(s)</button>
     </div>`;
+  initCustomerPicker('qc-customer');
   renderQcPhotoStrip();
   qcRefreshOrders();
   openModal('modal-quality-issue');
@@ -6813,6 +6829,7 @@ function openReadinessUpdate() {
     </div></div>
     <div class="form-sec"><div class="form-sec-title">Items — enter additional quantity now confirmed ready</div>
     <div id="ru-items-wrap"><div style="color:var(--text3);font-size:11.5px">Select a customer above to see everything they have on order.</div></div></div>`;
+  initCustomerPicker('ru-customer');
   openModal('modal-readiness');
 }
 function loadCustomerItemsForReadiness() {
@@ -6879,6 +6896,7 @@ function openRecordDispatch() {
     </div></div>
     <div class="form-sec"><div class="form-sec-title">Items — enter quantity to dispatch for each</div>
     <div id="rd-items-wrap"><div style="color:var(--text3);font-size:11.5px">Select a customer above to see everything they have on order.</div></div></div>`;
+  initCustomerPicker('rd-customer');
   openModal('modal-record-dispatch');
 }
 // Populates one row per item this customer has ever ordered (across all their
@@ -7883,6 +7901,7 @@ function openNewEnquiry() {
   app._enqLinkedItems = [];
   document.getElementById('enq-title').textContent = '📋 New Customer Enquiry';
   document.getElementById('enq-body').innerHTML = enquiryFormHTML('');
+  initCustomerPicker('enq-customer');
   renderEnqAttachChips();
   renderEnqLinkedChips();
   openModal('modal-enquiry');
@@ -7901,6 +7920,7 @@ function openEnquiryForItem(id) {
   const prefill = `Item: ${esc(row.item || '')}\nCategory: ${esc(row.category || '')}\nType: ${esc(row.type || '')}\nMaterial: ${esc(row.material || '')}\nQty: ${row.qty || '1'}`;
   document.getElementById('enq-body').innerHTML = enquiryFormHTML(prefill);
   document.getElementById('enq-remarks').value = row.remarks || '';
+  initCustomerPicker('enq-customer');
   renderEnqAttachChips();
   renderEnqLinkedChips();
   openModal('modal-enquiry');
@@ -8594,6 +8614,7 @@ function openNewSample() {
   app._smpPhotoBuffer = [];
   document.getElementById('smp-form-title').textContent = '🧪 New Sample';
   document.getElementById('smp-form-body').innerHTML = sampleFormHTML();
+  initCustomerPicker('smp-customer');
   openModal('modal-sample');
 }
 function triggerSamplePhotoUpload() {
@@ -10016,6 +10037,130 @@ function checkSampleDeepLink() {
   // Clean the URL so a page refresh later doesn't keep reopening the same
   // sample, and so the plain app link stays shareable/bookmarkable as-is.
   history.replaceState({}, '', location.origin + location.pathname);
+}
+// ══════════════════════════════════════════════════════════════════════════
+// ── CUSTOMER PICKER (styled typeahead, replaces native datalist) ────────
+// A native <input list="datalist"> renders with the browser's own unstyled
+// dropdown, which looks jarring next to real <select> fields elsewhere in
+// the form. This wraps a plain text input with a small floating panel of
+// live-filtered matches, styled to match the rest of the app, with
+// keyboard navigation. The input keeps working exactly as before if
+// someone just types a name and doesn't pick from the list — this only
+// adds a nicer way to pick one, it doesn't change what gets saved.
+// ══════════════════════════════════════════════════════════════════════════
+// Punctuation/spacing-insensitive + typo-tolerant + country-aware matching.
+// "rb industries" or "r b industry" both need to find "R. B. Industries",
+// and typing a country like "usa" should surface customers based there —
+// plain substring matching can't do any of that, so this scores each
+// candidate a few different ways and keeps the best matches on top.
+function normalizeForSearch(s) {
+  return (s || '').toLowerCase().replace(/[^a-z0-9\s]/g, '').replace(/\s+/g, ' ').trim();
+}
+function levenshtein(a, b) {
+  const m = a.length, n = b.length;
+  if (!m) return n;
+  if (!n) return m;
+  const dp = Array.from({ length: m + 1 }, () => new Array(n + 1).fill(0));
+  for (let i = 0; i <= m; i++) dp[i][0] = i;
+  for (let j = 0; j <= n; j++) dp[0][j] = j;
+  for (let i = 1; i <= m; i++) {
+    for (let j = 1; j <= n; j++) {
+      dp[i][j] = a[i - 1] === b[j - 1] ? dp[i - 1][j - 1] : 1 + Math.min(dp[i - 1][j - 1], dp[i - 1][j], dp[i][j - 1]);
+    }
+  }
+  return dp[m][n];
+}
+function wordsFuzzyMatch(qWord, cWord) {
+  if (!qWord || !cWord) return false;
+  if (cWord.startsWith(qWord) || qWord.startsWith(cWord)) return true;
+  return levenshtein(qWord, cWord) <= Math.max(1, Math.ceil(Math.min(qWord.length, cWord.length) * 0.4));
+}
+// Lower score = better match. Returns -1 for no match at all.
+function customerMatchScore(query, name, country) {
+  const qNorm = normalizeForSearch(query);
+  if (!qNorm) return 0;
+  const nameNorm = normalizeForSearch(name);
+  const compactName = nameNorm.replace(/\s+/g, '');
+  const compactQuery = qNorm.replace(/\s+/g, '');
+  if (compactName === compactQuery) return 0;
+  if (compactName.startsWith(compactQuery)) return 1;
+  if (compactName.includes(compactQuery)) return 2;
+  if (country && normalizeForSearch(country).includes(qNorm)) return 3;
+  const qWords = qNorm.split(' ').filter(Boolean);
+  const nWords = nameNorm.split(' ').filter(Boolean);
+  if (qWords.length && qWords.every(qw => nWords.some(nw => wordsFuzzyMatch(qw, nw)))) return 4;
+  return -1;
+}
+function getCustomerSearchPool() {
+  const map = new Map();
+  (app.customers || []).forEach(c => { if (c.name) map.set(c.name, { name: c.name, country: c.country || c.nickname || '' }); });
+  (app.customerOrders || []).forEach(o => { if (o.customer && !map.has(o.customer)) map.set(o.customer, { name: o.customer, country: '' }); });
+  return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+function initCustomerPicker(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input || input.dataset.pickerInit) return;
+  input.dataset.pickerInit = '1';
+  input.removeAttribute('list');
+  input.setAttribute('autocomplete', 'off');
+
+  const wrap = document.createElement('div');
+  wrap.className = 'cpicker-wrap';
+  input.parentNode.insertBefore(wrap, input);
+  wrap.appendChild(input);
+  const panel = document.createElement('div');
+  panel.className = 'cpicker-panel';
+  panel.style.display = 'none';
+  wrap.appendChild(panel);
+
+  let matches = [];
+  let activeIndex = -1;
+
+  function renderMatches() {
+    const qRaw = input.value.trim();
+    const pool = getCustomerSearchPool();
+    if (!qRaw) {
+      matches = pool.slice(0, 8);
+    } else {
+      matches = pool
+        .map(c => ({ ...c, score: customerMatchScore(qRaw, c.name, c.country) }))
+        .filter(c => c.score >= 0)
+        .sort((a, b) => a.score - b.score || a.name.localeCompare(b.name))
+        .slice(0, 8);
+    }
+    activeIndex = -1;
+    if (!matches.length) {
+      panel.innerHTML = qRaw ? `<div class="cpicker-empty">No matching customer — you can still type a new name</div>` : `<div class="cpicker-empty">Start typing to filter…</div>`;
+      panel.style.display = pool.length ? 'block' : 'none';
+      return;
+    }
+    panel.innerHTML = matches.map((c, i) => `<div class="cpicker-opt" data-i="${i}">${esc(c.name)}${c.country ? `<span class="cpicker-sub"> · ${esc(c.country)}</span>` : ''}</div>`).join('');
+    panel.style.display = 'block';
+    panel.querySelectorAll('.cpicker-opt').forEach(opt => {
+      opt.addEventListener('mousedown', e => { e.preventDefault(); selectMatch(parseInt(opt.dataset.i)); });
+    });
+  }
+  function selectMatch(i) {
+    if (!matches[i]) return;
+    input.value = matches[i].name;
+    panel.style.display = 'none';
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  }
+  function highlight() {
+    panel.querySelectorAll('.cpicker-opt').forEach((o, i) => o.classList.toggle('active', i === activeIndex));
+    const el = panel.querySelector('.cpicker-opt.active');
+    if (el) el.scrollIntoView({ block: 'nearest' });
+  }
+  input.addEventListener('input', renderMatches);
+  input.addEventListener('focus', renderMatches);
+  input.addEventListener('keydown', e => {
+    if (panel.style.display === 'none') return;
+    if (e.key === 'ArrowDown') { e.preventDefault(); activeIndex = Math.min(activeIndex + 1, matches.length - 1); highlight(); }
+    else if (e.key === 'ArrowUp') { e.preventDefault(); activeIndex = Math.max(activeIndex - 1, 0); highlight(); }
+    else if (e.key === 'Enter') { if (activeIndex >= 0) { e.preventDefault(); selectMatch(activeIndex); } else panel.style.display = 'none'; }
+    else if (e.key === 'Escape') { panel.style.display = 'none'; }
+  });
+  document.addEventListener('click', e => { if (!wrap.contains(e.target)) panel.style.display = 'none'; });
 }
 function renderPermissionsUI() {
   const roles = ['admin', 'manager', 'user'];
