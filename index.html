@@ -298,6 +298,7 @@ select[style*="width:55px"],select[style*="width:70px"],select[style*="width:96p
 .qt input,.qt select{border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-family:var(--font);font-size:11px;font-weight:400;background-color:var(--surface);outline:none}
 .qt input:focus,.qt select:focus{outline:none;border-color:var(--accent2);box-shadow:0 0 0 2px rgba(43,90,138,.08)}
 .qt-total td{font-weight:700;background:var(--green-bg);color:var(--green);font-family:var(--mono);font-size:12px}
+.qt-subrow td{border-bottom:1px solid #ece8e2;padding-top:0;background:var(--surface2)}
 .stg-layout{display:grid;grid-template-columns:180px 1fr;gap:14px}
 .stg-nav{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;align-self:start;box-shadow:var(--shadow-xs)}
 .stg-nav-item{padding:10px 14px;cursor:pointer;font-size:11px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);transition:var(--transition)}
@@ -2258,7 +2259,21 @@ function blobToBase64(blob) {
   });
 }
 
+// GitHub's simple Contents API (PUT .../contents/{path}) silently rejects
+// files over ~1MB even though this app allows PDFs up to 10MB — that
+// mismatch is exactly why photos (small, compressed, almost always under
+// 1MB) always made it to GitHub while PDF drawings (often 1-5MB with
+// embedded CAD renders) were quietly failing and falling back to local
+// storage. Anything over that threshold now goes through the Git Data API
+// instead (create a blob, then a tree, then a commit, then move the
+// branch pointer) — a few more round trips, but no size ceiling like the
+// simple endpoint has. Every existing caller of uploadToGitHub() gets this
+// for free with no changes on their end.
 async function uploadToGitHub(path, content, message) {
+  const approxBytes = content.length * 0.75; // base64 length → raw byte estimate
+  if (approxBytes > 1000000) {
+    return await uploadLargeFileToGitHub(path, content, message);
+  }
   try {
     const checkUrl = `https://api.github.com/repos/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repo}/contents/${path}`;
     let sha = null;
@@ -2302,6 +2317,55 @@ async function uploadToGitHub(path, content, message) {
     console.error('GitHub upload error:', error);
     throw error;
   }
+}
+// Large-file path via the Git Data API: blob → tree (based on the
+// branch's current tree) → commit (parented on the branch's current
+// commit) → move the branch ref to point at the new commit. This is what
+// GitHub itself does under the hood for anything too big for the simple
+// Contents API.
+async function uploadLargeFileToGitHub(path, base64Content, message) {
+  const owner = GITHUB_CONFIG.username, repo = GITHUB_CONFIG.repo, branch = GITHUB_CONFIG.branch || 'main';
+  const headers = {
+    'Authorization': `token ${GITHUB_CONFIG.token}`,
+    'Content-Type': 'application/json',
+    'Accept': 'application/vnd.github.v3+json'
+  };
+  const api = `https://api.github.com/repos/${owner}/${repo}`;
+
+  const blobResp = await fetch(`${api}/git/blobs`, { method: 'POST', headers, body: JSON.stringify({ content: base64Content, encoding: 'base64' }) });
+  if (!blobResp.ok) throw new Error((await blobResp.json()).message || 'GitHub blob creation failed');
+  const blob = await blobResp.json();
+
+  const refResp = await fetch(`${api}/git/ref/heads/${branch}`, { headers });
+  if (!refResp.ok) throw new Error((await refResp.json()).message || 'Could not read branch — check your GitHub repo/branch settings');
+  const refData = await refResp.json();
+  const latestCommitSha = refData.object.sha;
+
+  const commitResp = await fetch(`${api}/git/commits/${latestCommitSha}`, { headers });
+  if (!commitResp.ok) throw new Error('Could not read latest commit');
+  const commitData = await commitResp.json();
+
+  const treeResp = await fetch(`${api}/git/trees`, {
+    method: 'POST', headers,
+    body: JSON.stringify({ base_tree: commitData.tree.sha, tree: [{ path, mode: '100644', type: 'blob', sha: blob.sha }] })
+  });
+  if (!treeResp.ok) throw new Error((await treeResp.json()).message || 'GitHub tree creation failed');
+  const treeData = await treeResp.json();
+
+  const newCommitResp = await fetch(`${api}/git/commits`, {
+    method: 'POST', headers,
+    body: JSON.stringify({ message: message || `Upload ${path}`, tree: treeData.sha, parents: [latestCommitSha] })
+  });
+  if (!newCommitResp.ok) throw new Error((await newCommitResp.json()).message || 'GitHub commit creation failed');
+  const newCommitData = await newCommitResp.json();
+
+  const updateRefResp = await fetch(`${api}/git/refs/heads/${branch}`, { method: 'PATCH', headers, body: JSON.stringify({ sha: newCommitData.sha }) });
+  if (!updateRefResp.ok) throw new Error((await updateRefResp.json()).message || 'Could not update branch pointer');
+
+  // Shaped to match what the simple Contents API returns, so every
+  // existing caller (uploadPhoto, uploadPDF, sample photos, etc.) keeps
+  // working with zero changes.
+  return { content: { sha: blob.sha } };
 }
 
 async function uploadPhoto(id) {
@@ -3821,6 +3885,7 @@ function quickQ(id, mode) {
     item: row.item || 'Item ' + id,
     category: row.category || '',
     type: row.type || '',
+    material: row.material || '',
     qty: row.qty || 1,
     weight: row.weight || 0,
     pp: row.pp || 0,
@@ -3831,6 +3896,7 @@ function quickQ(id, mode) {
     fobEur: calcFOB(row.pp, row.marg, row.fob, row.exrate),
     total: calcFOB(row.pp, row.marg, row.fob, row.exrate) * (parseFloat(row.qty) || 1),
     remarks: row.remarks || '',
+    customization: '',
     photo: row.photo || null
   }];
   app.quoteMode = mode;
@@ -3853,6 +3919,7 @@ function openQModal(mode) {
       item: row.item || 'Item ' + id,
       category: row.category || '',
       type: row.type || '',
+      material: row.material || '',
       qty: row.qty || 1,
       weight: row.weight || 0,
       pp: row.pp || 0,
@@ -3863,6 +3930,7 @@ function openQModal(mode) {
       fobEur: calcFOB(row.pp, row.marg, row.fob, row.exrate),
       total: calcFOB(row.pp, row.marg, row.fob, row.exrate) * (parseFloat(row.qty) || 1),
       remarks: row.remarks || '',
+      customization: '',
       photo: row.photo || null
     };
   }).filter(Boolean);
@@ -3958,6 +4026,8 @@ function buildQModal() {
     <table class="qt"><thead><tr><th>#</th><th>Item</th><th>Category</th><th>Type</th><th>Qty</th><th>PP</th><th>Marg%</th><th>FOB%</th><th>Ex Rate</th><th>Cur</th><th>FOB</th><th>Total</th><th style="width:24px"></th></tr></thead><tbody>`;
   items.forEach((r, i) => {
     const sym = curSym(r.currency || 'EUR');
+    const liveItem = getItem(r.id);
+    const isStale = liveItem && ((liveItem.type || '') !== (r.type || '') || (liveItem.material || '') !== (r.material || '') || (liveItem.category || '') !== (r.category || ''));
     html += `<tr>
       <td>${i+1}</td>
       <td><strong>${esc(r.item || 'Item')}</strong></td>
@@ -3972,10 +4042,22 @@ function buildQModal() {
       <td style="font-weight:700;color:var(--green)">${sym}${r.fobEur.toFixed(4)}</td>
       <td style="font-weight:700;color:var(--accent2)">${sym}${(r.total || 0).toFixed(2)}</td>
       <td><button class="btn btn-danger btn-xs" onclick="rmQItem(${i})">✕</button></td>
-    </tr>`;
+    </tr>
+    <tr class="qt-subrow"><td></td><td colspan="12" style="padding:4px 6px 10px">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input placeholder="Customer-requested customization for this item (e.g. black coating, modified hole diameter)…" value="${esc(r.customization || '')}" oninput="qUpd(${i},'customization',this.value)" style="flex:1;min-width:220px;height:26px;border:1px solid var(--border);border-radius:4px;padding:0 8px;font-size:10.5px;font-family:var(--font)">
+        ${isStale ? `<button class="btn btn-secondary btn-xs" title="Inventory now shows: ${esc([liveItem.category, liveItem.type, liveItem.material].filter(Boolean).join(' · '))}" onclick="syncQItemFromInventory(${i})">🔄 Sync from Inventory (changed)</button>` : (liveItem ? `<span style="font-size:9.5px;color:var(--text3)">✓ Matches current inventory</span>` : '')}
+      </div>
+    </td></tr>`;
   });
   html += `<tr class="qt-total"><td colspan="11" style="text-align:right;white-space:nowrap">Grand Total</td><td style="font-size:14px;white-space:nowrap">${curSym(items[0]?.currency || 'EUR')}${data.total.toFixed(2)}</td><td></td></tr>`;
-  html += `</tbody></table></div>
+  html += `</tbody></table>
+    <div style="display:flex;gap:8px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
+      <input id="q-add-item-search" list="oc-item-list" placeholder="🔍 Search an item to add…" autocomplete="off" style="flex:1;min-width:200px;height:32px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 10px;font-size:11.5px;font-family:var(--font)">
+      <input id="q-add-item-qty" type="number" min="1" value="1" style="width:70px;height:32px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 8px;font-size:11.5px" title="Quantity">
+      <button class="btn btn-primary btn-sm" onclick="addItemToQuote()">＋ Add Item</button>
+    </div>
+    </div>
     <div class="form-sec"><div class="form-sec-title">Terms &amp; Notes</div>
     <div class="fg fg-2">
       <div class="ff"><label>Terms &amp; Conditions</label><textarea id="q-terms" rows="2" onchange="getQData()">${esc(data.terms)}</textarea></div>
@@ -3984,6 +4066,8 @@ function buildQModal() {
     </div></div>`;
   body.innerHTML = html;
   initCustomerPicker('q-customer');
+  const itemList = document.getElementById('oc-item-list');
+  if (itemList) itemList.innerHTML = app.items.filter(r => r.item).map(r => `<option value="${esc(r.item)}">`).join('');
   const titleEl = document.getElementById('qm-title');
   if (titleEl) {
     const kind = app.quoteMode === 'proforma' ? 'Proforma' : 'Quotation';
@@ -4047,6 +4131,53 @@ function rmQItem(i) {
   app._quoteItems.splice(i, 1);
   if (!app._quoteItems.length) { closeModal('modal-quote'); return; }
   buildQModal();
+}
+// Lets you add another item to a quote/proforma that's already been
+// started — including one that's already saved and reopened via Edit —
+// instead of only being able to pick items before the builder opens.
+function addItemToQuote() {
+  const searchEl = document.getElementById('q-add-item-search');
+  const qtyEl = document.getElementById('q-add-item-qty');
+  const name = searchEl.value.trim();
+  if (!name) { notify('Search for an item first', 'warning'); return; }
+  const row = app.items.find(r => (r.item || '').toLowerCase() === name.toLowerCase());
+  if (!row) { notify('No item matches "' + name + '" exactly — pick one from the suggestions', 'warning'); return; }
+  const qty = parseFloat(qtyEl.value) || 1;
+  app._quoteItems.push({
+    id: row.id,
+    item: row.item || 'Item ' + row.id,
+    category: row.category || '',
+    type: row.type || '',
+    material: row.material || '',
+    qty: qty,
+    weight: row.weight || 0,
+    pp: row.pp || 0,
+    marg: row.marg || 0,
+    fob: row.fob || 0,
+    exrate: row.exrate || 0,
+    currency: row.currency || 'EUR',
+    fobEur: calcFOB(row.pp, row.marg, row.fob, row.exrate),
+    total: calcFOB(row.pp, row.marg, row.fob, row.exrate) * qty,
+    remarks: row.remarks || '',
+    customization: '',
+    photo: row.photo || null
+  });
+  buildQModal();
+  notify('✅ Added ' + row.item, 'success');
+}
+// Pulls the current category/type/material straight from Inventory into
+// this quote line — for when a spec changed after the quote was first
+// built and the document needs to reflect what's actually being supplied.
+function syncQItemFromInventory(i) {
+  const r = app._quoteItems[i];
+  if (!r) return;
+  const liveItem = getItem(r.id);
+  if (!liveItem) { notify('This item no longer exists in Inventory', 'warning'); return; }
+  r.category = liveItem.category || '';
+  r.type = liveItem.type || '';
+  r.material = liveItem.material || '';
+  buildQModal();
+  notify('✅ Synced from current Inventory data', 'success');
 }
 
 function docRef(q) { return (q.ref && String(q.ref).trim()) ? q.ref : ('#' + String(q.id).slice(-6)); }
@@ -4391,7 +4522,7 @@ async function buildQPDF(data, withPhotos) {
     // ---- Photo-card layout: one card per item, photo left / details right ----
     for (let i = 0; i < data.items.length; i++) {
       const r = data.items[i];
-      const cardH = 88;
+      const cardH = 100;
       if (y + cardH > pageH - 100) { doc.addPage(); y = 30; }
       doc.setDrawColor(220, 218, 210);
       doc.setFillColor(255, 255, 255);
@@ -4420,11 +4551,29 @@ async function buildQPDF(data, withPhotos) {
       doc.text([r.category, r.type].filter(Boolean).join('  •  '), textX, y + 32);
       if (r.material) doc.text('Material: ' + r.material, textX, y + 44);
       doc.setFontSize(8.3); doc.setTextColor(60, 58, 52);
-      doc.text('Qty: ' + (r.qty || 0), textX, y + 58);
+      doc.text('Qty: ' + (r.qty || 0).toLocaleString(), textX, y + 58);
+      if (r.customization) {
+        // Customer-requested changes to the standard product — deliberately
+        // called out in a different color so it doesn't blend in with the
+        // regular spec lines above it and get missed.
+        doc.setFont(undefined, 'bold'); doc.setFontSize(7.8); doc.setTextColor(178, 118, 22);
+        const custLines = doc.splitTextToSize('✎ Customization: ' + r.customization, (rightX - textX) - 90);
+        custLines.slice(0, 2).forEach((line, li) => doc.text(line, textX, y + 71 + li * 9));
+        doc.setFont(undefined, 'normal');
+      }
       doc.setFont(undefined, 'bold'); doc.setFontSize(9); doc.setTextColor(...GREEN);
       doc.text(sym + (r.fobEur || 0).toFixed(4) + ' / unit', rightX, y + 18, { align: 'right' });
-      doc.setFontSize(11);
-      doc.text('Amount: ' + sym + (r.total || 0).toFixed(2), rightX, y + cardH - 14, { align: 'right' });
+      // Shown as the actual calculation ("qty × rate = amount") rather than
+      // a single large bold figure — a standalone total that size was
+      // grabbing more visual attention than the item itself, especially on
+      // high-quantity lines, and didn't show how it was arrived at.
+      const totalFmt = sym + (r.total || 0).toFixed(2);
+      const calcPrefix = (r.qty || 0).toLocaleString() + ' × ' + sym + (r.fobEur || 0).toFixed(4) + ' = ';
+      doc.setFont(undefined, 'bold'); doc.setFontSize(9.5); doc.setTextColor(26, 26, 24);
+      const totalWidth = doc.getTextWidth(totalFmt);
+      doc.text(totalFmt, rightX, y + cardH - 14, { align: 'right' });
+      doc.setFont(undefined, 'normal'); doc.setFontSize(8); doc.setTextColor(120, 118, 110);
+      doc.text(calcPrefix, rightX - totalWidth, y + cardH - 14, { align: 'right' });
       y += cardH + 10;
     }
   } else {
@@ -4434,10 +4583,11 @@ async function buildQPDF(data, withPhotos) {
     // to the buyer.
     const tableData = data.items.map((r, i) => {
       const sym = curSym(r.currency || 'EUR');
+      const desc = [r.category, r.type, r.material].filter(Boolean).join(' • ') || '—';
       return [
         (i + 1).toString(),
         r.item || '',
-        [r.category, r.type].filter(Boolean).join(' • ') || '—',
+        r.customization ? desc + '\n✎ Customization: ' + r.customization : desc,
         (r.qty || 0).toLocaleString(),
         sym + (r.fobEur || 0).toFixed(4),
         sym + (r.total || 0).toFixed(2)
