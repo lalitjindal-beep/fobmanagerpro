@@ -3914,9 +3914,23 @@ function undoLastImport() {
 }
 
 // ── QUOTATION WITH CUSTOMER AUTOCOMPLETE ────────────────────────────────────────────
+// Every function that starts a NEW quote-editing session calls this first.
+// Without it, closing the quote modal (closeModal() only hides it via CSS,
+// it never clears the HTML) leaves the previous quote's #q-customer (and
+// every other field) still sitting in the DOM. getQData()'s fieldVal()
+// checks document.getElementById() before falling back to the fresh
+// app._editingQuote data — so without this reset, opening Quote B right
+// after Quote A would find A's still-present #q-customer element and show
+// A's customer name in B's edit screen, exactly the "shows me the same
+// customer" bug this fixes.
+function resetQuoteFormDOM() {
+  const body = document.getElementById('qm-body');
+  if (body) body.innerHTML = '';
+}
 function quickQ(id, mode) {
   const row = getItem(id);
   if (!row) return;
+  resetQuoteFormDOM();
   app._editingQuoteId = null;
   app._editingQuote = null;
   app._quoteCharges = [];
@@ -3949,6 +3963,7 @@ function quickQ(id, mode) {
 function openQModal(mode) {
   const sel = Array.from(app.selectedIds);
   if (!sel.length) { notify('Select at least one item', 'warning'); return; }
+  resetQuoteFormDOM();
   app._editingQuoteId = null;
   app._editingQuote = null;
   app._quoteCharges = [];
@@ -4292,6 +4307,7 @@ function closeQuoteModal() {
 function editQuote(id) {
   const q = app.quotations.find(x => x.id == id);
   if (!q) { notify('Document not found', 'error'); return; }
+  resetQuoteFormDOM();
   app.quoteMode = q.mode;
   app._quoteItems = JSON.parse(JSON.stringify(q.items || []));
   app._quoteCharges = JSON.parse(JSON.stringify(q.charges || []));
@@ -4440,6 +4456,7 @@ function delQ(id) {
 function duplicateQuote(id) {
   const q = app.quotations.find(x => x.id == id);
   if (!q) { notify('Not found', 'error'); return; }
+  resetQuoteFormDOM();
   app.quoteMode = q.mode;
   app._quoteItems = JSON.parse(JSON.stringify(q.items || []));
   app._quoteCharges = JSON.parse(JSON.stringify(q.charges || []));
@@ -6319,6 +6336,15 @@ function openOrderGroupDetail(gid) {
     </tr>`;
   });
   html += '</tbody></table></div>';
+  if ((g.charges || []).length) {
+    const chargesTotal = g.charges.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
+    html += `<div class="form-sec-title" style="margin:14px 0 8px">💰 Additional Charges</div>
+      <table class="qt" style="max-width:420px"><tbody>
+        ${g.charges.map(c => `<tr><td>${esc(c.label)}</td><td class="td-r">${curSym(c.currency || 'EUR')}${(parseFloat(c.amount) || 0).toFixed(2)}</td></tr>`).join('')}
+        <tr class="qt-total"><td>Total Charges</td><td class="td-r">${curSym(g.charges[0]?.currency || 'EUR')}${chargesTotal.toFixed(2)}</td></tr>
+      </table>
+      <div style="font-size:9.5px;color:var(--text3);margin-top:4px">Carried over from the source quote/proforma — counted in this order's total value in Payments.</div>`;
+  }
   html += '<div class="form-sec-title" style="margin:14px 0 8px">📜 Order Log</div><div style="font-size:11px">';
   g.log.slice().reverse().forEach(l => {
     const d = new Date(l.date);
@@ -6391,6 +6417,13 @@ function confirmConvertToOrder() {
     group.log.push({ date: new Date().toISOString(), event: 'MERGED', details: `Added ${q.items.length} item(s) from ${docLabel} ${docRef(q)} (dated ${orderDate})` });
     group.sourceProformaIds = group.sourceProformaIds || [];
     group.sourceProformaIds.push(q.id);
+    // Sea freight/packing/etc on the merged-in document need to keep
+    // contributing to what this order is worth — they don't disappear just
+    // because this quote's items joined an existing order.
+    if ((q.charges || []).length) {
+      group.charges = group.charges || [];
+      group.charges.push(...q.charges);
+    }
   } else {
     const country = document.getElementById('co-country')?.value?.trim() || '';
     const orderPrefix = (app.settings.orders?.prefix || 'ORD').trim();
@@ -6401,6 +6434,13 @@ function confirmConvertToOrder() {
     group = {
       id: uid(), customer: q.customer, ref: orderRef, createdDate: orderDate, status: 'open', country,
       sourceProformaIds: [q.id],
+      // Additional charges (sea freight, packing, etc.) live at the order
+      // level, not per item lot — they're not something to dispatch a
+      // quantity of, but they DO need to count toward what the customer
+      // owes, which is exactly what was missing before this fix: a quote's
+      // charges never made it past conversion, so Payments only ever saw
+      // the item total, not the real amount to collect.
+      charges: q.charges || [],
       log: [{ date: new Date().toISOString(), event: 'CREATED', details: `Order created from ${docLabel} ${docRef(q)} with ${q.items.length} item(s)` }]
     };
     app.orderGroups.push(group);
@@ -6446,6 +6486,17 @@ function buildAllLedgers() {
   app.customerOrders.forEach(o => {
     const l = bucket(o.customer), cur = o.currency || 'EUR';
     l.orderValue[cur] = (l.orderValue[cur] || 0) + (parseFloat(o.qty) || 0) * (parseFloat(o.rate) || 0);
+  });
+  // Additional charges (sea freight, packing, etc.) carried over from the
+  // source quote/proforma at conversion time — these aren't item lots so
+  // they don't appear in customerOrders above, but they're just as real a
+  // part of what the customer owes, which is exactly what was missing
+  // before: the ledger only ever summed item qty × rate.
+  app.orderGroups.forEach(g => {
+    (g.charges || []).forEach(c => {
+      const l = bucket(g.customer), cur = c.currency || 'EUR';
+      l.orderValue[cur] = (l.orderValue[cur] || 0) + (parseFloat(c.amount) || 0);
+    });
   });
   app.payments.forEach(p => {
     const l = bucket(p.customer), cur = p.currency || 'EUR';
@@ -6716,6 +6767,7 @@ function buildLedgerHTML(customer) {
     const lots = app.customerOrders.filter(o => o.orderGroupId === g.id);
     const byCur = {};
     lots.forEach(o => { const c = o.currency || 'EUR'; byCur[c] = (byCur[c] || 0) + (parseFloat(o.qty) || 0) * (parseFloat(o.rate) || 0); });
+    (g.charges || []).forEach(c => { const cur = c.currency || 'EUR'; byCur[cur] = (byCur[cur] || 0) + (parseFloat(c.amount) || 0); });
     const valStr = Object.keys(byCur).map(c => fmtMoney(c, byCur[c])).join(' + ') || '—';
     const overdue = hasOutstandingBalance && g.paymentDueDate && new Date(g.paymentDueDate) < new Date(today());
     html += `<tr>
@@ -6823,6 +6875,7 @@ function buildPaymentStatementRows(customer) {
     const lots = app.customerOrders.filter(o => o.orderGroupId === g.id);
     const byCur = {};
     lots.forEach(o => { const c = o.currency || 'EUR'; byCur[c] = (byCur[c] || 0) + (parseFloat(o.qty) || 0) * (parseFloat(o.rate) || 0); });
+    (g.charges || []).forEach(c => { const cur = c.currency || 'EUR'; byCur[cur] = (byCur[cur] || 0) + (parseFloat(c.amount) || 0); });
     Object.keys(byCur).forEach(c => events.push({ date: g.createdDate, particulars: 'Order ' + g.ref, currency: c, debit: byCur[c], credit: 0, reference: g.ref }));
   });
   pays.forEach(p => {
@@ -7616,6 +7669,18 @@ function misGetSales() {
       qty += parseFloat(l.qty) || 0;
       const item = getItem(l.itemId);
       if (item?.salesperson) spWeight[item.salesperson] = (spWeight[item.salesperson] || 0) + val;
+    });
+    // Additional charges (sea freight, packing, etc.) count toward real
+    // sales value the same way they now count toward what's owed in
+    // Payments — otherwise MIS revenue figures would systematically read
+    // lower than what was actually invoiced, by exactly the charges amount.
+    // Not attributed to any salesperson's weighting since a flat freight
+    // charge isn't really "sold" by one person the way an item is.
+    (g.charges || []).forEach(c => {
+      const val = parseFloat(c.amount) || 0;
+      const cur = c.currency || 'EUR';
+      valueByCcy[cur] = (valueByCcy[cur] || 0) + val;
+      converted += misConvert(val, cur);
     });
     let inferred = null, best = -1;
     Object.entries(spWeight).forEach(([sp, v]) => { if (v > best) { best = v; inferred = sp; } });
