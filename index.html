@@ -889,7 +889,7 @@ table{min-width:820px}
 </div>
 
 <!-- Other views -->
-<div id="view-quotations" class="view"><div class="toolbar"><strong style="color:var(--text);font-size:12.5px;font-weight:700;letter-spacing:-.02em">🧾 Quotations &amp; Proforma</strong><input id="q-search" placeholder="Search ref, customer, item…" style="height:32px;width:220px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 10px;font-size:11.5px;font-family:var(--font)" oninput="renderQList()" autocomplete="off"><div style="margin-left:auto"><button class="btn btn-secondary btn-sm" onclick="switchView('inventory')">← Back</button></div></div><div id="quotations-list"></div></div>
+<div id="view-quotations" class="view"><div class="toolbar"><strong style="color:var(--text);font-size:12.5px;font-weight:700;letter-spacing:-.02em">🧾 Quotations &amp; Proforma</strong><input id="q-search" placeholder="Search ref, customer, item…" style="height:32px;width:220px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 10px;font-size:11.5px;font-family:var(--font)" oninput="renderQList()" autocomplete="off"><div style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-secondary btn-sm" onclick="openTrash()">🗑️ Trash</button><button class="btn btn-secondary btn-sm" onclick="switchView('inventory')">← Back</button></div></div><div id="quotations-list"></div></div>
 <div id="view-dispatch" class="view"><div class="toolbar"><strong style="color:var(--text);font-size:12.5px;font-weight:700;letter-spacing:-.02em">🚚 Dispatch Plans</strong><div style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="openContainerPlanner()">📦 Container Load Planner</button><button class="btn btn-secondary btn-sm" onclick="switchView('inventory')">← Back</button></div></div><div id="dispatch-list"></div></div>
 <div id="view-orders" class="view">
   <div class="toolbar">
@@ -1101,6 +1101,7 @@ table{min-width:820px}
   <p style="color:var(--text3);font-size:11px">It'll then open full-screen like a regular app, with its own icon — no browser bar.</p>
 </div><div class="modal-footer"><button class="btn btn-primary" onclick="closeModal('modal-ios-install')">Got it</button></div></div></div>
 <div class="modal-backdrop" id="modal-email"><div class="modal" style="max-width:600px"><div class="modal-header"><h2>📧 Send Email</h2><button class="modal-close" onclick="closeModal('modal-email')">✕</button></div><div class="modal-body" id="email-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-email')">Cancel</button><button class="btn btn-primary" id="email-send-btn" onclick="sendComposedEmail()">📤 Send</button></div></div></div>
+<div class="modal-backdrop" id="modal-trash"><div class="modal" style="max-width:640px"><div class="modal-header"><h2>🗑️ Trash</h2><button class="modal-close" onclick="closeModal('modal-trash')">✕</button></div><div class="modal-body"><p style="font-size:11px;color:var(--text3);margin-bottom:12px">Deleted quotes, proformas, and orders stay here for 30 days before being permanently removed, so a mistaken delete never means retyping everything.</p><div id="trash-list"></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-trash')">Close</button></div></div></div>
 <div class="modal-backdrop" id="modal-usearch"><div class="modal usearch-modal" style="max-width:640px">
   <div class="usearch-input-wrap">
     <span style="font-size:16px">🔎</span>
@@ -1281,7 +1282,7 @@ let app = {
   items: INITIAL_ITEMS.map(r=>({...r, currency: r.currency||'EUR', prodRemarks: r.prodRemarks||'', salesperson: r.salesperson||'', priceHistory: r.priceHistory||[], pdfAttachment: r.pdfAttachment||null, refCode: r.refCode||''})),
   quotations:[], dispatchPlans:[], customers:[], enquiries:[],
   customerOrders:[], orderDispatches:[], orderGroups:[], readinessUpdates:[],
-  pendingApprovals:[], activityLog:[], payments:[], qualityIssues:[], samples:[],  _nextId: INITIAL_ITEMS.length+1,
+  pendingApprovals:[], activityLog:[], payments:[], qualityIssues:[], samples:[], trash:[],  _nextId: INITIAL_ITEMS.length+1,
   currentView:'inventory', selectedIds:new Set(),
   expandedId:null, filterCat:'ALL', sortKey:null, sortDir:1, searchQ:'',
   settingsTab:'company', quoteMode:'quotation',
@@ -1686,6 +1687,7 @@ function applyRemoteState(p) {
   if (p.payments) app.payments = p.payments;
   if (p.qualityIssues) app.qualityIssues = p.qualityIssues;
   if (p.samples) app.samples = p.samples;
+  if (p.trash) app.trash = p.trash;
   if (p._nextId) app._nextId = p._nextId;
   applySysBranding();
   updatePendingBadge();
@@ -1748,26 +1750,35 @@ function storageUsageHTML() {
       ${localPct > 60 || fbPct > 60 ? `<div style="font-size:9.5px;color:var(--amber);margin-top:8px">⚠️ Getting sizeable — make sure photos/drawings are hosted via GitHub (not inline), and consider archiving very old closed enquiries/quotations if this keeps climbing.</div>` : ''}
     </div>`;
 }
+let _lsBackupTimer = null;
 function persist() {
-  const d = getFullState();
-  let serialized;
-  try {
-    serialized = JSON.stringify(d);
-    app._lastStateSizeBytes = serialized.length;
-  } catch (e) { /* extremely unlikely (circular ref) — leave size stat as-is */ }
-  try {
-    if (serialized !== undefined) localStorage.setItem('fob_pro_v2', serialized);
-    _localBackupWarned = false;
-  } catch (e) {
-    // localStorage can fail (quota exceeded, private browsing, etc.) — this
-    // used to fail completely silently, meaning the local backup copy could
-    // stop updating with zero indication. Warn once per session instead of
-    // spamming a toast on every keystroke-triggered save.
-    if (!_localBackupWarned) {
-      _localBackupWarned = true;
-      notify('⚠️ Local backup storage is full — your changes are still saving online, but the offline backup copy has stopped updating. Check Settings → Defaults for storage usage.', 'error');
+  // Local backup write is now debounced too — this used to run a full
+  // JSON.stringify + localStorage.setItem of the ENTIRE app state
+  // synchronously on every single persist() call, which is exactly what
+  // made saves feel slower as the data has grown: a big JSON.stringify
+  // blocks the main thread. Batching it the same way the Firebase write
+  // below already was removes that redundant blocking work without
+  // changing what actually gets saved.
+  clearTimeout(_lsBackupTimer);
+  _lsBackupTimer = setTimeout(() => {
+    const d = getFullState();
+    try {
+      const serialized = JSON.stringify(d);
+      app._lastStateSizeBytes = serialized.length;
+      localStorage.setItem('fob_pro_v2', serialized);
+      _localBackupWarned = false;
+    } catch (e) {
+      // localStorage can fail (quota exceeded, private browsing, etc.) — this
+      // used to fail completely silently, meaning the local backup copy could
+      // stop updating with zero indication. Warn once per session instead of
+      // spamming a toast on every keystroke-triggered save.
+      if (!_localBackupWarned) {
+        _localBackupWarned = true;
+        notify('⚠️ Local backup storage is full — your changes are still saving online, but the offline backup copy has stopped updating. Check Settings → Defaults for storage usage.', 'error');
+      }
     }
-  }
+  }, 400);
+
   if (_syncEnabled && _db) {
     clearTimeout(_persistTimer);
     setConnStatus('syncing', 'Saving…');
@@ -1779,7 +1790,7 @@ function persist() {
   }
 }
 function getFullState() {
-  return { items: app.items, settings: app.settings, quotations: app.quotations, dispatchPlans: app.dispatchPlans, customers: app.customers, customerOrders: app.customerOrders, orderDispatches: app.orderDispatches, orderGroups: app.orderGroups, readinessUpdates: app.readinessUpdates, enquiries: app.enquiries, pendingApprovals: app.pendingApprovals, activityLog: app.activityLog, payments: app.payments, qualityIssues: app.qualityIssues, samples: app.samples, _nextId: app._nextId };
+  return { items: app.items, settings: app.settings, quotations: app.quotations, dispatchPlans: app.dispatchPlans, customers: app.customers, customerOrders: app.customerOrders, orderDispatches: app.orderDispatches, orderGroups: app.orderGroups, readinessUpdates: app.readinessUpdates, enquiries: app.enquiries, pendingApprovals: app.pendingApprovals, activityLog: app.activityLog, payments: app.payments, qualityIssues: app.qualityIssues, samples: app.samples, trash: app.trash, _nextId: app._nextId };
 }
 function loadLS() {
   try {
@@ -1947,16 +1958,30 @@ window.addEventListener('appinstalled', () => {
 // Firebase; this only covers the app shell itself. Entirely best-effort:
 // if service workers aren't available or registration fails, the app just
 // runs exactly as it did before, unaffected.
+//
+// APP_BUILD_VERSION baked into the cache name so every meaningful update
+// gets its own cache bucket, with old buckets swept on activate — without
+// this, a device that had the app open before an update could keep
+// serving an old cached shell indefinitely (a version behind everyone
+// else, sometimes silently), which is exactly what "worked on my phone but
+// not my computer" looks like from the outside. Bump this string whenever
+// a real update goes out.
+const APP_BUILD_VERSION = '2026-08-11-1';
 if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost')) {
   try {
     const swSource = `
-      const CACHE = 'fob-mgr-shell-v1';
+      const CACHE = 'fob-mgr-shell-${APP_BUILD_VERSION}';
       self.addEventListener('install', e => self.skipWaiting());
-      self.addEventListener('activate', e => self.clients.claim());
+      self.addEventListener('activate', e => {
+        self.clients.claim();
+        e.waitUntil(
+          caches.keys().then(names => Promise.all(names.filter(n => n !== CACHE).map(n => caches.delete(n))))
+        );
+      });
       self.addEventListener('fetch', e => {
         if (e.request.mode !== 'navigate') return;
         e.respondWith(
-          fetch(e.request).then(res => {
+          fetch(e.request, { cache: 'no-store' }).then(res => {
             const clone = res.clone();
             caches.open(CACHE).then(c => c.put(e.request, clone)).catch(()=>{});
             return res;
@@ -1965,7 +1990,21 @@ if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.
       });
     `;
     const blob = new Blob([swSource], { type: 'text/javascript' });
-    navigator.serviceWorker.register(URL.createObjectURL(blob)).catch(() => { /* offline shell just won't be available — app still works normally */ });
+    navigator.serviceWorker.register(URL.createObjectURL(blob)).then(reg => {
+      // If a previously-registered worker is already controlling this
+      // page under an older version, ask it to update and take over
+      // immediately rather than waiting for the next full reload.
+      reg.update().catch(() => {});
+    }).catch(() => { /* offline shell just won't be available — app still works normally */ });
+    // Belt-and-braces: if the controlling worker changes (a newer version
+    // just took over), the shell that's cached is now stale relative to
+    // what's on screen — reload once so the visible app matches it.
+    let _swRefreshed = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (_swRefreshed) return;
+      _swRefreshed = true;
+      location.reload();
+    });
   } catch (e) { /* ignore — non-critical */ }
 }
 
@@ -3880,6 +3919,7 @@ function quickQ(id, mode) {
   if (!row) return;
   app._editingQuoteId = null;
   app._editingQuote = null;
+  app._quoteCharges = [];
   app._quoteItems = [{
     id: id,
     item: row.item || 'Item ' + id,
@@ -3911,6 +3951,7 @@ function openQModal(mode) {
   if (!sel.length) { notify('Select at least one item', 'warning'); return; }
   app._editingQuoteId = null;
   app._editingQuote = null;
+  app._quoteCharges = [];
   app._quoteItems = sel.map(id => {
     const row = getItem(id);
     if (!row) return null;
@@ -4017,8 +4058,11 @@ function buildQModal() {
       <div class="ff fg-full"><label>Address</label><input id="q-address" value="${esc(data.address)}" onchange="getQData()" placeholder="Address"></div>
     </div>
     <div class="fg fg-3" style="margin-top:6px">
-      <div class="ff"><label>Your Ref</label><input id="q-ref" value="${esc(data.ref)}" onchange="getQData()" placeholder="Ref code"></div>
+      <div class="ff"><label>Tracking No.</label><input value="${esc(app._editingQuote?.docNumber || '')}" disabled placeholder="Assigned automatically on Save" style="opacity:.75;cursor:not-allowed" title="Every quote/proforma gets its own unique tracking number automatically — this can't be edited, so it always stays reliable for lookups regardless of what's in Your Ref."></div>
+      <div class="ff"><label>Your Ref <span style="text-transform:none;font-weight:400;color:var(--text3)">(optional label, e.g. agent name)</span></label><input id="q-ref" value="${esc(data.ref)}" onchange="getQData()" placeholder="e.g. ANAS"></div>
       <div class="ff"><label>Date</label><input id="q-date" type="date" value="${data.date}" onchange="getQData()"></div>
+    </div>
+    <div class="fg fg-3" style="margin-top:6px">
       <div class="ff"><label>Validity (days)</label><input id="q-validity" type="number" value="${data.validity}" onchange="getQData()"></div>
     </div></div>
     ${buildQModalInsightsHTML(data)}
@@ -4045,18 +4089,36 @@ function buildQModal() {
     </tr>
     <tr class="qt-subrow"><td></td><td colspan="12" style="padding:4px 6px 10px">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
-        <input placeholder="Customer-requested customization for this item (e.g. black coating, modified hole diameter)…" value="${esc(r.customization || '')}" oninput="qUpd(${i},'customization',this.value)" style="flex:1;min-width:220px;height:26px;border:1px solid var(--border);border-radius:4px;padding:0 8px;font-size:10.5px;font-family:var(--font)">
+        <input placeholder="Customer-requested customization for this item (e.g. black coating, modified hole diameter)…" value="${esc(r.customization || '')}" oninput="qUpdCustomization(${i},this.value)" style="flex:1;min-width:220px;height:26px;border:1px solid var(--border);border-radius:4px;padding:0 8px;font-size:10.5px;font-family:var(--font)">
         ${isStale ? `<button class="btn btn-secondary btn-xs" title="Inventory now shows: ${esc([liveItem.category, liveItem.type, liveItem.material].filter(Boolean).join(' · '))}" onclick="syncQItemFromInventory(${i})">🔄 Sync from Inventory (changed)</button>` : (liveItem ? `<span style="font-size:9.5px;color:var(--text3)">✓ Matches current inventory</span>` : '')}
       </div>
     </td></tr>`;
   });
-  html += `<tr class="qt-total"><td colspan="11" style="text-align:right;white-space:nowrap">Grand Total</td><td style="font-size:14px;white-space:nowrap">${curSym(items[0]?.currency || 'EUR')}${data.total.toFixed(2)}</td><td></td></tr>`;
+  html += `<tr class="qt-total"><td colspan="11" style="text-align:right;white-space:nowrap">${data.charges?.length ? 'Items Subtotal' : 'Grand Total'}</td><td style="font-size:14px;white-space:nowrap">${curSym(items[0]?.currency || 'EUR')}${data.itemsTotal.toFixed(2)}</td><td></td></tr>`;
   html += `</tbody></table>
     <div style="display:flex;gap:8px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
       <input id="q-add-item-search" list="oc-item-list" placeholder="🔍 Search an item to add…" autocomplete="off" style="flex:1;min-width:200px;height:32px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 10px;font-size:11.5px;font-family:var(--font)">
       <input id="q-add-item-qty" type="number" min="1" value="1" style="width:70px;height:32px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 8px;font-size:11.5px" title="Quantity">
       <button class="btn btn-primary btn-sm" onclick="addItemToQuote()">＋ Add Item</button>
     </div>
+    </div>
+    <div class="form-sec"><div class="form-sec-title">Additional Charges</div>
+    <p style="font-size:10.5px;color:var(--text3);margin-bottom:8px">Sea freight, packing, insurance, or any other flat charge to add on top of the item pricing.</p>
+    ${(data.charges || []).length ? `<table class="qt" style="margin-bottom:8px"><thead><tr><th>Label</th><th>Amount</th><th>Currency</th><th style="width:24px"></th></tr></thead><tbody>
+      ${data.charges.map((c, i) => `<tr>
+        <td><input value="${esc(c.label)}" onchange="qChgUpd(${i},'label',this.value)"></td>
+        <td><input type="number" step="0.01" value="${c.amount}" style="width:90px" onchange="qChgUpd(${i},'amount',this.value)"></td>
+        <td><select style="width:60px" onchange="qChgUpd(${i},'currency',this.value)">${CURRENCIES.map(cur => `<option value="${cur}"${c.currency===cur?' selected':''}>${cur}</option>`).join('')}</select></td>
+        <td><button class="btn btn-danger btn-xs" onclick="rmQCharge(${i})">✕</button></td>
+      </tr>`).join('')}
+    </tbody></table>` : ''}
+    <div style="display:flex;gap:8px;align-items:center">
+      <input id="q-charge-label" placeholder="e.g. Sea Freight, Packing Charges" style="flex:1;min-width:160px;height:32px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 10px;font-size:11.5px;font-family:var(--font)">
+      <input id="q-charge-amount" type="number" step="0.01" placeholder="Amount" style="width:110px;height:32px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 8px;font-size:11.5px">
+      <select id="q-charge-currency" style="width:75px;height:32px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 8px;font-size:11.5px">${CURRENCIES.map(c => `<option value="${c}"${(items[0]?.currency||'EUR')===c?' selected':''}>${c}</option>`).join('')}</select>
+      <button class="btn btn-primary btn-sm" onclick="addQCharge()">＋ Add Charge</button>
+    </div>
+    ${(data.charges || []).length ? `<div style="text-align:right;margin-top:10px;padding-top:10px;border-top:1px solid var(--border);font-family:var(--mono);font-size:15px;font-weight:700;color:var(--accent2)">Grand Total: ${curSym(items[0]?.currency || 'EUR')}${data.total.toFixed(2)}</div>` : ''}
     </div>
     <div class="form-sec"><div class="form-sec-title">Terms &amp; Notes</div>
     <div class="fg fg-2">
@@ -4107,8 +4169,35 @@ function getQData() {
   const terms = fieldVal('q-terms', 'terms', app.settings.quote.terms || '');
   const payment = fieldVal('q-payment', 'payment', app.settings.quote.paymentTerms || '');
   const notes = fieldVal('q-notes', 'notes', app.settings.quote.notes || '');
-  const total = app._quoteItems.reduce((s, r) => s + (r.total || 0), 0);
-  return { items: app._quoteItems, customer: cust, email: custEmail, phone: custPhone, address: custAddr, ref: ref, date: date, validity: valid, terms: terms, payment: payment, notes: notes, total: total, mode: app.quoteMode };
+  const itemsTotal = app._quoteItems.reduce((s, r) => s + (r.total || 0), 0);
+  const charges = app._quoteCharges || [];
+  const chargesTotal = charges.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
+  const total = itemsTotal + chargesTotal;
+  return { items: app._quoteItems, charges, itemsTotal, customer: cust, email: custEmail, phone: custPhone, address: custAddr, ref: ref, date: date, validity: valid, terms: terms, payment: payment, notes: notes, total: total, mode: app.quoteMode };
+}
+// Sea freight, packing, insurance, or any other flat line the customer
+// needs charged that isn't tied to a specific item's per-unit pricing.
+function addQCharge() {
+  const labelEl = document.getElementById('q-charge-label');
+  const amtEl = document.getElementById('q-charge-amount');
+  const curEl = document.getElementById('q-charge-currency');
+  const label = labelEl.value.trim();
+  const amount = parseFloat(amtEl.value) || 0;
+  if (!label) { notify('Give the charge a label (e.g. Sea Freight)', 'warning'); return; }
+  if (!amount) { notify('Enter an amount', 'warning'); return; }
+  app._quoteCharges = app._quoteCharges || [];
+  app._quoteCharges.push({ label, amount, currency: curEl.value || (app._quoteItems[0]?.currency || 'EUR') });
+  buildQModal();
+}
+function rmQCharge(i) {
+  app._quoteCharges.splice(i, 1);
+  buildQModal();
+}
+function qChgUpd(i, field, value) {
+  if (!app._quoteCharges?.[i]) return;
+  if (field === 'amount') app._quoteCharges[i].amount = parseFloat(value) || 0;
+  else app._quoteCharges[i][field] = value;
+  buildQModal();
 }
 
 function qUpd(i, field, value) {
@@ -4125,6 +4214,17 @@ function qUpd(i, field, value) {
   row.fobEur = calcFOB(row.pp, row.marg, row.fob, row.exrate);
   row.total = row.fobEur * (parseFloat(row.qty) || 1);
   buildQModal();
+}
+// Deliberately NOT routed through qUpd()/buildQModal(): customization text
+// doesn't feed into any calculation or other on-screen total, so there's
+// nothing else in the modal that needs to update while typing. Rebuilding
+// the whole table on every keystroke (like qUpd does) was exactly what
+// destroyed and recreated this input on every character, kicking focus
+// out and jumping the scroll position — this just writes straight to the
+// data instead.
+function qUpdCustomization(i, value) {
+  if (!app._quoteItems[i]) return;
+  app._quoteItems[i].customization = value;
 }
 
 function rmQItem(i) {
@@ -4180,7 +4280,7 @@ function syncQItemFromInventory(i) {
   notify('✅ Synced from current Inventory data', 'success');
 }
 
-function docRef(q) { return (q.ref && String(q.ref).trim()) ? q.ref : ('#' + String(q.id).slice(-6)); }
+function docRef(q) { return q.docNumber || (q.ref && String(q.ref).trim()) || ('#' + String(q.id).slice(-6)); }
 // Reopens the quote builder pre-filled with an existing Quotation/Proforma so
 // it can be modified and saved back in place, instead of only ever being able
 // to create new documents.
@@ -4194,6 +4294,7 @@ function editQuote(id) {
   if (!q) { notify('Document not found', 'error'); return; }
   app.quoteMode = q.mode;
   app._quoteItems = JSON.parse(JSON.stringify(q.items || []));
+  app._quoteCharges = JSON.parse(JSON.stringify(q.charges || []));
   app._editingQuoteId = q.id;
   app._editingQuote = q;
   buildQModal();
@@ -4224,25 +4325,24 @@ function saveQuote() {
     notify('✅ Document updated!', 'success');
     return;
   }
-  // If the person left Ref blank, auto-generate one from Settings →
-  // Quotation Settings / Invoice-Proforma Settings (Prefix + Next Number).
-  // This is the control panel for the numbering — it existed already but
-  // wasn't actually wired to generation, so it had no effect; fixed here,
-  // and the counter now advances after each use so numbers stay sequential.
-  let autoRef;
-  if (data.ref && data.ref.trim()) {
-    autoRef = data.ref.trim();
-  } else {
-    const cfg = data.mode === 'proforma' ? app.settings.invoice : app.settings.quote;
-    const prefix = (cfg.prefix || (data.mode === 'proforma' ? 'PI' : 'Q')).trim();
-    const num = parseInt(cfg.nextNumber) || 1;
-    autoRef = prefix + '-' + String(num).padStart(5, '0');
-    cfg.nextNumber = num + 1;
-  }
+  // A unique tracking number is now assigned to EVERY quote/proforma on
+  // creation, no matter what — this used to only happen when "Your Ref"
+  // was left blank, so typing something like "ANAS" into Ref replaced the
+  // tracking number entirely instead of sitting alongside it, and two
+  // quotes both labeled "ANAS" were then indistinguishable from each
+  // other. Ref stays exactly what you type (or blank) — it's now purely a
+  // free-text label, never the thing used to trace a document.
+  const cfg = data.mode === 'proforma' ? app.settings.invoice : app.settings.quote;
+  const prefix = (cfg.prefix || (data.mode === 'proforma' ? 'PI' : 'Q')).trim();
+  const num = parseInt(cfg.nextNumber) || 1;
+  const docNumber = prefix + '-' + String(num).padStart(5, '0');
+  cfg.nextNumber = num + 1;
+  const autoRef = docNumber;
   const q = {
     id: Date.now(),
     ...data,
-    ref: autoRef,
+    docNumber,
+    ref: (data.ref || '').trim(),
     savedAt: new Date().toISOString(),
     savedBy: getCurrentUser().name || getCurrentUser().email || 'Unknown'
   };
@@ -4293,13 +4393,14 @@ function renderQList() {
     html += `<div class="doc-card">
       <div class="doc-icon">${q.mode === 'proforma' ? '🧾' : '📄'}</div>
       <div class="doc-info">
-        <strong>${q.mode === 'proforma' ? 'Proforma' : 'Quotation'} ${docRef(q)}</strong>
-        <span>${q.customer || 'No customer'} — ${q.items?.length || 0} items — ${sym}${(q.total || 0).toFixed(2)}</span>
-        <div style="font-size:9px;color:var(--text3)">${new Date(q.date || q.savedAt).toLocaleDateString()} | Ref: ${q.ref || '—'} | ${q.savedBy || 'System'}</div>
+        <strong>${q.mode === 'proforma' ? 'Proforma' : 'Quotation'} ${esc(docRef(q))}</strong>
+        <span>${esc(q.customer || 'No customer')} — ${q.items?.length || 0} items — ${sym}${(q.total || 0).toFixed(2)}</span>
+        <div style="font-size:9px;color:var(--text3)">${new Date(q.date || q.savedAt).toLocaleDateString()} | Ref: ${esc(q.ref || '—')} | ${esc(q.savedBy || 'System')}</div>
       </div>
       <div class="doc-actions">
         <button class="btn btn-info btn-xs" onclick="viewDoc('${q.id}','quote')">👁️ View</button>
         <button class="btn btn-secondary btn-xs" onclick="editQuote('${q.id}')">✏️ Edit</button>
+        <button class="btn btn-secondary btn-xs" onclick="duplicateQuote('${q.id}')" title="Start a new document from this one's details">📋 Duplicate</button>
         <button class="btn btn-secondary btn-xs" onclick="dlQXLS('${q.id}')">📊 Excel</button>
         <button class="btn btn-secondary btn-xs" onclick="dlQPDF('${q.id}',false)">📄 PDF</button>
         <button class="btn btn-secondary btn-xs" onclick="dlQPDF('${q.id}',true)">🖼️ PDF+Photo</button>
@@ -4316,11 +4417,98 @@ function renderQList() {
 }
 
 function delQ(id) {
-  if (!confirm('Delete this quotation?')) return;
-  app.quotations = app.quotations.filter(q => q.id != id);
+  const q = app.quotations.find(x => x.id == id);
+  if (!q) return;
+  if (!confirm('Delete this ' + (q.mode === 'proforma' ? 'proforma' : 'quotation') + '? It goes to Trash and can be restored for 30 days — nothing is lost immediately.')) return;
+  app.quotations = app.quotations.filter(x => x.id != id);
+  app.trash = app.trash || [];
+  app.trash.push({
+    id: uid(), type: 'quotation',
+    label: (q.mode === 'proforma' ? 'Proforma' : 'Quotation') + ' ' + docRef(q) + ' — ' + (q.customer || 'No customer'),
+    data: q,
+    deletedAt: new Date().toISOString(),
+    deletedBy: getCurrentUser().name || getCurrentUser().email || 'Unknown'
+  });
+  purgeOldTrash();
   persist();
   renderQList();
-  notify('Quotation deleted', 'success');
+  notify('🗑️ Moved to Trash — restore it anytime within 30 days', 'success');
+}
+// Reuses an existing quote/proforma's customer, items, charges, terms as
+// the starting point for a brand-new document instead of typing it all
+// again — saves as a NEW record on Save, the original is untouched.
+function duplicateQuote(id) {
+  const q = app.quotations.find(x => x.id == id);
+  if (!q) { notify('Not found', 'error'); return; }
+  app.quoteMode = q.mode;
+  app._quoteItems = JSON.parse(JSON.stringify(q.items || []));
+  app._quoteCharges = JSON.parse(JSON.stringify(q.charges || []));
+  app._editingQuoteId = null; // null → Save creates a NEW record, doesn't touch the original
+  app._editingQuote = { ...q, docNumber: '', ref: '', date: today() }; // blank docNumber/ref → fresh tracking number auto-assigned on Save, not the original's
+  buildQModal();
+  openModal('modal-quote');
+  notify('📋 Duplicated — review the details, then Save to create a new document', 'success');
+}
+// ── TRASH / RECYCLE BIN ──────────────────────────────────────────────────
+// Deleting a Quote, Proforma, or Order used to be instant and permanent —
+// this is exactly what made "I deleted it and need to redo it" mean
+// retyping everything from scratch. Deletes now move the full record here
+// instead, restorable for 30 days, after which they're swept automatically.
+function purgeOldTrash() {
+  const cutoff = Date.now() - 30 * 86400000;
+  app.trash = (app.trash || []).filter(t => new Date(t.deletedAt).getTime() > cutoff);
+}
+function openTrash() {
+  purgeOldTrash();
+  renderTrashList();
+  openModal('modal-trash');
+}
+function renderTrashList() {
+  const el = document.getElementById('trash-list');
+  if (!el) return;
+  const items = [...(app.trash || [])].sort((a, b) => b.deletedAt.localeCompare(a.deletedAt));
+  if (!items.length) { el.innerHTML = '<div class="empty-state"><h3>Trash is empty</h3><p>Deleted quotes, proformas, and orders show up here for 30 days.</p></div>'; return; }
+  el.innerHTML = items.map(t => {
+    const daysLeft = Math.max(0, 30 - Math.floor((Date.now() - new Date(t.deletedAt).getTime()) / 86400000));
+    return `<div class="s-item">
+      <div class="s-info"><strong>${esc(t.label)}</strong><small>Deleted by ${esc(t.deletedBy)} on ${new Date(t.deletedAt).toLocaleDateString()} · ${daysLeft}d left before permanent removal</small></div>
+      <div class="s-ctl" style="display:flex;gap:6px">
+        <button class="btn btn-success btn-xs" onclick="restoreTrashItem('${t.id}')">♻️ Restore</button>
+        <button class="btn btn-danger btn-xs" onclick="permanentlyDeleteTrashItem('${t.id}')">🗑️ Delete Forever</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+function restoreTrashItem(trashId) {
+  const t = (app.trash || []).find(x => x.id == trashId);
+  if (!t) return;
+  if (t.type === 'quotation') {
+    app.quotations.push(t.data);
+  } else if (t.type === 'order') {
+    app.orderGroups.push(t.data.orderGroup);
+    (t.data.lots || []).forEach(lot => app.customerOrders.push(lot));
+    (t.data.affectedPaymentIds || []).forEach(pid => {
+      const p = app.payments.find(x => x.id == pid);
+      if (p) { p.orderGroupId = t.data.orderGroup.id; delete p.formerOrderRef; }
+    });
+    (t.data.sourceProformaIds || []).forEach(qid => {
+      const q = app.quotations.find(x => x.id == qid);
+      if (q && !q.convertedOrderGroupId) q.convertedOrderGroupId = t.data.orderGroup.id;
+    });
+    invalidateConsumedMapCache();
+  }
+  app.trash = app.trash.filter(x => x.id != trashId);
+  persist();
+  renderTrashList();
+  renderAll();
+  notify('♻️ Restored', 'success');
+}
+function permanentlyDeleteTrashItem(trashId) {
+  if (!confirm('Permanently delete this — it cannot be recovered after this. Continue?')) return;
+  app.trash = (app.trash || []).filter(x => x.id != trashId);
+  persist();
+  renderTrashList();
+  notify('Permanently deleted', 'success');
 }
 
 function viewDoc(id, type) {
@@ -4329,7 +4517,7 @@ function viewDoc(id, type) {
   document.getElementById('vd-title').textContent = (q.mode === 'proforma' ? '🧾 Proforma' : '📄 Quotation') + ' ' + docRef(q);
   const body = document.getElementById('vd-body');
   const sym = curSym(q.items?.[0]?.currency || 'EUR');
-  let html = `<div style="font-size:12px;color:var(--text2);margin-bottom:10px"><strong>Customer:</strong> ${esc(q.customer || '—')} &nbsp;|&nbsp; <strong>Date:</strong> ${new Date(q.date || q.savedAt).toLocaleDateString()} &nbsp;|&nbsp; <strong>Ref:</strong> ${esc(q.ref || '—')}</div>
+  let html = `<div style="font-size:12px;color:var(--text2);margin-bottom:10px"><strong>Customer:</strong> ${esc(q.customer || '—')} &nbsp;|&nbsp; <strong>Date:</strong> ${new Date(q.date || q.savedAt).toLocaleDateString()}${q.ref ? ' &nbsp;|&nbsp; <strong>Ref:</strong> ' + esc(q.ref) : ''}</div>
     <div style="font-size:11px;color:var(--text3);margin-bottom:8px">${esc(q.terms || '')}</div>
     <div class="table-wrap"><table class="qt" style="table-layout:fixed;width:100%">
       <colgroup><col style="width:22%"><col style="width:20%"><col style="width:10%"><col style="width:16%"><col style="width:16%"><col style="width:16%"></colgroup>
@@ -4337,7 +4525,13 @@ function viewDoc(id, type) {
   (q.items || []).forEach(r => {
     html += `<tr><td>${esc(r.item)}</td><td style="font-size:10px">${esc(r.type || '')}</td><td>${r.qty}</td><td>₹${(r.pp || 0).toFixed(2)}</td><td>${curSym(r.currency||'EUR')}${(r.fobEur || 0).toFixed(4)}</td><td>${curSym(r.currency||'EUR')}${(r.total||0).toFixed(2)}</td></tr>`;
   });
-  html += `<tr class="qt-total"><td colspan="5" style="text-align:right;white-space:nowrap">Total</td><td style="white-space:nowrap">${sym}${(q.total || 0).toFixed(2)}</td></tr></tbody></table></div>`;
+  html += `<tr class="qt-total"><td colspan="5" style="text-align:right;white-space:nowrap">${(q.charges || []).length ? 'Items Subtotal' : 'Total'}</td><td style="white-space:nowrap">${sym}${(q.itemsTotal ?? q.total ?? 0).toFixed(2)}</td></tr></tbody></table></div>`;
+  if ((q.charges || []).length) {
+    html += `<div style="margin-top:8px;border-top:1px dashed var(--border);padding-top:8px">
+      ${q.charges.map(c => `<div style="display:flex;justify-content:space-between;font-size:11px;color:var(--text2);padding:2px 0"><span>${esc(c.label)}</span><span>${curSym(c.currency || sym)}${(parseFloat(c.amount) || 0).toFixed(2)}</span></div>`).join('')}
+      <div style="display:flex;justify-content:space-between;font-size:13px;font-weight:700;color:var(--accent2);margin-top:6px;padding-top:6px;border-top:1px solid var(--border)"><span>Grand Total</span><span>${sym}${(q.total || 0).toFixed(2)}</span></div>
+    </div>`;
+  }
   if (q.payment) html += `<div style="margin-top:8px;font-size:11px;color:var(--text2)"><strong>Payment:</strong> ${esc(q.payment)}</div>`;
   if (q.notes) html += `<div style="font-size:11px;color:var(--text3);margin-top:4px">${esc(q.notes)}</div>`;
   body.innerHTML = html;
@@ -4478,8 +4672,18 @@ async function buildQPDF(data, withPhotos) {
   doc.setFontSize(16); doc.setFont(undefined, 'bold');
   doc.text(data.mode === 'proforma' ? 'PROFORMA INVOICE' : 'QUOTATION', pageW - M, 30, { align: 'right' });
   doc.setFontSize(8); doc.setFont(undefined, 'normal'); doc.setTextColor(210, 216, 226);
-  doc.text('Ref: ' + (data.ref || '—'), pageW - M, 46, { align: 'right' });
-  doc.text('Date: ' + data.date + '   •   Valid: ' + data.validity + ' days', pageW - M, 58, { align: 'right' });
+  // docRef(data) is the unique tracking number, always assigned — shown as
+  // the primary identifier regardless of whether "Your Ref" was filled in,
+  // so the document is always traceable by a number that's guaranteed
+  // unique, with the free-text ref (if any) shown alongside it rather than
+  // replacing it.
+  doc.text((data.mode === 'proforma' ? 'PI No: ' : 'Quote No: ') + docRef(data), pageW - M, 46, { align: 'right' });
+  if (data.ref && data.ref.trim()) {
+    doc.text('Ref: ' + data.ref, pageW - M, 58, { align: 'right' });
+    doc.text('Date: ' + data.date + '   •   Valid: ' + data.validity + ' days', pageW - M, 70, { align: 'right' });
+  } else {
+    doc.text('Date: ' + data.date + '   •   Valid: ' + data.validity + ' days', pageW - M, 58, { align: 'right' });
+  }
   y = bannerH + 22;
 
   // ---- Company / Customer info panels ----
@@ -4557,7 +4761,7 @@ async function buildQPDF(data, withPhotos) {
         // called out in a different color so it doesn't blend in with the
         // regular spec lines above it and get missed.
         doc.setFont(undefined, 'bold'); doc.setFontSize(7.8); doc.setTextColor(178, 118, 22);
-        const custLines = doc.splitTextToSize('✎ Customization: ' + r.customization, (rightX - textX) - 90);
+        const custLines = doc.splitTextToSize('Customization: ' + r.customization, (rightX - textX) - 90);
         custLines.slice(0, 2).forEach((line, li) => doc.text(line, textX, y + 71 + li * 9));
         doc.setFont(undefined, 'normal');
       }
@@ -4587,7 +4791,7 @@ async function buildQPDF(data, withPhotos) {
       return [
         (i + 1).toString(),
         r.item || '',
-        r.customization ? desc + '\n✎ Customization: ' + r.customization : desc,
+        r.customization ? desc + '\nCustomization: ' + r.customization : desc,
         (r.qty || 0).toLocaleString(),
         sym + (r.fobEur || 0).toFixed(4),
         sym + (r.total || 0).toFixed(2)
@@ -4614,13 +4818,32 @@ async function buildQPDF(data, withPhotos) {
     y = doc.lastAutoTable.finalY + 14;
   }
 
-  // ---- Grand total ----
+  // ---- Grand total (with a charges breakdown above it when there are any —
+  // sea freight / packing / etc. added on top of the item pricing) ----
+  const hasCharges = (data.charges || []).length > 0;
+  const chargesBoxH = hasCharges ? (data.charges.length * 14 + 20) : 0;
   const totalBoxH = 34, totalBoxW = 220;
-  if (y + totalBoxH > pageH - 110) { doc.addPage(); y = 30; }
+  if (y + totalBoxH + chargesBoxH > pageH - 110) { doc.addPage(); y = 30; }
   const sym = curSym(data.items[0]?.currency || 'EUR');
   const totalQty = data.items.reduce((s, r) => s + (parseFloat(r.qty) || 0), 0);
   doc.setFontSize(8); doc.setFont(undefined, 'normal'); doc.setTextColor(120, 118, 110);
   doc.text(`${data.items.length} item(s)  •  ${totalQty.toLocaleString()} pcs total`, M, y + totalBoxH / 2 + 3);
+  if (hasCharges) {
+    const boxW = 220, boxX = pageW - M - boxW;
+    doc.setDrawColor(220, 218, 210);
+    doc.setFillColor(250, 249, 246);
+    doc.roundedRect(boxX, y, boxW, chargesBoxH, 4, 4, 'FD');
+    doc.setFontSize(8.3); doc.setTextColor(80, 78, 70);
+    doc.setFont(undefined, 'normal');
+    doc.text('Items Subtotal', boxX + 12, y + 14);
+    doc.text(sym + (data.itemsTotal ?? data.total ?? 0).toFixed(2), boxX + boxW - 12, y + 14, { align: 'right' });
+    data.charges.forEach((c, ci) => {
+      const cSym = curSym(c.currency || sym);
+      doc.text(c.label || 'Charge', boxX + 12, y + 14 + (ci + 1) * 14);
+      doc.text(cSym + (parseFloat(c.amount) || 0).toFixed(2), boxX + boxW - 12, y + 14 + (ci + 1) * 14, { align: 'right' });
+    });
+    y += chargesBoxH + 8;
+  }
   doc.setDrawColor(...GREEN);
   doc.setFillColor(230, 245, 236);
   doc.roundedRect(pageW - M - totalBoxW, y, totalBoxW, totalBoxH, 4, 4, 'FD');
@@ -4720,7 +4943,7 @@ function buildQuotationWorkbook(data) {
   ws.mergeCells(2, 1, 2, Math.ceil(colCount / 2));
   ws.getCell(2, 1).value = 'Customer: ' + (data.customer || '—');
   ws.mergeCells(2, Math.ceil(colCount / 2) + 1, 2, colCount);
-  ws.getCell(2, Math.ceil(colCount / 2) + 1).value = 'Ref: ' + (data.ref || '—') + '    Date: ' + data.date;
+  ws.getCell(2, Math.ceil(colCount / 2) + 1).value = (data.mode === 'proforma' ? 'PI No: ' : 'Quote No: ') + docRef(data) + (data.ref ? '    Ref: ' + data.ref : '') + '    Date: ' + data.date;
   ws.getRow(2).font = { italic: true, size: 10, color: { argb: 'FF5A5850' } };
   ws.getRow(2).height = 18;
 
@@ -4757,12 +4980,28 @@ function buildQuotationWorkbook(data) {
     }
   });
 
+  // Additional charges (sea freight, packing, etc.) — shown as their own
+  // rows between the items and the final total, same idea as the PDF.
+  if ((data.charges || []).length) {
+    const subRow = ws.addRow([]);
+    ws.getCell(subRow.number, colCount - (anyPhoto ? 2 : 1)).value = 'Items Subtotal';
+    ws.getCell(subRow.number, colCount - (anyPhoto ? 2 : 1)).font = { italic: true };
+    ws.getCell(subRow.number, colCount - (anyPhoto ? 1 : 0)).value = data.itemsTotal ?? data.total;
+    ws.getCell(subRow.number, colCount - (anyPhoto ? 1 : 0)).numFmt = '#,##0.00';
+    data.charges.forEach(c => {
+      const chRow = ws.addRow([]);
+      ws.getCell(chRow.number, colCount - (anyPhoto ? 2 : 1)).value = c.label || 'Charge';
+      ws.getCell(chRow.number, colCount - (anyPhoto ? 1 : 0)).value = parseFloat(c.amount) || 0;
+      ws.getCell(chRow.number, colCount - (anyPhoto ? 1 : 0)).numFmt = '#,##0.00';
+    });
+  }
+
   // Total row
   const totalRow = ws.addRow([]);
   for (let c = 1; c <= colCount; c++) {
     ws.getCell(totalRow.number, c).border = { top: { style: 'medium', color: { argb: NAVY } } };
   }
-  ws.getCell(totalRow.number, colCount - (anyPhoto ? 2 : 1)).value = 'TOTAL';
+  ws.getCell(totalRow.number, colCount - (anyPhoto ? 2 : 1)).value = (data.charges || []).length ? 'GRAND TOTAL' : 'TOTAL';
   ws.getCell(totalRow.number, colCount - (anyPhoto ? 2 : 1)).font = { bold: true };
   ws.getCell(totalRow.number, colCount - (anyPhoto ? 1 : 0)).value = data.total;
   ws.getCell(totalRow.number, colCount - (anyPhoto ? 1 : 0)).numFmt = '#,##0.00';
@@ -6002,16 +6241,35 @@ function deleteOrderGroup(gid) {
   const totalDispatched = lots.reduce((s, l) => s + getConsumedForOrder(l.id), 0);
   const linkedPayments = app.payments.filter(p => p.orderGroupId == gid);
   let msg = totalDispatched > 0.0001
-    ? `⚠️ ${g.ref} already has ${totalDispatched.toLocaleString()} pcs dispatched against it. Deleting the order removes the order record, but the dispatch history will remain. Delete "${g.ref}" for ${g.customer} anyway?`
-    : `Delete order "${g.ref}" for ${g.customer}? This cannot be undone.`;
-  if (linkedPayments.length) msg += `\n\nNote: ${linkedPayments.length} payment record(s) are linked to this order. They will be kept (money already received isn't deleted) but unlinked from this order.`;
+    ? `⚠️ ${g.ref} already has ${totalDispatched.toLocaleString()} pcs dispatched against it. Deleting the order removes the order record, but the dispatch history will remain. Delete "${g.ref}" for ${g.customer} anyway? (It goes to Trash and can be restored for 30 days.)`
+    : `Delete order "${g.ref}" for ${g.customer}? It goes to Trash and can be restored for 30 days — nothing is lost immediately.`;
+  if (linkedPayments.length) msg += `\n\nNote: ${linkedPayments.length} payment record(s) are linked to this order. They will be kept (money already received isn't deleted) but unlinked from this order — restoring from Trash re-links them automatically.`;
   if (!confirm(msg)) return;
+  // Snapshot everything this delete cascades into, so Restore can put it
+  // all back exactly as it was — not just the order record itself.
+  app.trash = app.trash || [];
+  app.trash.push({
+    id: uid(), type: 'order',
+    label: 'Order ' + g.ref + ' — ' + g.customer,
+    data: {
+      orderGroup: JSON.parse(JSON.stringify(g)),
+      lots: JSON.parse(JSON.stringify(lots)),
+      affectedPaymentIds: linkedPayments.map(p => p.id),
+      sourceProformaIds: g.sourceProformaIds || []
+    },
+    deletedAt: new Date().toISOString(),
+    deletedBy: getCurrentUser().name || getCurrentUser().email || 'Unknown'
+  });
+  purgeOldTrash();
   app.orderGroups = app.orderGroups.filter(x => x.id != gid);
   app.customerOrders = app.customerOrders.filter(o => o.orderGroupId != gid);
   // Don't delete payments tied to this order — that would erase a real record
   // of money received/credited. Just clear the dangling order link so the
-  // ledger doesn't reference an order that no longer exists.
-  app.payments.forEach(p => { if (p.orderGroupId == gid) p.orderGroupId = null; });
+  // ledger doesn't reference an order that no longer exists — but keep the
+  // order's ref on the payment (formerOrderRef) so the ledger can still show
+  // "Q4 (order deleted)" instead of the payment silently looking unlinked,
+  // which is what made deleted orders' payments confusing before.
+  app.payments.forEach(p => { if (p.orderGroupId == gid) { p.formerOrderRef = g.ref; p.orderGroupId = null; } });
   (g.sourceProformaIds || []).forEach(qid => {
     const q = app.quotations.find(x => x.id == qid);
     if (q && q.convertedOrderGroupId === g.id) q.convertedOrderGroupId = null;
@@ -6020,18 +6278,16 @@ function deleteOrderGroup(gid) {
   logActivity('ORDER_DELETED', { orderRef: g.ref, customer: g.customer }, null);
   persist();
   renderQList();
-  renderOrders();
-  renderPayments();
-  updateReminderBadges();
-  if (app._currentLedgerCustomer === g.customer) document.getElementById('pl-body').innerHTML = buildLedgerHTML(g.customer);
   closeModal('modal-order-group');
-  notify('🗑️ Order deleted', 'success');
+  refreshOrderPaymentViews(g.customer);
+  notify('🗑️ Order moved to Trash — restore it anytime within 30 days', 'success');
 }
 function setOrderGroupOwner(gid, name) {
   const g = app.orderGroups.find(x => x.id == gid);
   if (!g) return;
   g.owner = name || null;
   persist();
+  refreshOrderPaymentViews(g.customer);
   notify(name ? 'Sales owner set to ' + name : 'Sales owner cleared', 'success');
 }
 function openOrderGroupDetail(gid) {
@@ -6163,6 +6419,7 @@ function confirmConvertToOrder() {
   persist();
   renderQList();
   renderOrders();
+  refreshOrderPaymentViews(q.customer);
   closeModal('modal-convert-order');
   notify('✅ Converted to Order ' + group.ref, 'success');
   switchView('orders');
@@ -6212,6 +6469,36 @@ const EMPTY_LEDGER = { orderValue: {}, received: {}, credits: {}, balance: {}, c
 function getCustomerLedger(customer, ledgers) {
   const map = ledgers || buildAllLedgers();
   return map[customer] || EMPTY_LEDGER;
+}
+function isModalOpen(id) {
+  const el = document.getElementById(id);
+  return !!(el && el.classList.contains('open'));
+}
+// Every place that adds/removes an order, changes what's in one, or
+// records/deletes a payment or credit calls this afterward. Orders and
+// Payments data shows up in several places at once — the Orders tab, the
+// Payments tab, a customer's Payment Ledger modal, an open Order Details
+// modal, Customer 360 — and previously each mutating function only
+// refreshed one or two of those by hand, so a change made in one place
+// (e.g. adding items to an order) could sit stale in another (e.g. the
+// Payments tab, or the ledger modal for a DIFFERENT customer you had open)
+// until you navigated away and back, or reloaded the page entirely. This
+// refreshes every one of them that's actually visible right now, so
+// there's no view left holding old numbers.
+function refreshOrderPaymentViews(customer) {
+  if (app.currentView === 'orders') renderOrders();
+  if (app.currentView === 'payments') renderPayments();
+  if (app.currentView === 'action') renderActionCenter();
+  if (isModalOpen('modal-payment-ledger') && app._currentLedgerCustomer === customer) {
+    document.getElementById('pl-body').innerHTML = buildLedgerHTML(customer);
+  }
+  if (isModalOpen('modal-order-group') && app._currentOrderGroupId != null) {
+    const stillExists = app.orderGroups.some(g => g.id == app._currentOrderGroupId);
+    if (stillExists) openOrderGroupDetail(app._currentOrderGroupId);
+    else closeModal('modal-order-group');
+  }
+  if (isModalOpen('modal-customer-360') && app._c360Customer === customer) renderCustomer360();
+  updateReminderBadges();
 }
 function getAllCustomerNames() {
   const names = new Set((app.customers || []).map(c => c.name));
@@ -6444,14 +6731,19 @@ function buildLedgerHTML(customer) {
   html += '</tbody></table></div>';
 
   html += `<div class="form-sec-title" style="margin-bottom:6px">💵 Payments &amp; Credits</div>
-  <div class="table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th class="td-r">Amount</th><th>Mode</th><th>Reference</th><th>Notes</th><th></th></tr></thead><tbody>`;
-  if (!pays.length) html += `<tr><td colspan="7" style="text-align:center;color:var(--text3);padding:14px">No payments recorded yet</td></tr>`;
+  <div class="table-wrap"><table><thead><tr><th>Date</th><th>Type</th><th class="td-r">Amount</th><th>Order</th><th>Mode</th><th>Reference</th><th>Notes</th><th></th></tr></thead><tbody>`;
+  if (!pays.length) html += `<tr><td colspan="8" style="text-align:center;color:var(--text3);padding:14px">No payments recorded yet</td></tr>`;
   pays.forEach(p => {
     const isCredit = p.type === 'credit';
+    const linkedOrder = p.orderGroupId ? app.orderGroups.find(g => g.id == p.orderGroupId) : null;
+    const orderLabel = linkedOrder ? esc(linkedOrder.ref)
+      : p.formerOrderRef ? `<span style="color:var(--text3)" title="This order was deleted — the payment itself is kept">${esc(p.formerOrderRef)} (deleted)</span>`
+      : '<span style="color:var(--text3)">— General —</span>';
     html += `<tr>
       <td style="font-size:10.5px;white-space:nowrap">${new Date(p.date).toLocaleDateString()}</td>
       <td>${isCredit ? '<span class="badge-pill" style="background:var(--purple-bg);color:var(--purple)">↩️ Credit/Refund</span>' : '<span class="badge-pill" style="background:var(--green-bg);color:var(--green)">💵 Received</span>'}</td>
       <td class="td-r" style="font-weight:700">${fmtMoney(p.currency, p.amount)}</td>
+      <td style="font-size:10.5px;white-space:nowrap">${orderLabel}</td>
       <td style="font-size:10.5px">${esc(p.mode || '—')}</td>
       <td style="font-size:10.5px">${esc(p.reference || '—')}</td>
       <td style="font-size:10.5px;color:var(--text3)">${esc(p.notes || (p.qualityIssueId ? 'Linked to quality issue' : '—'))}</td>
@@ -6466,8 +6758,7 @@ function setOrderDueDate(gid, dateStr) {
   if (!g) return;
   g.paymentDueDate = dateStr || null;
   persist();
-  renderOrders(); updateReminderBadges();
-  if (app._currentLedgerCustomer) document.getElementById('pl-body').innerHTML = buildLedgerHTML(app._currentLedgerCustomer);
+  refreshOrderPaymentViews(g.customer);
   notify('Payment due date updated', 'success');
 }
 
@@ -6510,16 +6801,16 @@ function savePayment() {
   logActivity('PAYMENT_RECORDED', { customer, type: rec.type, amount, currency: rec.currency }, null);
   persist();
   closeModal('modal-add-payment');
-  renderPayments(); updateReminderBadges();
-  if (app._currentLedgerCustomer) document.getElementById('pl-body').innerHTML = buildLedgerHTML(app._currentLedgerCustomer);
+  refreshOrderPaymentViews(customer);
   notify('✅ ' + (rec.type === 'credit' ? 'Credit/refund' : 'Payment') + ' recorded', 'success');
 }
 function deletePayment(id) {
   if (!confirm('Delete this payment record? This cannot be undone.')) return;
+  const p = app.payments.find(x => x.id == id);
+  const customer = p?.customer;
   app.payments = app.payments.filter(p => p.id != id);
   persist();
-  renderPayments(); updateReminderBadges();
-  if (app._currentLedgerCustomer) document.getElementById('pl-body').innerHTML = buildLedgerHTML(app._currentLedgerCustomer);
+  refreshOrderPaymentViews(customer);
   notify('Payment record deleted', 'success');
 }
 
@@ -6764,8 +7055,8 @@ function saveQualityIssue() {
   logActivity(isNew ? 'QUALITY_ISSUE_REPORTED' : 'QUALITY_ISSUE_UPDATED', { item: item.item, customer, status: issue.status }, issue.itemId);
   persist();
   closeModal('modal-quality-issue');
-  renderQuality(); renderInventory(); updateReminderBadges();
-  if (app._currentLedgerCustomer) document.getElementById('pl-body').innerHTML = buildLedgerHTML(app._currentLedgerCustomer);
+  renderQuality(); renderInventory();
+  if (customer) refreshOrderPaymentViews(customer); else updateReminderBadges();
   notify('✅ Quality issue ' + (isNew ? 'reported' : 'updated'), 'success');
 }
 function resolveIssue(id) {
@@ -9923,11 +10214,17 @@ function emailQuotationCustomer(id) {
   if (!q) return;
   const c = findCustomerByName(q.customer);
   const sym = curSym(q.items?.[0]?.currency || 'EUR');
-  const itemLines = (q.items || []).map(r => `- ${r.item}: ${r.qty || ''} x ${sym}${(r.fobPrice || 0).toFixed(2)}`).join('\n');
+  // Was reading r.fobPrice, a field that's never actually set on a quote
+  // item (the real field is fobEur) — every emailed quote line has been
+  // showing 0.00 per unit regardless of the real price. Fixed here too
+  // since it's the same function being touched for charges.
+  const itemLines = (q.items || []).map(r => `- ${r.item}: ${(r.qty || 0).toLocaleString()} x ${curSym(r.currency || sym)}${(r.fobEur || 0).toFixed(4)} = ${curSym(r.currency || sym)}${(r.total || 0).toFixed(2)}`).join('\n');
+  const chargeLines = (q.charges || []).length ? '\n\n' + q.charges.map(ch => `${ch.label}: ${curSym(ch.currency || sym)}${(parseFloat(ch.amount) || 0).toFixed(2)}`).join('\n') : '';
+  const subtotalLine = (q.charges || []).length ? `\n\nItems Subtotal: ${sym}${(q.itemsTotal ?? q.total ?? 0).toFixed(2)}` : '';
   openEmailComposer({
     toEmail: c?.email || '', toName: q.customer || '',
     subject: `${q.mode === 'proforma' ? 'Proforma Invoice' : 'Quotation'} ${docRef(q)}`,
-    message: `Dear ${q.customer || 'Sir/Madam'},\n\nPlease find our ${q.mode === 'proforma' ? 'proforma invoice' : 'quotation'} ${docRef(q)} below:\n\n${itemLines}\n\nTotal: ${sym}${(q.total || 0).toFixed(2)}\n${q.payment ? '\nPayment Terms: ' + q.payment : ''}\n\nPlease find the full document attached separately (download the PDF/Excel from the app and attach it to this email before sending, or ask us to resend).\n\nBest regards,\n${getCurrentUser().name || ''}`
+    message: `Dear ${q.customer || 'Sir/Madam'},\n\nPlease find our ${q.mode === 'proforma' ? 'proforma invoice' : 'quotation'} ${docRef(q)} below:\n\n${itemLines}${subtotalLine}${chargeLines}\n\nGrand Total: ${sym}${(q.total || 0).toFixed(2)}\n${q.payment ? '\nPayment Terms: ' + q.payment : ''}\n\nPlease find the full document attached separately (download the PDF/Excel from the app and attach it to this email before sending, or ask us to resend).\n\nBest regards,\n${getCurrentUser().name || ''}`
   });
 }
 function emailSampleCustomer() {
