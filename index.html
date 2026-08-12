@@ -5719,9 +5719,23 @@ function renderOrdersMain() {
   html += mode === 'order' ? renderOrderWiseTable() : renderCustomerWiseTable();
   el.innerHTML = html;
 }
+// The quote/proforma number(s) an order was converted (or merged) from —
+// shown right next to Order Ref in the Orders table so you can trace a
+// dispatch or balance straight back to the document it came from without
+// digging into the order's full log. An order can have more than one if
+// documents were merged into it, so this can return a few, comma-separated.
+function sourceDocLinksHTML(g) {
+  const ids = g.sourceProformaIds || [];
+  if (!ids.length) return '<span style="color:var(--text3)">—</span>';
+  return ids.map(qid => {
+    const q = app.quotations.find(x => x.id == qid);
+    if (!q) return '<span style="color:var(--text3)" title="This document was deleted">(deleted)</span>';
+    return `<span style="color:var(--accent2);cursor:pointer;text-decoration:underline dotted" onclick="event.stopPropagation();editQuote('${qid}')" title="Open ${q.mode === 'proforma' ? 'Proforma' : 'Quotation'} ${esc(docRef(q))}">${esc(docRef(q))}</span>`;
+  }).join(', ');
+}
 function renderOrderWiseTable() {
   if (!app.orderGroups.length) return '<div class="empty-state"><h3>No orders yet</h3><p>Orders are created by converting a Quotation or Proforma — go to Quotes/Proforma, open one, and click "➡️ Convert to Order".</p></div>';
-  let html = '<div class="table-wrap"><table><thead><tr><th style="width:22px"></th><th style="width:110px">Order Ref</th><th style="width:90px">Country</th><th>Customer</th><th style="width:85px">Created</th><th class="td-c" style="width:55px">Items</th><th class="td-r" style="width:90px">Ordered</th><th class="td-r" style="width:90px">Dispatched</th><th class="td-c" style="width:140px">Balance</th></tr></thead><tbody>';
+  let html = '<div class="table-wrap"><table><thead><tr><th style="width:22px"></th><th style="width:110px">Order Ref</th><th style="width:100px">Quote/PI No.</th><th style="width:90px">Country</th><th>Customer</th><th style="width:85px">Created</th><th class="td-c" style="width:55px">Items</th><th class="td-r" style="width:90px">Ordered</th><th class="td-r" style="width:90px">Dispatched</th><th class="td-c" style="width:140px">Balance</th></tr></thead><tbody>';
   app.orderGroups.slice().reverse().forEach(g => {
     const lots = app.customerOrders.filter(o => o.orderGroupId === g.id);
     const uniqueItems = new Set(lots.map(l => l.itemId)).size;
@@ -5735,6 +5749,7 @@ function renderOrderWiseTable() {
     html += `<tr class="order-row" onclick="toggleOrderExpand(${g.id})" style="cursor:pointer">
       <td id="oarrow-${g.id}">▶</td>
       <td style="white-space:nowrap"><strong>${esc(g.ref)}</strong>${hasPriority ? ' <span title="Contains priority item(s)">🔥</span>' : ''}</td>
+      <td style="white-space:nowrap;font-size:10.5px;font-family:var(--mono)">${sourceDocLinksHTML(g)}</td>
       <td>${esc(g.country || '—')}</td>
       <td>${esc(g.customer)}</td>
       <td style="font-size:10.5px">${new Date(g.createdDate).toLocaleDateString()}</td>
@@ -5743,7 +5758,7 @@ function renderOrderWiseTable() {
       <td class="td-r">${totalDispatched.toLocaleString()}</td>
       <td class="td-c">${readinessBadge(balance, totalReady, totalUnderProduction)}</td>
     </tr>
-    <tr id="oexp-${g.id}" style="display:none"><td colspan="9" style="padding:0;background:var(--surface2)"><div style="padding:10px 16px">${buildOrderProductMatrix(g)}</div></td></tr>`;
+    <tr id="oexp-${g.id}" style="display:none"><td colspan="10" style="padding:0;background:var(--surface2)"><div style="padding:10px 16px">${buildOrderProductMatrix(g)}</div></td></tr>`;
   });
   html += '</tbody></table></div>';
   return html;
