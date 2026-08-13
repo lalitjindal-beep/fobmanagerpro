@@ -4605,6 +4605,21 @@ function pdfSectionCard(doc, x, y, w, title, lines, opts = {}) {
 // forced into a square box comes out squashed/stretched. This reads the
 // image's real pixel dimensions (doc.getImageProperties) and scales it to
 // fit inside the box like CSS object-fit:contain, then centers it.
+// Truncates text with "…" to whatever actually fits within maxWidth at the
+// CURRENTLY set font/size/style — call this right after setFont/setFontSize
+// for the line being drawn, since width is measured against whatever's
+// active at the time. Used everywhere a single line of dynamic (potentially
+// long) text gets drawn directly via doc.text() instead of through
+// autoTable, which wraps on its own.
+function fitOneLine(doc, text, maxWidth) {
+  text = String(text || '');
+  if (!text) return '';
+  if (maxWidth <= 0) return '';
+  if (doc.getTextWidth(text) <= maxWidth) return text;
+  let t = text;
+  while (t.length > 1 && doc.getTextWidth(t + '…') > maxWidth) t = t.slice(0, -1);
+  return t.trimEnd() + '…';
+}
 function addImageContain(doc, imgData, x, y, boxW, boxH) {
   if (!imgData) return false;
   try {
@@ -4680,7 +4695,7 @@ async function buildQPDF(data, withPhotos) {
   const nameX = M + logoW;
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(13.5); doc.setFont(undefined, 'bold');
-  doc.text(company.name || 'Your Company', nameX, 32);
+  doc.text(fitOneLine(doc, company.name || 'Your Company', pageW - M - nameX - 150), nameX, 32);
   if (company.tagline) {
     doc.setFontSize(8); doc.setFont(undefined, 'normal'); doc.setTextColor(210, 216, 226);
     doc.text(company.tagline, nameX, 45);
@@ -4729,14 +4744,14 @@ async function buildQPDF(data, withPhotos) {
   doc.text('BILL TO', rx + 12, y + 14);
 
   doc.setFont(undefined, 'bold'); doc.setFontSize(9.5); doc.setTextColor(30, 30, 28);
-  doc.text(company.name || 'Your Company', M + 12, y + 28);
+  doc.text(fitOneLine(doc, company.name || 'Your Company', halfW - 24), M + 12, y + 28);
   let ly = y + 40;
   doc.setFont(undefined, 'normal'); doc.setFontSize(8); doc.setTextColor(90, 88, 80);
   [company.address, [company.phone ? 'Tel: ' + company.phone : '', company.email || ''].filter(Boolean).join('  •  '), [company.gst ? 'GST: ' + company.gst : '', company.iec ? 'IEC: ' + company.iec : ''].filter(Boolean).join('   ')]
     .filter(Boolean).forEach(line => { doc.splitTextToSize(line, halfW - 24).forEach(l => { doc.text(l, M + 12, ly); ly += 10.5; }); });
 
   doc.setFont(undefined, 'bold'); doc.setFontSize(9.5); doc.setTextColor(30, 30, 28);
-  doc.text(data.customer || 'No customer', rx + 12, y + 28);
+  doc.text(fitOneLine(doc, data.customer || 'No customer', halfW - 24), rx + 12, y + 28);
   let ry = y + 40;
   doc.setFont(undefined, 'normal'); doc.setFontSize(8); doc.setTextColor(90, 88, 80);
   [data.address, [data.phone ? 'Tel: ' + data.phone : '', data.email || ''].filter(Boolean).join('  •  ')]
@@ -4768,15 +4783,21 @@ async function buildQPDF(data, withPhotos) {
       const textX = M + 8 + imgSize + 16;
       const rightX = pageW - M - 8;
       const sym = curSym(r.currency || 'EUR');
+      // Every text line here used to be drawn with doc.text() and no width
+      // limit at all — jsPDF happily draws a string as long as it is, so a
+      // long item name, type, or material ran straight past the card edge
+      // (and sometimes into the price on the right, or off the page).
+      // fitOneLine() truncates with "…" to whatever the current font
+      // actually measures as fitting, instead of letting it overflow.
       doc.setTextColor(26, 26, 24);
       doc.setFontSize(11); doc.setFont(undefined, 'bold');
-      doc.text((i + 1) + '. ' + (r.item || 'Item'), textX, y + 18);
+      doc.text(fitOneLine(doc, (i + 1) + '. ' + (r.item || 'Item'), (rightX - textX) - 90), textX, y + 18);
       doc.setFont(undefined, 'normal');
       doc.setFontSize(8.3); doc.setTextColor(90, 88, 80);
-      doc.text([r.category, r.type].filter(Boolean).join('  •  '), textX, y + 32);
-      if (r.material) doc.text('Material: ' + r.material, textX, y + 44);
+      doc.text(fitOneLine(doc, [r.category, r.type].filter(Boolean).join('  •  '), rightX - textX - 10), textX, y + 32);
+      if (r.material) doc.text(fitOneLine(doc, 'Material: ' + r.material, rightX - textX - 10), textX, y + 44);
       doc.setFontSize(8.3); doc.setTextColor(60, 58, 52);
-      doc.text('Qty: ' + (r.qty || 0).toLocaleString(), textX, y + 58);
+      doc.text(fitOneLine(doc, 'Qty: ' + (r.qty || 0).toLocaleString(), rightX - textX - 10), textX, y + 58);
       if (r.customization) {
         // Customer-requested changes to the standard product — deliberately
         // called out in a different color so it doesn't blend in with the
@@ -5985,7 +6006,7 @@ function buildOrderReportPDF(rows, meta) {
   doc.rect(0, 0, pageW, 50, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(14); doc.setFont(undefined, 'bold');
-  doc.text('ORDER vs DISPATCH REPORT' + (meta.customer ? (' — ' + meta.customer) : ' — All Customers'), 30, 24);
+  doc.text(fitOneLine(doc, 'ORDER vs DISPATCH REPORT' + (meta.customer ? (' — ' + meta.customer) : ' — All Customers'), pageW - 60), 30, 24);
   doc.setFontSize(9); doc.setFont(undefined, 'normal');
   doc.text(`Period: ${meta.dateFrom} to ${meta.dateTo}`, 30, 38);
   const showCustCol = !meta.customer;
@@ -6101,7 +6122,7 @@ function buildTimelinePDF(meta) {
   doc.rect(0, 0, pageW, 54, 'F');
   doc.setTextColor(255, 255, 255);
   doc.setFontSize(15); doc.setFont(undefined, 'bold');
-  doc.text('STATEMENT OF ACCOUNT' + (meta.customer ? (' — ' + meta.customer) : ' — All Customers'), 30, 26);
+  doc.text(fitOneLine(doc, 'STATEMENT OF ACCOUNT' + (meta.customer ? (' — ' + meta.customer) : ' — All Customers'), pageW - 60), 30, 26);
   doc.setFontSize(9); doc.setFont(undefined, 'normal');
   doc.text(`Orders placed: ${meta.dateFrom} to ${meta.dateTo}`, 30, 40);
   let y = 70;
@@ -6111,7 +6132,7 @@ function buildTimelinePDF(meta) {
     if (y > pageH - 110) { doc.addPage(); y = 30; }
     // Customer heading — printed once per customer, with a rule beneath it.
     doc.setFontSize(13); doc.setFont(undefined, 'bold'); doc.setTextColor(30, 58, 95);
-    doc.text(group.customer, 30, y);
+    doc.text(fitOneLine(doc, group.customer, pageW - 60), 30, y);
     doc.setDrawColor(...NAVY); doc.setLineWidth(1);
     doc.line(30, y + 5, pageW - 30, y + 5);
     y += 16;
@@ -7252,7 +7273,7 @@ function exportPaymentStatementPDF() {
   const NAVY = [30, 58, 95];
   doc.setFillColor(...NAVY); doc.rect(0, 0, pageW, 54, 'F');
   doc.setTextColor(255, 255, 255); doc.setFontSize(15); doc.setFont(undefined, 'bold');
-  doc.text('STATEMENT OF PAYMENTS — ' + customer, 30, 26);
+  doc.text(fitOneLine(doc, 'STATEMENT OF PAYMENTS — ' + customer, pageW - 60), 30, 26);
   doc.setFontSize(9); doc.setFont(undefined, 'normal');
   doc.text('Generated ' + new Date().toLocaleDateString(), 30, 40);
   const events = buildPaymentStatementRows(customer);
@@ -9343,7 +9364,7 @@ async function downloadEnquiryPDF() {
   }
   const nameX = M + logoW;
   doc.setTextColor(255, 255, 255); doc.setFontSize(13.5); doc.setFont(undefined, 'bold');
-  doc.text(company.name || 'Your Company', nameX, 32);
+  doc.text(fitOneLine(doc, company.name || 'Your Company', pageW - M - nameX - 140), nameX, 32);
   if (company.tagline) { doc.setFontSize(8); doc.setFont(undefined, 'normal'); doc.setTextColor(210, 216, 226); doc.text(company.tagline, nameX, 45); }
   doc.setFontSize(7.5); doc.setTextColor(190, 198, 212);
   const contactLine = [company.phone ? 'Tel: ' + company.phone : '', company.email || ''].filter(Boolean).join('   |   ');
@@ -9373,13 +9394,13 @@ async function downloadEnquiryPDF() {
   doc.setFillColor(...GOLD); doc.rect(M, y, 3, boxH, 'F');
   doc.setFont(undefined, 'bold'); doc.setFontSize(9.5); doc.setTextColor(30, 30, 28);
   const custLabel = procRole ? getProcurementSafeCustomerLabel(e.customer) : (e.customer || '—');
-  doc.text(custLabel + (e.country ? '  —  ' + e.country : ''), M + 12, y + 16);
+  doc.text(fitOneLine(doc, custLabel + (e.country ? '  —  ' + e.country : ''), contentW - 24), M + 12, y + 16);
   doc.setFont(undefined, 'normal'); doc.setFontSize(8); doc.setTextColor(90, 88, 80);
   if (procRole) {
-    doc.text('Assigned to: ' + (e.assignedTo || '—'), M + 12, y + 32);
+    doc.text(fitOneLine(doc, 'Assigned to: ' + (e.assignedTo || '—'), contentW - 24), M + 12, y + 32);
   } else {
-    doc.text([e.contact ? 'Contact: ' + e.contact : '', e.phone ? 'Tel: ' + e.phone : '', e.email || ''].filter(Boolean).join('   •   '), M + 12, y + 32);
-    doc.text('Assigned to: ' + (e.assignedTo || '—') + (e.procurementDueDate ? '   (costing due ' + e.procurementDueDate + ')' : ''), M + 12, y + 46);
+    doc.text(fitOneLine(doc, [e.contact ? 'Contact: ' + e.contact : '', e.phone ? 'Tel: ' + e.phone : '', e.email || ''].filter(Boolean).join('   •   '), contentW - 24), M + 12, y + 32);
+    doc.text(fitOneLine(doc, 'Assigned to: ' + (e.assignedTo || '—') + (e.procurementDueDate ? '   (costing due ' + e.procurementDueDate + ')' : ''), contentW - 24), M + 12, y + 46);
     if (e.followUpDate) doc.text('Customer follow-up: ' + e.followUpDate, M + 12, y + 58);
   }
   y += boxH + 16;
@@ -9400,7 +9421,8 @@ async function downloadEnquiryPDF() {
     doc.setFont(undefined, 'bold'); doc.setFontSize(9); doc.setTextColor(...NAVY);
     doc.text('LINKED ITEMS: ', M, y);
     doc.setFont(undefined, 'normal'); doc.setTextColor(50, 48, 44);
-    doc.text(e.linkedItems.map(li => li.name).join(', '), M + doc.getTextWidth('LINKED ITEMS: ') + 2, y);
+    const labelW = doc.getTextWidth('LINKED ITEMS: ') + 2;
+    doc.text(fitOneLine(doc, e.linkedItems.map(li => li.name).join(', '), contentW - labelW), M + labelW, y);
     y += 18;
   }
 
@@ -9422,7 +9444,7 @@ async function downloadEnquiryPDF() {
             doc.roundedRect(M, y, contentW, boxH2, 3, 3, 'FD');
             addImageContain(doc, clean, M + 6, y + 6, contentW - 12, boxH2 - 20);
             doc.setFont(undefined, 'normal'); doc.setFontSize(7.5); doc.setTextColor(120, 118, 110);
-            doc.text(a.name, M + 6, y + boxH2 - 6);
+            doc.text(fitOneLine(doc, a.name, contentW - 12), M + 6, y + boxH2 - 6);
             y += boxH2 + 10;
             continue;
           }
@@ -9431,7 +9453,7 @@ async function downloadEnquiryPDF() {
       ensureRoom(16);
       doc.setFont(undefined, 'normal'); doc.setFontSize(8.5); doc.setTextColor(40, 90, 170);
       const icon = { pdf: '[PDF] ', sheet: '[XLS] ', doc: '[DOC] ', cad: '[CAD] ' }[a.type] || '[FILE] ';
-      doc.textWithLink(icon + a.name, M, y, { url: a.url });
+      doc.textWithLink(fitOneLine(doc, icon + a.name, contentW - 4), M, y, { url: a.url });
       y += 15;
     }
     y += 4;
