@@ -2545,6 +2545,16 @@ function switchView(v) {
   const role = getCurrentUser().role;
   if (role === 'unassigned') v = 'no-access';
   else if (role === 'procurement' && !PROCUREMENT_ALLOWED_VIEWS.includes(v)) v = 'products-safe';
+  // Settings holds company/pricing defaults, the team roster, and the
+  // permissions matrix itself — admin-only, full stop. This check lives
+  // here (not just in openSettings()) so every entry point funnels
+  // through it: the desktop nav tab, the mobile "More" sheet, global
+  // search, and any other switchView('settings') call anywhere in the
+  // app. Nothing can reach the settings view by a side door.
+  else if (v === 'settings' && role !== 'admin') {
+    notify('⛔ Settings is admin-only — ask an admin for changes here.', 'error');
+    return;
+  }
   app.currentView = v;
   document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(el => el.classList.remove('active'));
@@ -2584,6 +2594,12 @@ function applyRoleNav() {
   restrictedTabs.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = (isProcurement || isUnassigned) ? 'none' : ''; });
   procurementOnlyTabs.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = isProcurement ? '' : 'none'; });
   sharedTabs.forEach(id => { const el = document.getElementById(id); if (el) el.style.display = isUnassigned ? 'none' : ''; });
+  // Settings is admin-only regardless of the general restrictedTabs rule
+  // above (that rule only excludes procurement/unassigned, leaving it
+  // visible to manager/user roles) — hide the tab itself for anyone who'd
+  // just be turned away by switchView()'s gate on tapping it.
+  const settingsTab = document.getElementById('nav-settings');
+  if (settingsTab) settingsTab.style.display = (role === 'admin') ? '' : 'none';
   renderBottomNav();
   renderMoreSheetItems();
   switchView(isUnassigned ? 'no-access' : isProcurement ? 'products-safe' : 'inventory');
@@ -2652,7 +2668,9 @@ function renderMoreSheetItems() {
   const el = document.getElementById('more-sheet-items');
   if (!el) return;
   const role = getCurrentUser().role;
-  const items = MORE_SHEET_CONFIG[role] || MORE_SHEET_CONFIG.default;
+  // Settings is admin-only (see switchView()) — don't show a tile for it
+  // to anyone who'd just get turned away for tapping it.
+  const items = (MORE_SHEET_CONFIG[role] || MORE_SHEET_CONFIG.default).filter(t => t.view !== 'settings' || role === 'admin');
   el.innerHTML = items.map(t => `<button class="sheet-item" onclick="switchView('${t.view}');closeMoreSheet()"><span class="sheet-icon">${t.icon}</span><span class="sheet-label">${t.label}</span></button>`).join('');
 }
 function openMoreSheet() {
@@ -2785,6 +2803,10 @@ function attemptAccessRecovery() {
   notify('✅ Access restored — welcome back, ' + match.name, 'success');
 }
 function openSettings() {
+  // Real gate is role-based and lives in switchView() so nothing can
+  // bypass it — this early exit just skips showing the password prompt
+  // to someone who's going to be turned away anyway.
+  if (getCurrentUser().role !== 'admin') { switchView('settings'); return; }
   if (app._settingsUnlocked) { switchView('settings'); return; }
   if (app.settings.system.password && app.settings.system.password.trim()) {
     showLock(() => { app._settingsUnlocked = true; switchView('settings'); });
