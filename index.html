@@ -335,7 +335,7 @@ select[style*="width:55px"],select[style*="width:70px"],select[style*="width:96p
 .scard .val{font-size:22px;font-weight:700;color:var(--text);font-family:var(--mono);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block}
 .scard .lbl{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mis-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:12px}
-.mis-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;box-shadow:var(--shadow-xs)}
+.mis-card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;box-shadow:var(--shadow-xs);overflow-x:auto;min-width:0}
 .mis-card h3{font-size:9.5px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid var(--border)}
 .mis-bar-row{display:flex;align-items:center;gap:7px;margin-bottom:7px}
 .mis-bar-label{width:100px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:right;font-size:10px;font-weight:600;color:var(--text2)}
@@ -927,7 +927,7 @@ table{min-width:820px}
     <input id="qc-search" placeholder="Search item, customer, problem…" style="height:32px;width:220px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 10px;font-size:11.5px;font-family:var(--font)" oninput="renderQuality()" autocomplete="off">
     <select id="qc-status-filter" style="height:32px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 8px;font-size:11.5px;font-family:var(--font)" onchange="renderQuality()">
       <option value="open">Open only</option>
-      <option value="all">All</option>
+      <option value="all" selected>All</option>
       <option value="resolved">Resolved only</option>
     </select>
     <div style="margin-left:auto;display:flex;gap:8px">
@@ -1004,7 +1004,7 @@ table{min-width:820px}
     <select id="enq-status-filter" style="height:32px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 8px;font-size:11.5px;font-family:var(--font)" onchange="renderProcurement()">
       <option value="open">Open (not Won/Lost)</option>
       <option value="overdue">Needs Follow-up</option>
-      <option value="all">All</option>
+      <option value="all" selected>All</option>
       <option value="won">Won</option>
       <option value="lost">Lost</option>
     </select>
@@ -1112,7 +1112,7 @@ table{min-width:820px}
   </div>
   <div id="usearch-results" class="usearch-results"></div>
 </div></div>
-<div class="modal-backdrop" id="modal-customer-360"><div class="modal" style="max-width:820px"><div class="modal-header"><h2 id="c360-title">🤝 Customer</h2><button class="modal-close" onclick="closeModal('modal-customer-360')">✕</button></div><div class="modal-body" id="c360-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-customer-360')">Close</button></div></div></div>
+<div class="modal-backdrop" id="modal-customer-360"><div class="modal" style="max-width:1140px"><div class="modal-header"><h2 id="c360-title">🤝 Customer</h2><button class="modal-close" onclick="closeModal('modal-customer-360')">✕</button></div><div class="modal-body" id="c360-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-customer-360')">Close</button></div></div></div>
 <div class="modal-backdrop" id="modal-customer"><div class="modal" style="max-width:640px"><div class="modal-header"><h2 id="cust-form-title">👤 New Customer</h2><button class="modal-close" onclick="closeModal('modal-customer')">✕</button></div><div class="modal-body" id="cust-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-customer')">Cancel</button><button class="btn btn-success" onclick="saveCustomerForm()">💾 Save Customer</button></div></div></div>
 <div class="modal-backdrop" id="modal-team-member"><div class="modal" style="max-width:480px"><div class="modal-header"><h2>👥 Add Team Member</h2><button class="modal-close" onclick="closeModal('modal-team-member')">✕</button></div><div class="modal-body" id="team-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-team-member')">Cancel</button><button class="btn btn-success" onclick="saveTeamMemberForm()">💾 Add Member</button></div></div></div>
 
@@ -6548,6 +6548,96 @@ function refreshShippingDocsInOrderModal(gid) {
   if (g && el) el.innerHTML = renderShippingDocsSection(g);
   renderOrders();
 }
+// ══════════════════════════════════════════════════════════════════════════
+// ── TRADING ACCOUNT ───────────────────────────────────────────────────────
+// Per-order profit breakdown: Sales − Purchase Cost = Gross Margin, then
+// adjusted for freight/charges variance and exchange rate movement to get
+// Net Margin. Cost basis (PP, margin%, exchange rate) is locked in on each
+// lot the moment an order is created — see confirmConvertToOrder() — so
+// this reflects what the deal actually cost THEN, not today's Inventory
+// prices, which drift over time as raw material costs change.
+// ══════════════════════════════════════════════════════════════════════════
+function computeOrderTradingAccount(g) {
+  const lots = app.customerOrders.filter(o => o.orderGroupId === g.id);
+  const hasCostData = lots.some(l => l.pp && l.exrate);
+  if (!hasCostData) return { available: false, lots };
+
+  // One primary currency/exchange rate per order, for simplicity — this
+  // matches the same assumption the rest of the app already makes for an
+  // order's "Grand Total".
+  const cur = lots[0]?.currency || 'EUR';
+  let salesValue = 0, cogsAssumed = 0, totalQty = 0, exrateWeightSum = 0;
+  lots.forEach(l => {
+    const qty = parseFloat(l.qty) || 0;
+    salesValue += qty * (parseFloat(l.rate) || 0);
+    if (l.pp && l.exrate) {
+      cogsAssumed += qty * (parseFloat(l.pp) || 0) / parseFloat(l.exrate);
+      exrateWeightSum += qty * parseFloat(l.exrate);
+      totalQty += qty;
+    }
+  });
+  const avgExrate = totalQty ? exrateWeightSum / totalQty : 0;
+  const grossMargin = salesValue - cogsAssumed;
+  const grossMarginPct = salesValue ? (grossMargin / salesValue) * 100 : 0;
+
+  const charges = g.charges || [];
+  const chargesRecovered = charges.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
+  const overrides = g.tradingAccountOverrides || {};
+  const actualChargesPaid = overrides.actualChargesPaid !== undefined && overrides.actualChargesPaid !== '' ? parseFloat(overrides.actualChargesPaid) : chargesRecovered;
+  const chargesVariance = chargesRecovered - actualChargesPaid; // + = made a little on freight, − = ate a loss on it
+
+  const actualExrate = overrides.actualExrate !== undefined && overrides.actualExrate !== '' ? parseFloat(overrides.actualExrate) : avgExrate;
+  let cogsActual = 0;
+  lots.forEach(l => {
+    if (l.pp && l.exrate) cogsActual += (parseFloat(l.qty) || 0) * (parseFloat(l.pp) || 0) / (actualExrate || parseFloat(l.exrate));
+  });
+  const fxAdjustment = cogsAssumed - cogsActual; // + = rate moved in our favor (real cost ended up lower than planned)
+
+  const netMargin = grossMargin + chargesVariance + fxAdjustment;
+  const netMarginPct = salesValue ? (netMargin / salesValue) * 100 : 0;
+
+  return {
+    available: true, currency: cur, salesValue, cogsAssumed, grossMargin, grossMarginPct,
+    chargesRecovered, actualChargesPaid, chargesVariance,
+    avgExrate, actualExrate, cogsActual, fxAdjustment,
+    netMargin, netMarginPct
+  };
+}
+function renderTradingAccountSection(g) {
+  const ta = computeOrderTradingAccount(g);
+  if (!ta.available) {
+    return `<div class="form-sec-title" style="margin:14px 0 8px">📊 Trading Account</div>
+      <div style="font-size:11px;color:var(--text3)">Cost data wasn't captured when this order was created (before this feature existed), so a margin breakdown isn't available for it. Orders converted from now on will track this automatically.</div>`;
+  }
+  const sym = curSym(ta.currency);
+  const fmt = n => (n < 0 ? '-' : '') + sym + Math.abs(n).toFixed(2);
+  const colorFor = n => n > 0.01 ? 'var(--green)' : n < -0.01 ? 'var(--red)' : 'var(--text)';
+  return `<div class="form-sec-title" style="margin:14px 0 8px">📊 Trading Account</div>
+    <table class="qt" style="max-width:460px"><tbody>
+      <tr><td>Sales Value</td><td class="td-r">${fmt(ta.salesValue)}</td></tr>
+      <tr><td>Less: Purchase Cost (COGS)</td><td class="td-r">${fmt(-ta.cogsAssumed)}</td></tr>
+      <tr class="qt-total"><td>Gross Margin</td><td class="td-r" style="color:${colorFor(ta.grossMargin)}">${fmt(ta.grossMargin)} (${ta.grossMarginPct.toFixed(1)}%)</td></tr>
+    </tbody></table>
+    <div class="fg fg-2" style="margin-top:10px;max-width:460px">
+      <div class="ff"><label>Actual Freight/Charges Paid <span style="text-transform:none;font-weight:400;color:var(--text3)">(billed ${fmt(ta.chargesRecovered)})</span></label><input type="number" step="0.01" value="${ta.actualChargesPaid}" onchange="updateTAOverride(${g.id},'actualChargesPaid',this.value)"></div>
+      <div class="ff"><label>Actual Exchange Rate Realized <span style="text-transform:none;font-weight:400;color:var(--text3)">(assumed ${ta.avgExrate.toFixed(3)})</span></label><input type="number" step="0.01" value="${ta.actualExrate}" onchange="updateTAOverride(${g.id},'actualExrate',this.value)"></div>
+    </div>
+    <table class="qt" style="max-width:460px;margin-top:10px"><tbody>
+      <tr><td>Freight/Charges Variance</td><td class="td-r" style="color:${colorFor(ta.chargesVariance)}">${fmt(ta.chargesVariance)}</td></tr>
+      <tr><td>Exchange Rate Adjustment</td><td class="td-r" style="color:${colorFor(ta.fxAdjustment)}">${fmt(ta.fxAdjustment)}</td></tr>
+      <tr class="qt-total"><td>Net Margin</td><td class="td-r" style="color:${colorFor(ta.netMargin)}">${fmt(ta.netMargin)} (${ta.netMarginPct.toFixed(1)}%)</td></tr>
+    </tbody></table>
+    <div style="font-size:9.5px;color:var(--text3);margin-top:6px">Purchase cost and exchange rate are locked in from when this order was placed — editing the two fields above only adjusts for what actually happened with freight and currency conversion, it doesn't change the underlying item cost.</div>`;
+}
+function updateTAOverride(gid, field, value) {
+  const g = app.orderGroups.find(x => x.id == gid);
+  if (!g) return;
+  g.tradingAccountOverrides = g.tradingAccountOverrides || {};
+  g.tradingAccountOverrides[field] = value;
+  persist();
+  const el = document.getElementById('og-ta-section');
+  if (el) el.innerHTML = renderTradingAccountSection(g);
+}
 function openOrderGroupDetail(gid) {
   const g = app.orderGroups.find(x => x.id == gid);
   if (!g) { notify('Order not found', 'error'); return; }
@@ -6601,6 +6691,7 @@ function openOrderGroupDetail(gid) {
       <div style="font-size:9.5px;color:var(--text3);margin-top:4px">Carried over from the source quote/proforma — counted in this order's total value in Payments.</div>`;
   }
   html += `<div id="og-shipdocs-section">${renderShippingDocsSection(g)}</div>`;
+  html += `<div id="og-ta-section">${renderTradingAccountSection(g)}</div>`;
   html += '<div class="form-sec-title" style="margin:14px 0 8px">📜 Order Log</div><div style="font-size:11px">';
   g.log.slice().reverse().forEach(l => {
     const d = new Date(l.date);
@@ -6707,6 +6798,11 @@ function confirmConvertToOrder() {
       qty: item.qty, rate: item.fobEur, currency: item.currency, orderDate: orderDate,
       poRef: q.ref, remarks: item.remarks || '', readyQty: 0,
       orderGroupId: group.id, sourceProformaId: q.id, sourceProformaRef: q.ref,
+      // Cost basis at the time this order was actually placed — locked in
+      // here specifically so the Trading Account reflects what the deal
+      // really cost THEN, not whatever Inventory's PP happens to say if
+      // someone looks it up later after raw material costs have moved.
+      pp: item.pp || 0, marg: item.marg || 0, fobPct: item.fob || 0, exrate: item.exrate || 0,
       createdAt: new Date().toISOString(), createdBy: getCurrentUser().name || getCurrentUser().email || 'Unknown'
     });
   });
