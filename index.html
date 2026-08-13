@@ -1102,6 +1102,8 @@ table{min-width:820px}
 </div><div class="modal-footer"><button class="btn btn-primary" onclick="closeModal('modal-ios-install')">Got it</button></div></div></div>
 <div class="modal-backdrop" id="modal-email"><div class="modal" style="max-width:600px"><div class="modal-header"><h2>📧 Send Email</h2><button class="modal-close" onclick="closeModal('modal-email')">✕</button></div><div class="modal-body" id="email-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-email')">Cancel</button><button class="btn btn-primary" id="email-send-btn" onclick="sendComposedEmail()">📤 Send</button></div></div></div>
 <div class="modal-backdrop" id="modal-trash"><div class="modal" style="max-width:640px"><div class="modal-header"><h2>🗑️ Trash</h2><button class="modal-close" onclick="closeModal('modal-trash')">✕</button></div><div class="modal-body"><p style="font-size:11px;color:var(--text3);margin-bottom:12px">Deleted quotes, proformas, and orders stay here for 30 days before being permanently removed, so a mistaken delete never means retyping everything.</p><div id="trash-list"></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-trash')">Close</button></div></div></div>
+<div class="modal-backdrop" id="modal-shipdoc"><div class="modal" style="max-width:640px"><div class="modal-header"><h2 id="shipdoc-form-title">🚢 Add Shipping Document</h2><button class="modal-close" onclick="closeModal('modal-shipdoc')">✕</button></div><div class="modal-body" id="shipdoc-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-shipdoc')">Cancel</button><button class="btn btn-success" onclick="saveShippingDoc()">💾 Save</button></div></div></div>
+<input type="file" id="file-shipdoc" accept="application/pdf,image/*" style="display:none">
 <div class="modal-backdrop" id="modal-usearch"><div class="modal usearch-modal" style="max-width:640px">
   <div class="usearch-input-wrap">
     <span style="font-size:16px">🔎</span>
@@ -1282,7 +1284,7 @@ let app = {
   items: INITIAL_ITEMS.map(r=>({...r, currency: r.currency||'EUR', prodRemarks: r.prodRemarks||'', salesperson: r.salesperson||'', priceHistory: r.priceHistory||[], pdfAttachment: r.pdfAttachment||null, refCode: r.refCode||''})),
   quotations:[], dispatchPlans:[], customers:[], enquiries:[],
   customerOrders:[], orderDispatches:[], orderGroups:[], readinessUpdates:[],
-  pendingApprovals:[], activityLog:[], payments:[], qualityIssues:[], samples:[], trash:[],  _nextId: INITIAL_ITEMS.length+1,
+  pendingApprovals:[], activityLog:[], payments:[], qualityIssues:[], samples:[], trash:[], shippingDocs:[],  _nextId: INITIAL_ITEMS.length+1,
   currentView:'inventory', selectedIds:new Set(),
   expandedId:null, filterCat:'ALL', sortKey:null, sortDir:1, searchQ:'',
   settingsTab:'company', quoteMode:'quotation',
@@ -1688,6 +1690,7 @@ function applyRemoteState(p) {
   if (p.qualityIssues) app.qualityIssues = p.qualityIssues;
   if (p.samples) app.samples = p.samples;
   if (p.trash) app.trash = p.trash;
+  if (p.shippingDocs) app.shippingDocs = p.shippingDocs;
   if (p._nextId) app._nextId = p._nextId;
   applySysBranding();
   updatePendingBadge();
@@ -1790,7 +1793,7 @@ function persist() {
   }
 }
 function getFullState() {
-  return { items: app.items, settings: app.settings, quotations: app.quotations, dispatchPlans: app.dispatchPlans, customers: app.customers, customerOrders: app.customerOrders, orderDispatches: app.orderDispatches, orderGroups: app.orderGroups, readinessUpdates: app.readinessUpdates, enquiries: app.enquiries, pendingApprovals: app.pendingApprovals, activityLog: app.activityLog, payments: app.payments, qualityIssues: app.qualityIssues, samples: app.samples, trash: app.trash, _nextId: app._nextId };
+  return { items: app.items, settings: app.settings, quotations: app.quotations, dispatchPlans: app.dispatchPlans, customers: app.customers, customerOrders: app.customerOrders, orderDispatches: app.orderDispatches, orderGroups: app.orderGroups, readinessUpdates: app.readinessUpdates, enquiries: app.enquiries, pendingApprovals: app.pendingApprovals, activityLog: app.activityLog, payments: app.payments, qualityIssues: app.qualityIssues, samples: app.samples, trash: app.trash, shippingDocs: app.shippingDocs, _nextId: app._nextId };
 }
 function loadLS() {
   try {
@@ -4512,6 +4515,7 @@ function restoreTrashItem(trashId) {
       const q = app.quotations.find(x => x.id == qid);
       if (q && !q.convertedOrderGroupId) q.convertedOrderGroupId = t.data.orderGroup.id;
     });
+    (t.data.shippingDocs || []).forEach(d => app.shippingDocs.push(d));
     invalidateConsumedMapCache();
   }
   app.trash = app.trash.filter(x => x.id != trashId);
@@ -5724,6 +5728,16 @@ function renderOrdersMain() {
 // dispatch or balance straight back to the document it came from without
 // digging into the order's full log. An order can have more than one if
 // documents were merged into it, so this can return a few, comma-separated.
+// Quick-glance shipping-doc status right on the Orders list, so progress
+// is visible without opening each order individually.
+function shipDocsSummaryBadge(gid) {
+  const docs = getOrderShippingDocs(gid);
+  if (!docs.length) return '';
+  const allDelivered = docs.every(d => d.status === 'delivered');
+  const anyPending = docs.some(d => d.status === 'pending');
+  const color = allDelivered ? 'var(--green)' : anyPending ? 'var(--amber)' : 'var(--accent2)';
+  return ` <span title="${docs.length} shipping document(s) logged for this order" style="font-size:9px;color:${color};border:1px solid ${color};border-radius:10px;padding:1px 6px;margin-left:4px;white-space:nowrap">🚢 ${docs.length}</span>`;
+}
 function sourceDocLinksHTML(g) {
   const ids = g.sourceProformaIds || [];
   if (!ids.length) return '<span style="color:var(--text3)">—</span>';
@@ -5748,7 +5762,7 @@ function renderOrderWiseTable() {
     const hasPriority = lots.some(l => l.priority && lotPendingQty(l) > 0.0001);
     html += `<tr class="order-row" onclick="toggleOrderExpand(${g.id})" style="cursor:pointer">
       <td id="oarrow-${g.id}">▶</td>
-      <td style="white-space:nowrap"><strong>${esc(g.ref)}</strong>${hasPriority ? ' <span title="Contains priority item(s)">🔥</span>' : ''}</td>
+      <td style="white-space:nowrap"><strong>${esc(g.ref)}</strong>${hasPriority ? ' <span title="Contains priority item(s)">🔥</span>' : ''}${shipDocsSummaryBadge(g.id)}</td>
       <td style="white-space:nowrap;font-size:10.5px;font-family:var(--mono)">${sourceDocLinksHTML(g)}</td>
       <td>${esc(g.country || '—')}</td>
       <td>${esc(g.customer)}</td>
@@ -6272,10 +6286,12 @@ function deleteOrderGroup(gid) {
   const lots = app.customerOrders.filter(o => o.orderGroupId === g.id);
   const totalDispatched = lots.reduce((s, l) => s + getConsumedForOrder(l.id), 0);
   const linkedPayments = app.payments.filter(p => p.orderGroupId == gid);
+  const linkedShippingDocs = app.shippingDocs.filter(d => d.orderGroupId == gid);
   let msg = totalDispatched > 0.0001
     ? `⚠️ ${g.ref} already has ${totalDispatched.toLocaleString()} pcs dispatched against it. Deleting the order removes the order record, but the dispatch history will remain. Delete "${g.ref}" for ${g.customer} anyway? (It goes to Trash and can be restored for 30 days.)`
     : `Delete order "${g.ref}" for ${g.customer}? It goes to Trash and can be restored for 30 days — nothing is lost immediately.`;
   if (linkedPayments.length) msg += `\n\nNote: ${linkedPayments.length} payment record(s) are linked to this order. They will be kept (money already received isn't deleted) but unlinked from this order — restoring from Trash re-links them automatically.`;
+  if (linkedShippingDocs.length) msg += `\n\nNote: ${linkedShippingDocs.length} shipping document(s) (B/L, invoice, etc.) are attached to this order — they'll be restored along with it.`;
   if (!confirm(msg)) return;
   // Snapshot everything this delete cascades into, so Restore can put it
   // all back exactly as it was — not just the order record itself.
@@ -6287,7 +6303,8 @@ function deleteOrderGroup(gid) {
       orderGroup: JSON.parse(JSON.stringify(g)),
       lots: JSON.parse(JSON.stringify(lots)),
       affectedPaymentIds: linkedPayments.map(p => p.id),
-      sourceProformaIds: g.sourceProformaIds || []
+      sourceProformaIds: g.sourceProformaIds || [],
+      shippingDocs: JSON.parse(JSON.stringify(linkedShippingDocs))
     },
     deletedAt: new Date().toISOString(),
     deletedBy: getCurrentUser().name || getCurrentUser().email || 'Unknown'
@@ -6295,6 +6312,7 @@ function deleteOrderGroup(gid) {
   purgeOldTrash();
   app.orderGroups = app.orderGroups.filter(x => x.id != gid);
   app.customerOrders = app.customerOrders.filter(o => o.orderGroupId != gid);
+  app.shippingDocs = app.shippingDocs.filter(d => d.orderGroupId != gid);
   // Don't delete payments tied to this order — that would erase a real record
   // of money received/credited. Just clear the dangling order link so the
   // ledger doesn't reference an order that no longer exists — but keep the
@@ -6321,6 +6339,214 @@ function setOrderGroupOwner(gid, name) {
   persist();
   refreshOrderPaymentViews(g.customer);
   notify(name ? 'Sales owner set to ' + name : 'Sales owner cleared', 'success');
+}
+// ══════════════════════════════════════════════════════════════════════════
+// ── SHIPPING DOCUMENTS ────────────────────────────────────────────────────
+// Tracks the paperwork sent to the customer after dispatch — Telex
+// Release/B/L, the Original B/L (usually by courier), Commercial Invoice
+// (numbered by Subhash in Logistics, not by us — that number is just
+// recorded here, never generated), Packing List, Certificate of Origin, or
+// anything else. Each document is linked to its Order (orderGroupId), and
+// through the order, back to the Quote/PI it came from via the existing
+// sourceProformaIds chain — so Quote → Order → Shipping Docs is one
+// traceable thread, which is the "connect the docs" part of this.
+// ══════════════════════════════════════════════════════════════════════════
+const SHIP_DOC_TYPES = {
+  telex_bl: { label: 'Telex Release / B/L', icon: '📠' },
+  original_bl: { label: 'Original B/L', icon: '📦' },
+  commercial_invoice: { label: 'Commercial Invoice', icon: '🧾' },
+  packing_list: { label: 'Packing List', icon: '📋' },
+  coo: { label: 'Certificate of Origin', icon: '🌍' },
+  other: { label: 'Other Document', icon: '📄' }
+};
+const SHIP_DOC_STATUSES = {
+  pending: { label: '⏳ Pending', cls: 'enq-new' },
+  sent: { label: '📤 Sent', cls: 'enq-sent' },
+  delivered: { label: '✅ Received by Customer', cls: 'enq-won' }
+};
+function getOrderShippingDocs(gid) {
+  return (app.shippingDocs || []).filter(d => d.orderGroupId == gid).sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+}
+async function uploadShippingDocFile(file, docId) {
+  if (!file) return null;
+  const isPdf = file.type === 'application/pdf';
+  const isImage = file.type && file.type.startsWith('image/');
+  if (!isPdf && !isImage) { notify('❌ Only PDF or image files', 'warning'); return null; }
+  if (file.size > 10 * 1024 * 1024) { notify('❌ File too large (max 10MB)', 'error'); return null; }
+  const overlay = document.getElementById('upload-overlay');
+  const status = document.getElementById('upload-status');
+  const bar = document.getElementById('upload-progress-bar');
+  const percent = document.getElementById('upload-percent');
+  if (overlay) { overlay.style.display = 'flex'; overlay.classList.add('show'); }
+  if (status) status.textContent = 'Preparing file...';
+  if (bar) bar.style.width = '20%';
+  if (percent) percent.textContent = '20%';
+  try {
+    let dataUrl, base64Content;
+    if (isImage) {
+      dataUrl = await compressImage(file, 1400, 1400, 0.75);
+      const resp = await fetch(dataUrl);
+      base64Content = (await blobToBase64(await resp.blob())).split(',')[1];
+    } else {
+      dataUrl = await blobToBase64(file);
+      base64Content = dataUrl.split(',')[1];
+    }
+    if (status) status.textContent = 'Uploading to GitHub...';
+    if (bar) bar.style.width = '70%';
+    if (percent) percent.textContent = '70%';
+    const timestamp = Date.now();
+    const safeName = (file.name || (isPdf ? 'document.pdf' : 'document.jpg')).replace(/[^a-zA-Z0-9._-]/g, '_');
+    const path = `shipping-docs/${docId}/${timestamp}_${safeName}`;
+    let url;
+    try {
+      await uploadToGitHub(path, base64Content, `Shipping document upload`);
+      url = `https://raw.githubusercontent.com/${GITHUB_CONFIG.username}/${GITHUB_CONFIG.repo}/${GITHUB_CONFIG.branch}/${path}`;
+    } catch (err) {
+      console.warn('GitHub upload failed, falling back to inline storage', err);
+      url = dataUrl;
+    }
+    if (status) status.textContent = '✅ Done'; if (bar) bar.style.width = '100%'; if (percent) percent.textContent = '100%';
+    setTimeout(() => { if (overlay) { overlay.classList.remove('show'); overlay.style.display = 'none'; } }, 400);
+    return { name: file.name || safeName, url, type: isPdf ? 'pdf' : 'image' };
+  } catch (e) {
+    if (overlay) { overlay.classList.remove('show'); overlay.style.display = 'none'; }
+    notify('❌ File upload failed', 'error');
+    return null;
+  }
+}
+function shipDocAttachStripHTML(attachments) {
+  if (!attachments || !attachments.length) return '<div style="font-size:10.5px;color:var(--text3)">No file attached yet</div>';
+  return `<div style="display:flex;gap:8px;flex-wrap:wrap">${attachments.map((a, i) => a.type === 'pdf'
+    ? `<div style="position:relative;display:flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--border);border-radius:6px;background:var(--surface2);cursor:pointer" onclick="window.open('${esc(a.url)}','_blank')"><span>📄</span><span style="font-size:10.5px;max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${esc(a.name)}</span><button onclick="event.stopPropagation();removeShipDocAttachment(${i})" style="border:none;background:none;color:var(--red,#c0392b);cursor:pointer;font-size:11px">✕</button></div>`
+    : `<div style="position:relative;width:64px;height:64px"><img src="${esc(a.url)}" style="width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--border);cursor:pointer" onclick="window.open('${esc(a.url)}','_blank')"><button onclick="removeShipDocAttachment(${i})" style="position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:var(--red,#c0392b);color:#fff;border:none;font-size:10px;cursor:pointer;line-height:1">✕</button></div>`
+  ).join('')}</div>`;
+}
+function renderShippingDocsSection(g) {
+  const docs = getOrderShippingDocs(g.id);
+  return `
+    <div class="form-sec-title" style="margin:14px 0 8px;display:flex;align-items:center;justify-content:space-between">
+      <span>🚢 Shipping Documents</span>
+      <button class="btn btn-primary btn-xs" onclick="openAddShippingDoc(${g.id})">＋ Add Document</button>
+    </div>
+    ${!docs.length ? '<div style="font-size:11px;color:var(--text3);padding:6px 0">No shipping documents logged yet — add Telex/B/L, Commercial Invoice, etc. as they go out.</div>' : `
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${docs.map(d => {
+        const typeMeta = SHIP_DOC_TYPES[d.type] || SHIP_DOC_TYPES.other;
+        const statusMeta = SHIP_DOC_STATUSES[d.status] || SHIP_DOC_STATUSES.pending;
+        return `<div style="border:1px solid var(--border);border-radius:var(--r-sm);padding:8px 10px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap">
+          <div>
+            <strong style="font-size:11.5px">${typeMeta.icon} ${d.type === 'other' && d.customLabel ? esc(d.customLabel) : typeMeta.label}</strong>
+            ${d.docNumber ? `<span style="font-size:10.5px;color:var(--text3);margin-left:6px">No: ${esc(d.docNumber)}</span>` : ''}
+            ${d.type === 'commercial_invoice' ? `<span style="font-size:9.5px;color:var(--purple);margin-left:6px">(from Logistics — Subhash)</span>` : ''}
+            <div style="font-size:9.5px;color:var(--text3);margin-top:2px">${d.sentDate ? 'Sent ' + new Date(d.sentDate).toLocaleDateString() : 'Not sent yet'}${d.sentVia ? ' via ' + esc(d.sentVia) : ''}${d.courierTrackingNo ? ' · Tracking: ' + esc(d.courierTrackingNo) : ''}${(d.attachments || []).length ? ' · 📎 ' + d.attachments.length + ' file(s)' : ''}</div>
+          </div>
+          <div style="display:flex;gap:6px;align-items:center">
+            <span class="enq-status ${statusMeta.cls}" style="font-size:9.5px">${statusMeta.label}</span>
+            <button class="btn btn-secondary btn-xs" onclick="editShippingDoc('${d.id}')">✏️</button>
+            <button class="btn btn-danger btn-xs" onclick="deleteShippingDoc('${d.id}')">🗑️</button>
+          </div>
+        </div>`;
+      }).join('')}
+    </div>`}`;
+}
+function openAddShippingDoc(orderGroupId, docId) {
+  const doc = docId ? app.shippingDocs.find(d => d.id == docId) : null;
+  app._shipDocOrderGroupId = orderGroupId;
+  app._shipDocEditId = docId || null;
+  app._shipDocAttachBuffer = doc ? [...(doc.attachments || [])] : [];
+  document.getElementById('shipdoc-form-title').textContent = doc ? '✏️ Edit Shipping Document' : '🚢 Add Shipping Document';
+  document.getElementById('shipdoc-form-body').innerHTML = `
+    <div class="form-sec">
+      <div class="fg fg-2">
+        <div class="ff"><label>Document Type</label><select id="sd-type" onchange="document.getElementById('sd-customlabel-wrap').style.display=this.value==='other'?'block':'none'">
+          ${Object.entries(SHIP_DOC_TYPES).map(([k, v]) => `<option value="${k}" ${doc?.type === k ? 'selected' : ''}>${v.icon} ${v.label}</option>`).join('')}
+        </select></div>
+        <div class="ff" id="sd-customlabel-wrap" style="${(doc?.type || 'telex_bl') === 'other' ? '' : 'display:none'}"><label>Custom Label</label><input id="sd-customlabel" value="${esc(doc?.customLabel || '')}" placeholder="e.g. Fumigation Certificate"></div>
+        <div class="ff"><label>Document No. <span style="text-transform:none;font-weight:400;color:var(--text3)">(Commercial Invoice numbers come from Subhash/Logistics — just record it here)</span></label><input id="sd-docnumber" value="${esc(doc?.docNumber || '')}" placeholder="e.g. B/L number or Invoice No."></div>
+        <div class="ff"><label>Status</label><select id="sd-status">${Object.entries(SHIP_DOC_STATUSES).map(([k, v]) => `<option value="${k}" ${(doc?.status || 'pending') === k ? 'selected' : ''}>${v.label}</option>`).join('')}</select></div>
+        <div class="ff"><label>Sent Date</label><input id="sd-sentdate" type="date" value="${doc?.sentDate || ''}"></div>
+        <div class="ff"><label>Sent Via</label><select id="sd-sentvia">
+          <option value="" ${!doc?.sentVia ? 'selected' : ''}>—</option>
+          <option value="Email" ${doc?.sentVia === 'Email' ? 'selected' : ''}>Email</option>
+          <option value="Courier" ${doc?.sentVia === 'Courier' ? 'selected' : ''}>Courier</option>
+          <option value="Both" ${doc?.sentVia === 'Both' ? 'selected' : ''}>Both (Email + Courier)</option>
+        </select></div>
+        <div class="ff"><label>Courier Name</label><input id="sd-couriername" value="${esc(doc?.courierName || '')}" placeholder="e.g. DHL, FedEx"></div>
+        <div class="ff"><label>Courier Tracking No.</label><input id="sd-trackingno" value="${esc(doc?.courierTrackingNo || '')}" placeholder="Tracking number"></div>
+        <div class="ff fg-full"><label>Remarks</label><textarea id="sd-remarks" rows="2">${esc(doc?.remarks || '')}</textarea></div>
+        <div class="ff fg-full"><label>Attach File (PDF or photo of the document)</label>
+          <div id="shipdoc-attach-strip" style="margin-bottom:8px">${shipDocAttachStripHTML(app._shipDocAttachBuffer)}</div>
+          <button class="btn btn-secondary btn-sm" type="button" onclick="triggerShipDocUpload()">📎 Add File</button>
+        </div>
+      </div>
+    </div>`;
+  openModal('modal-shipdoc');
+}
+function triggerShipDocUpload() {
+  const inp = document.getElementById('file-shipdoc');
+  inp.value = '';
+  inp.onchange = e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    (async () => {
+      const result = await uploadShippingDocFile(file, app._shipDocEditId || 'new_' + Date.now());
+      if (result) { app._shipDocAttachBuffer.push(result); document.getElementById('shipdoc-attach-strip').innerHTML = shipDocAttachStripHTML(app._shipDocAttachBuffer); }
+    })();
+  };
+  inp.click();
+}
+function removeShipDocAttachment(i) {
+  app._shipDocAttachBuffer.splice(i, 1);
+  document.getElementById('shipdoc-attach-strip').innerHTML = shipDocAttachStripHTML(app._shipDocAttachBuffer);
+}
+function saveShippingDoc() {
+  const type = document.getElementById('sd-type').value;
+  const user = getCurrentUser();
+  const now = new Date().toISOString();
+  const fields = {
+    orderGroupId: app._shipDocOrderGroupId,
+    type,
+    customLabel: type === 'other' ? document.getElementById('sd-customlabel').value.trim() : '',
+    docNumber: document.getElementById('sd-docnumber').value.trim(),
+    status: document.getElementById('sd-status').value,
+    sentDate: document.getElementById('sd-sentdate').value,
+    sentVia: document.getElementById('sd-sentvia').value,
+    courierName: document.getElementById('sd-couriername').value.trim(),
+    courierTrackingNo: document.getElementById('sd-trackingno').value.trim(),
+    remarks: document.getElementById('sd-remarks').value.trim(),
+    attachments: [...(app._shipDocAttachBuffer || [])]
+  };
+  if (app._shipDocEditId) {
+    const d = app.shippingDocs.find(x => x.id == app._shipDocEditId);
+    if (d) Object.assign(d, fields);
+    notify('✅ Shipping document updated', 'success');
+  } else {
+    app.shippingDocs.push({ id: uid(), ...fields, createdAt: now, createdBy: user.name || user.email || 'Unknown' });
+    notify('✅ Shipping document added', 'success');
+  }
+  persist();
+  closeModal('modal-shipdoc');
+  if (app._shipDocOrderGroupId) refreshShippingDocsInOrderModal(app._shipDocOrderGroupId);
+}
+function editShippingDoc(id) {
+  const d = app.shippingDocs.find(x => x.id == id);
+  if (!d) return;
+  openAddShippingDoc(d.orderGroupId, id);
+}
+function deleteShippingDoc(id) {
+  if (!confirm('Delete this shipping document record? This cannot be undone.')) return;
+  const d = app.shippingDocs.find(x => x.id == id);
+  const gid = d?.orderGroupId;
+  app.shippingDocs = app.shippingDocs.filter(x => x.id != id);
+  persist();
+  notify('Shipping document deleted', 'success');
+  if (gid) refreshShippingDocsInOrderModal(gid);
+}
+function refreshShippingDocsInOrderModal(gid) {
+  const g = app.orderGroups.find(x => x.id == gid);
+  const el = document.getElementById('og-shipdocs-section');
+  if (g && el) el.innerHTML = renderShippingDocsSection(g);
+  renderOrders();
 }
 function openOrderGroupDetail(gid) {
   const g = app.orderGroups.find(x => x.id == gid);
@@ -6351,15 +6577,30 @@ function openOrderGroupDetail(gid) {
     </tr>`;
   });
   html += '</tbody></table></div>';
+  // Financial summary — items value + charges together, so "what is this
+  // order actually worth" is answered in one place instead of having to
+  // add up the item rates yourself and separately check the charges table.
+  const itemsByCur = {};
+  lots.forEach(l => { const c = l.currency || 'EUR'; itemsByCur[c] = (itemsByCur[c] || 0) + (parseFloat(l.qty) || 0) * (parseFloat(l.rate) || 0); });
+  const chargesByCur = {};
+  (g.charges || []).forEach(c => { const cur = c.currency || 'EUR'; chargesByCur[cur] = (chargesByCur[cur] || 0) + (parseFloat(c.amount) || 0); });
+  const allCurs = [...new Set([...Object.keys(itemsByCur), ...Object.keys(chargesByCur)])];
+  if (allCurs.length) {
+    html += `<div class="form-sec-title" style="margin:14px 0 8px">💵 Order Value</div>
+      <table class="qt" style="max-width:420px"><tbody>
+        ${allCurs.map(cur => `<tr><td>Items Value</td><td class="td-r">${curSym(cur)}${(itemsByCur[cur] || 0).toFixed(2)}</td></tr>${chargesByCur[cur] ? `<tr><td>Sea Freight / Other Charges</td><td class="td-r">${curSym(cur)}${chargesByCur[cur].toFixed(2)}</td></tr>` : ''}<tr class="qt-total"><td>Grand Total ${allCurs.length > 1 ? '(' + cur + ')' : ''}</td><td class="td-r">${curSym(cur)}${((itemsByCur[cur] || 0) + (chargesByCur[cur] || 0)).toFixed(2)}</td></tr>`).join('')}
+      </table>`;
+  }
   if ((g.charges || []).length) {
     const chargesTotal = g.charges.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
-    html += `<div class="form-sec-title" style="margin:14px 0 8px">💰 Additional Charges</div>
+    html += `<div class="form-sec-title" style="margin:14px 0 8px">💰 Additional Charges — Breakdown</div>
       <table class="qt" style="max-width:420px"><tbody>
         ${g.charges.map(c => `<tr><td>${esc(c.label)}</td><td class="td-r">${curSym(c.currency || 'EUR')}${(parseFloat(c.amount) || 0).toFixed(2)}</td></tr>`).join('')}
         <tr class="qt-total"><td>Total Charges</td><td class="td-r">${curSym(g.charges[0]?.currency || 'EUR')}${chargesTotal.toFixed(2)}</td></tr>
       </table>
       <div style="font-size:9.5px;color:var(--text3);margin-top:4px">Carried over from the source quote/proforma — counted in this order's total value in Payments.</div>`;
   }
+  html += `<div id="og-shipdocs-section">${renderShippingDocsSection(g)}</div>`;
   html += '<div class="form-sec-title" style="margin:14px 0 8px">📜 Order Log</div><div style="font-size:11px">';
   g.log.slice().reverse().forEach(l => {
     const d = new Date(l.date);
