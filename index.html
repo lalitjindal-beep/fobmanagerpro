@@ -3962,6 +3962,7 @@ function quickQ(id, mode) {
     total: calcFOB(row.pp, row.marg, row.fob, row.exrate) * (parseFloat(row.qty) || 1),
     remarks: row.remarks || '',
     customization: '',
+    priceDecimals: 2,
     photo: row.photo || null
   }];
   app.quoteMode = mode;
@@ -3999,6 +4000,7 @@ function openQModal(mode) {
       total: calcFOB(row.pp, row.marg, row.fob, row.exrate) * (parseFloat(row.qty) || 1),
       remarks: row.remarks || '',
       customization: '',
+    priceDecimals: 2,
       photo: row.photo || null
     };
   }).filter(Boolean);
@@ -4110,7 +4112,7 @@ function buildQModal() {
       <td><input type="number" step="0.1" value="${r.fob || 0}" style="width:50px" onchange="qUpd(${i},'fob',this.value)"></td>
       <td><input type="number" step="0.5" value="${r.exrate || 0}" style="width:60px" onchange="qUpd(${i},'exrate',this.value)"></td>
       <td><select style="width:55px" onchange="qUpd(${i},'currency',this.value)">${CURRENCIES.map(c => `<option value="${c}"${r.currency===c?' selected':''}>${c}</option>`).join('')}</select></td>
-      <td style="font-weight:700;color:var(--green)">${sym}${r.fobEur.toFixed(4)}</td>
+      <td style="font-weight:700;color:var(--green);white-space:nowrap">${sym}${r.fobEur.toFixed(r.priceDecimals || 2)}<select style="width:44px;height:18px;font-size:8.5px;padding:0 2px;margin-left:3px;vertical-align:middle" title="Decimal places shown for this item's unit price on the PDF/Excel" onchange="qUpd(${i},'priceDecimals',parseInt(this.value))">${[2, 3, 4].map(d => `<option value="${d}" ${(r.priceDecimals || 2) === d ? 'selected' : ''}>${d}dp</option>`).join('')}</select></td>
       <td style="font-weight:700;color:var(--accent2)">${sym}${(r.total || 0).toFixed(2)}</td>
       <td><button class="btn btn-danger btn-xs" onclick="rmQItem(${i})">✕</button></td>
     </tr>
@@ -4311,6 +4313,7 @@ function addItemToQuote() {
     total: calcFOB(row.pp, row.marg, row.fob, row.exrate) * qty,
     remarks: row.remarks || '',
     customization: '',
+    priceDecimals: 2,
     photo: row.photo || null
   });
   buildQModal();
@@ -4579,7 +4582,7 @@ function viewDoc(id, type) {
       <colgroup><col style="width:22%"><col style="width:20%"><col style="width:10%"><col style="width:16%"><col style="width:16%"><col style="width:16%"></colgroup>
       <thead><tr><th>Item</th><th>Type</th><th>Qty</th><th>PP</th><th>FOB</th><th>Total</th></tr></thead><tbody>`;
   (q.items || []).forEach(r => {
-    html += `<tr><td>${esc(r.item)}</td><td style="font-size:10px">${esc(r.type || '')}</td><td>${r.qty}</td><td>₹${(r.pp || 0).toFixed(2)}</td><td>${curSym(r.currency||'EUR')}${(r.fobEur || 0).toFixed(4)}</td><td>${curSym(r.currency||'EUR')}${(r.total||0).toFixed(2)}</td></tr>`;
+    html += `<tr><td>${esc(r.item)}</td><td style="font-size:10px">${esc(r.type || '')}</td><td>${r.qty}</td><td>₹${(r.pp || 0).toFixed(2)}</td><td>${curSym(r.currency||'EUR')}${(r.fobEur || 0).toFixed(r.priceDecimals || 2)}</td><td>${curSym(r.currency||'EUR')}${(r.total||0).toFixed(2)}</td></tr>`;
   });
   const hasAdj = (q.charges || []).length > 0 || (q.discountAmount || 0) > 0.0001;
   html += `<tr class="qt-total"><td colspan="5" style="text-align:right;white-space:nowrap">${hasAdj ? 'Items Total' : 'Total'}</td><td style="white-space:nowrap">${sym}${(q.itemsTotal ?? q.total ?? 0).toFixed(2)}</td></tr></tbody></table></div>`;
@@ -4849,13 +4852,13 @@ async function buildQPDF(data, withPhotos) {
         doc.setFont(undefined, 'normal');
       }
       doc.setFont(undefined, 'bold'); doc.setFontSize(9); doc.setTextColor(...GREEN);
-      doc.text(sym + (r.fobEur || 0).toFixed(4) + ' / unit', rightX, y + 18, { align: 'right' });
+      doc.text(sym + (r.fobEur || 0).toFixed(r.priceDecimals || 2) + ' / unit', rightX, y + 18, { align: 'right' });
       // Shown as the actual calculation ("qty × rate = amount") rather than
       // a single large bold figure — a standalone total that size was
       // grabbing more visual attention than the item itself, especially on
       // high-quantity lines, and didn't show how it was arrived at.
       const totalFmt = sym + (r.total || 0).toFixed(2);
-      const calcPrefix = (r.qty || 0).toLocaleString() + ' × ' + sym + (r.fobEur || 0).toFixed(4) + ' = ';
+      const calcPrefix = (r.qty || 0).toLocaleString() + ' × ' + sym + (r.fobEur || 0).toFixed(r.priceDecimals || 2) + ' = ';
       doc.setFont(undefined, 'bold'); doc.setFontSize(9.5); doc.setTextColor(26, 26, 24);
       const totalWidth = doc.getTextWidth(totalFmt);
       doc.text(totalFmt, rightX, y + cardH - 14, { align: 'right' });
@@ -4876,7 +4879,7 @@ async function buildQPDF(data, withPhotos) {
         r.item || '',
         r.customization ? desc + '\nCustomization: ' + r.customization : desc,
         (r.qty || 0).toLocaleString(),
-        sym + (r.fobEur || 0).toFixed(4),
+        sym + (r.fobEur || 0).toFixed(r.priceDecimals || 2),
         sym + (r.total || 0).toFixed(2)
       ];
     });
@@ -5070,7 +5073,7 @@ function buildQuotationWorkbook(data) {
       c.alignment = { vertical: 'middle', horizontal: colNum === 2 ? 'left' : 'center' };
     });
     row.getCell(9).numFmt = '#,##0.00';   // PP
-    row.getCell(14).numFmt = '#,##0.0000'; // FOB Price
+    row.getCell(14).numFmt = '#,##0.' + '0'.repeat(r.priceDecimals || 2); // FOB Price — per-item decimal precision, set in the quote builder
     row.getCell(15).numFmt = '#,##0.00';   // Total
     if (anyPhoto && r.photo) {
       const linkCell = row.getCell(16);
@@ -7608,6 +7611,13 @@ function setProductsSafeFilter(cat) {
   app._psFilterCat = cat;
   renderProductsSafe();
 }
+const PS_BATCH_SIZE = 80;
+let _psRenderedCount = PS_BATCH_SIZE;
+let _psLastFilterKey = '';
+function loadMoreProductsSafeRows() {
+  _psRenderedCount += PS_BATCH_SIZE;
+  renderProductsSafe();
+}
 function renderProductsSafe() {
   const el = document.getElementById('products-safe-list');
   if (!el) return;
@@ -7630,6 +7640,21 @@ function renderProductsSafe() {
 
   if (!items.length) { el.innerHTML = '<div class="empty-state"><h3>No products found</h3></div>'; return; }
 
+  // This view used to render every single item as a full photo card in one
+  // shot, no matter how many there were — every <img> loading at once too.
+  // With any real-sized catalog that's hundreds or thousands of DOM nodes
+  // and image requests hitting the browser simultaneously, which is exactly
+  // what made this screen (Shammi's most-used tab) feel slow — the admin
+  // Inventory table already got this same batching fix a while back, this
+  // view just never had it applied. Same "Load more" pattern here now.
+  const filterKey = filterCat + '|' + search + '|' + items.length;
+  if (filterKey !== _psLastFilterKey) {
+    _psRenderedCount = PS_BATCH_SIZE;
+    _psLastFilterKey = filterKey;
+  }
+  const totalCount = items.length;
+  const visibleItems = items.slice(0, _psRenderedCount);
+
   // Build the set of items with an open quality issue ONCE (single pass over
   // qualityIssues) instead of re-filtering the whole issues array for every
   // single item card — that filter-per-item pattern is O(items × issues),
@@ -7641,10 +7666,10 @@ function renderProductsSafe() {
   // fixed max width) lets the cards stretch to actually fill the row on any
   // screen width instead of leaving a gap of dead space on the right.
   let html = '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:14px">';
-  items.forEach(r => {
+  visibleItems.forEach(r => {
     const hasIssue = itemsWithOpenIssues.has(r.id);
     const photoTag = r.photo
-      ? `<div style="width:100%;height:130px;background:#fff;display:flex;align-items:center;justify-content:center;border-radius:var(--r) var(--r) 0 0;overflow:hidden;border-bottom:1px solid var(--border)"><img src="${r.photo}" onclick="enlargePhoto('${r.photo.replace(/'/g, "\\'")}','${esc(r.item).replace(/'/g, "\\'")}')" title="Click to enlarge" style="max-width:100%;max-height:100%;object-fit:contain;cursor:zoom-in"></div>`
+      ? `<div style="width:100%;height:130px;background:#fff;display:flex;align-items:center;justify-content:center;border-radius:var(--r) var(--r) 0 0;overflow:hidden;border-bottom:1px solid var(--border)"><img src="${r.photo}" loading="lazy" onclick="enlargePhoto('${r.photo.replace(/'/g, "\\'")}','${esc(r.item).replace(/'/g, "\\'")}')" title="Click to enlarge" style="max-width:100%;max-height:100%;object-fit:contain;cursor:zoom-in"></div>`
       : `<div style="width:100%;height:130px;background:#fff;display:flex;align-items:center;justify-content:center;color:var(--text3);font-size:11px;border-radius:var(--r) var(--r) 0 0;border-bottom:1px solid var(--border)">No photo</div>`;
     html += `<div style="border:1px solid var(--border);border-radius:var(--r);background:var(--surface);overflow:hidden;box-shadow:var(--shadow-xs)">
       ${photoTag}
@@ -7669,6 +7694,9 @@ function renderProductsSafe() {
     </div>`;
   });
   html += '</div>';
+  if (totalCount > _psRenderedCount) {
+    html += `<div style="text-align:center;padding:16px"><button class="btn btn-secondary btn-sm" onclick="loadMoreProductsSafeRows()">⬇️ Load ${Math.min(PS_BATCH_SIZE, totalCount - _psRenderedCount)} more (${totalCount - _psRenderedCount} remaining)</button></div>`;
+  }
   el.innerHTML = html;
 }
 // Full-size photo lightbox — used by the Products (procurement) card grid so
@@ -7689,6 +7717,13 @@ function applyOrdersSafeFilterDebounced() {
   clearTimeout(_osSearchDebounceTimer);
   _osSearchDebounceTimer = setTimeout(renderOrdersSafe, 180);
 }
+const OS_BATCH_SIZE = 40;
+let _osRenderedCount = OS_BATCH_SIZE;
+let _osLastFilterKey = '';
+function loadMoreOrdersSafeRows() {
+  _osRenderedCount += OS_BATCH_SIZE;
+  renderOrdersSafe();
+}
 function renderOrdersSafe() {
   const el = document.getElementById('orders-safe-list');
   if (!el) return;
@@ -7703,8 +7738,21 @@ function renderOrdersSafe() {
   }
   if (!groups.length) { el.innerHTML = '<div class="empty-state"><h3>No orders found</h3></div>'; return; }
 
+  // Same unbounded-render gap as Products (Shammi's other most-used tab) —
+  // every order card, and every item lot inside each one, rendered in a
+  // single pass with no ceiling. Order counts grow more slowly than item
+  // catalogs so this was less severe, but it's the same class of bug and
+  // gets slower every month regardless.
+  const filterKey = search + '|' + groups.length;
+  if (filterKey !== _osLastFilterKey) {
+    _osRenderedCount = OS_BATCH_SIZE;
+    _osLastFilterKey = filterKey;
+  }
+  const totalCount = groups.length;
+  const visibleGroups = groups.slice(0, _osRenderedCount);
+
   let html = '<div class="doc-list">';
-  groups.forEach(g => {
+  visibleGroups.forEach(g => {
     const lots = app.customerOrders.filter(o => o.orderGroupId === g.id);
     html += `<div class="doc-card" style="flex-direction:column;align-items:stretch">
       <div style="display:flex;align-items:center;gap:10px;margin-bottom:8px">
@@ -7733,6 +7781,9 @@ function renderOrdersSafe() {
     </div>`;
   });
   html += '</div>';
+  if (totalCount > _osRenderedCount) {
+    html += `<div style="text-align:center;padding:16px"><button class="btn btn-secondary btn-sm" onclick="loadMoreOrdersSafeRows()">⬇️ Load ${Math.min(OS_BATCH_SIZE, totalCount - _osRenderedCount)} more (${totalCount - _osRenderedCount} remaining)</button></div>`;
+  }
   el.innerHTML = html;
 }
 
@@ -10730,7 +10781,7 @@ function emailQuotationCustomer(id) {
   // item (the real field is fobEur) — every emailed quote line has been
   // showing 0.00 per unit regardless of the real price. Fixed here too
   // since it's the same function being touched for charges.
-  const itemLines = (q.items || []).map(r => `- ${r.item}: ${(r.qty || 0).toLocaleString()} x ${curSym(r.currency || sym)}${(r.fobEur || 0).toFixed(4)} = ${curSym(r.currency || sym)}${(r.total || 0).toFixed(2)}`).join('\n');
+  const itemLines = (q.items || []).map(r => `- ${r.item}: ${(r.qty || 0).toLocaleString()} x ${curSym(r.currency || sym)}${(r.fobEur || 0).toFixed(r.priceDecimals || 2)} = ${curSym(r.currency || sym)}${(r.total || 0).toFixed(2)}`).join('\n');
   const hasAdj = (q.charges || []).length > 0 || (q.discountAmount || 0) > 0.0001;
   const discountLine = (q.discountAmount || 0) > 0.0001 ? `\n${q.discount?.type === 'percent' ? `Discount (${q.discount.value}%)` : 'Discount'}: -${sym}${q.discountAmount.toFixed(2)}\nItems Subtotal: ${sym}${(q.itemsTotalAfterDiscount ?? q.itemsTotal ?? 0).toFixed(2)}` : '';
   const chargeLines = (q.charges || []).length ? '\n' + q.charges.map(ch => `${ch.label}: ${curSym(ch.currency || sym)}${(parseFloat(ch.amount) || 0).toFixed(2)}`).join('\n') : '';
