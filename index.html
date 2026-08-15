@@ -1057,7 +1057,7 @@ table{min-width:820px}
 <div class="modal-backdrop" id="modal-container-plan"><div class="modal" style="max-width:1100px"><div class="modal-header"><h2>📦 Container Load Planner</h2><button class="modal-close" onclick="closeModal('modal-container-plan')">✕</button></div><div class="modal-body" id="cp-body" style="padding:16px"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-container-plan')">Close</button></div></div></div>
 <div class="modal-backdrop" id="modal-priority" style="z-index:400"><div class="modal" style="max-width:480px"><div class="modal-header"><h2>🔥 Mark as Priority</h2><button class="modal-close" onclick="closeModal('modal-priority')">✕</button></div><div class="modal-body" id="pr-body" style="padding:16px"></div><div class="modal-footer" id="pr-footer"></div></div></div>
 <div class="modal-backdrop" id="modal-convert-order"><div class="modal" style="max-width:600px"><div class="modal-header"><h2>➡️ Convert Proforma to Order</h2><button class="modal-close" onclick="closeModal('modal-convert-order')">✕</button></div><div class="modal-body" id="co-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-convert-order')">Cancel</button><button class="btn btn-success" onclick="confirmConvertToOrder()">✅ Confirm</button></div></div></div>
-<div class="modal-backdrop" id="modal-order-group"><div class="modal" style="max-width:1200px"><div class="modal-header"><h2 id="og-title">📦 Order Details</h2><button class="modal-close" onclick="closeModal('modal-order-group')">✕</button></div><div class="modal-body" id="og-body" style="padding:16px"></div><div class="modal-footer"><button class="btn btn-danger" onclick="deleteOrderGroup(app._currentOrderGroupId)" style="margin-right:auto">🗑️ Delete Order</button><button class="btn btn-secondary" onclick="closeModal('modal-order-group')">Close</button><button class="btn btn-primary" onclick="printCurrentModal()">🖨️ Print</button></div></div></div>
+<div class="modal-backdrop" id="modal-order-group"><div class="modal" style="max-width:1200px"><div class="modal-header"><h2 id="og-title">📦 Order Details</h2><button class="modal-close" onclick="closeModal('modal-order-group')">✕</button></div><div class="modal-body" id="og-body" style="padding:16px"></div><div class="modal-footer"><button class="btn btn-danger" onclick="deleteOrderGroup(app._currentOrderGroupId)" style="margin-right:auto">🗑️ Delete Order</button><button class="btn btn-secondary" onclick="openShippingDocsStandalone(app._currentOrderGroupId)">🚢 Shipping Docs</button><button class="btn btn-secondary" onclick="openTradingAccountStandalone(app._currentOrderGroupId)">📊 Trading Account</button><button class="btn btn-secondary" onclick="closeModal('modal-order-group')">Close</button><button class="btn btn-primary" onclick="printCurrentModal()">🖨️ Print</button></div></div></div>
 <div class="modal-backdrop" id="modal-order-report"><div class="modal" style="max-width:1450px"><div class="modal-header"><h2>📊 Order vs Dispatch Report</h2><button class="modal-close" onclick="closeModal('modal-order-report')">✕</button></div><div class="modal-body">
   <div class="form-sec"><div class="fg fg-3">
     <div class="ff"><label>Customer (optional — blank = all)</label><input id="or-customer" list="oc-customer-list" placeholder="All customers" autocomplete="off"></div>
@@ -1110,6 +1110,8 @@ table{min-width:820px}
 <div class="modal-backdrop" id="modal-email"><div class="modal" style="max-width:600px"><div class="modal-header"><h2>📧 Send Email</h2><button class="modal-close" onclick="closeModal('modal-email')">✕</button></div><div class="modal-body" id="email-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-email')">Cancel</button><button class="btn btn-primary" id="email-send-btn" onclick="sendComposedEmail()">📤 Send</button></div></div></div>
 <div class="modal-backdrop" id="modal-trash"><div class="modal" style="max-width:640px"><div class="modal-header"><h2>🗑️ Trash</h2><button class="modal-close" onclick="closeModal('modal-trash')">✕</button></div><div class="modal-body"><p style="font-size:11px;color:var(--text3);margin-bottom:12px">Deleted quotes, proformas, and orders stay here for 30 days before being permanently removed, so a mistaken delete never means retyping everything.</p><div id="trash-list"></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-trash')">Close</button></div></div></div>
 <div class="modal-backdrop" id="modal-shipdoc"><div class="modal" style="max-width:640px"><div class="modal-header"><h2 id="shipdoc-form-title">🚢 Add Shipping Document</h2><button class="modal-close" onclick="closeModal('modal-shipdoc')">✕</button></div><div class="modal-body" id="shipdoc-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-shipdoc')">Cancel</button><button class="btn btn-success" onclick="saveShippingDoc()">💾 Save</button></div></div></div>
+<div class="modal-backdrop" id="modal-shipdocs-standalone"><div class="modal" style="max-width:640px"><div class="modal-header"><h2 id="shipdocs-standalone-title">🚢 Shipping Documents</h2><button class="modal-close" onclick="closeModal('modal-shipdocs-standalone')">✕</button></div><div class="modal-body" id="shipdocs-standalone-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-shipdocs-standalone')">Close</button></div></div></div>
+<div class="modal-backdrop" id="modal-tradingaccount-standalone"><div class="modal" style="max-width:560px"><div class="modal-header"><h2 id="ta-standalone-title">📊 Trading Account</h2><button class="modal-close" onclick="closeModal('modal-tradingaccount-standalone')">✕</button></div><div class="modal-body" id="ta-standalone-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-tradingaccount-standalone')">Close</button></div></div></div>
 <input type="file" id="file-shipdoc" accept="application/pdf,image/*" style="display:none">
 <div class="modal-backdrop" id="modal-usearch"><div class="modal usearch-modal" style="max-width:640px">
   <div class="usearch-input-wrap">
@@ -4112,7 +4114,7 @@ function buildQModal() {
       <td><input type="number" step="0.1" value="${r.fob || 0}" style="width:50px" onchange="qUpd(${i},'fob',this.value)"></td>
       <td><input type="number" step="0.5" value="${r.exrate || 0}" style="width:60px" onchange="qUpd(${i},'exrate',this.value)"></td>
       <td><select style="width:55px" onchange="qUpd(${i},'currency',this.value)">${CURRENCIES.map(c => `<option value="${c}"${r.currency===c?' selected':''}>${c}</option>`).join('')}</select></td>
-      <td style="font-weight:700;color:var(--green);white-space:nowrap">${sym}${r.fobEur.toFixed(r.priceDecimals || 2)}<select style="width:44px;height:18px;font-size:8.5px;padding:0 2px;margin-left:3px;vertical-align:middle" title="Decimal places shown for this item's unit price on the PDF/Excel" onchange="qUpd(${i},'priceDecimals',parseInt(this.value))">${[2, 3, 4].map(d => `<option value="${d}" ${(r.priceDecimals || 2) === d ? 'selected' : ''}>${d}dp</option>`).join('')}</select></td>
+      <td style="font-weight:700;color:var(--green);white-space:nowrap">${sym}${r.fobEur.toFixed(r.priceDecimals ?? 2)}<select style="width:56px;height:18px;font-size:8.5px;padding:0 2px;margin-left:3px;vertical-align:middle" title="Decimal places shown for this item's unit price on the PDF/Excel" onchange="qUpd(${i},'priceDecimals',parseInt(this.value))">${[0, 2, 3, 4].map(d => `<option value="${d}" ${(r.priceDecimals ?? 2) === d ? 'selected' : ''}>${d === 0 ? 'Round' : d + 'dp'}</option>`).join('')}</select></td>
       <td style="font-weight:700;color:var(--accent2)">${sym}${(r.total || 0).toFixed(2)}</td>
       <td><button class="btn btn-danger btn-xs" onclick="rmQItem(${i})">✕</button></td>
     </tr>
@@ -4446,12 +4448,17 @@ function renderQList() {
   let html = '<div class="doc-list">';
   list.forEach(q => {
     const sym = curSym(q.items?.[0]?.currency || 'EUR');
+    const custCountry = findCustomerByName(q.customer)?.country || '';
     html += `<div class="doc-card">
       <div class="doc-icon">${q.mode === 'proforma' ? '🧾' : '📄'}</div>
       <div class="doc-info">
-        <strong>${q.mode === 'proforma' ? 'Proforma' : 'Quotation'} ${esc(docRef(q))}</strong>
-        <span>${esc(q.customer || 'No customer')} — ${q.items?.length || 0} items — ${sym}${(q.total || 0).toFixed(2)}</span>
-        <div style="font-size:9px;color:var(--text3)">${new Date(q.date || q.savedAt).toLocaleDateString()} | Ref: ${esc(q.ref || '—')} | ${esc(q.savedBy || 'System')}</div>
+        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
+          <strong style="font-size:14px;color:var(--text)">${esc(q.customer || 'No customer')}</strong>
+          ${custCountry ? `<span style="font-size:11px;font-weight:600;color:var(--text2)">🌍 ${esc(custCountry)}</span>` : ''}
+          ${q.ref ? `<span style="font-size:11px;font-weight:600;color:var(--accent2)">Ref: ${esc(q.ref)}</span>` : ''}
+        </div>
+        <span>${q.mode === 'proforma' ? 'Proforma' : 'Quotation'} ${esc(docRef(q))} — ${q.items?.length || 0} items — ${sym}${(q.total || 0).toFixed(2)}</span>
+        <div style="font-size:9px;color:var(--text3)">${new Date(q.date || q.savedAt).toLocaleDateString()} | ${esc(q.savedBy || 'System')}</div>
       </div>
       <div class="doc-actions">
         <button class="btn btn-info btn-xs" onclick="viewDoc('${q.id}','quote')">👁️ View</button>
@@ -4582,7 +4589,7 @@ function viewDoc(id, type) {
       <colgroup><col style="width:22%"><col style="width:20%"><col style="width:10%"><col style="width:16%"><col style="width:16%"><col style="width:16%"></colgroup>
       <thead><tr><th>Item</th><th>Type</th><th>Qty</th><th>PP</th><th>FOB</th><th>Total</th></tr></thead><tbody>`;
   (q.items || []).forEach(r => {
-    html += `<tr><td>${esc(r.item)}</td><td style="font-size:10px">${esc(r.type || '')}</td><td>${r.qty}</td><td>₹${(r.pp || 0).toFixed(2)}</td><td>${curSym(r.currency||'EUR')}${(r.fobEur || 0).toFixed(r.priceDecimals || 2)}</td><td>${curSym(r.currency||'EUR')}${(r.total||0).toFixed(2)}</td></tr>`;
+    html += `<tr><td>${esc(r.item)}</td><td style="font-size:10px">${esc(r.type || '')}</td><td>${r.qty}</td><td>₹${(r.pp || 0).toFixed(2)}</td><td>${curSym(r.currency||'EUR')}${(r.fobEur || 0).toFixed(r.priceDecimals ?? 2)}</td><td>${curSym(r.currency||'EUR')}${(r.total||0).toFixed(2)}</td></tr>`;
   });
   const hasAdj = (q.charges || []).length > 0 || (q.discountAmount || 0) > 0.0001;
   html += `<tr class="qt-total"><td colspan="5" style="text-align:right;white-space:nowrap">${hasAdj ? 'Items Total' : 'Total'}</td><td style="white-space:nowrap">${sym}${(q.itemsTotal ?? q.total ?? 0).toFixed(2)}</td></tr></tbody></table></div>`;
@@ -4852,13 +4859,13 @@ async function buildQPDF(data, withPhotos) {
         doc.setFont(undefined, 'normal');
       }
       doc.setFont(undefined, 'bold'); doc.setFontSize(9); doc.setTextColor(...GREEN);
-      doc.text(sym + (r.fobEur || 0).toFixed(r.priceDecimals || 2) + ' / unit', rightX, y + 18, { align: 'right' });
+      doc.text(sym + (r.fobEur || 0).toFixed(r.priceDecimals ?? 2) + ' / unit', rightX, y + 18, { align: 'right' });
       // Shown as the actual calculation ("qty × rate = amount") rather than
       // a single large bold figure — a standalone total that size was
       // grabbing more visual attention than the item itself, especially on
       // high-quantity lines, and didn't show how it was arrived at.
       const totalFmt = sym + (r.total || 0).toFixed(2);
-      const calcPrefix = (r.qty || 0).toLocaleString() + ' × ' + sym + (r.fobEur || 0).toFixed(r.priceDecimals || 2) + ' = ';
+      const calcPrefix = (r.qty || 0).toLocaleString() + ' × ' + sym + (r.fobEur || 0).toFixed(r.priceDecimals ?? 2) + ' = ';
       doc.setFont(undefined, 'bold'); doc.setFontSize(9.5); doc.setTextColor(26, 26, 24);
       const totalWidth = doc.getTextWidth(totalFmt);
       doc.text(totalFmt, rightX, y + cardH - 14, { align: 'right' });
@@ -4879,7 +4886,7 @@ async function buildQPDF(data, withPhotos) {
         r.item || '',
         r.customization ? desc + '\nCustomization: ' + r.customization : desc,
         (r.qty || 0).toLocaleString(),
-        sym + (r.fobEur || 0).toFixed(r.priceDecimals || 2),
+        sym + (r.fobEur || 0).toFixed(r.priceDecimals ?? 2),
         sym + (r.total || 0).toFixed(2)
       ];
     });
@@ -5073,7 +5080,8 @@ function buildQuotationWorkbook(data) {
       c.alignment = { vertical: 'middle', horizontal: colNum === 2 ? 'left' : 'center' };
     });
     row.getCell(9).numFmt = '#,##0.00';   // PP
-    row.getCell(14).numFmt = '#,##0.' + '0'.repeat(r.priceDecimals || 2); // FOB Price — per-item decimal precision, set in the quote builder
+    const pd = r.priceDecimals ?? 2;
+    row.getCell(14).numFmt = pd === 0 ? '#,##0' : '#,##0.' + '0'.repeat(pd); // FOB Price — per-item decimal precision (Round = whole number), set in the quote builder
     row.getCell(15).numFmt = '#,##0.00';   // Total
     if (anyPhoto && r.photo) {
       const linkCell = row.getCell(16);
@@ -5900,7 +5908,11 @@ function buildOrderProductMatrix(g) {
     </tr>`;
   });
   html += '</tbody></table>';
-  html += `<div style="margin-top:8px"><button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();openOrderGroupDetail(${g.id})">📜 Full Log &amp; Rates</button></div>`;
+  html += `<div style="margin-top:8px;display:flex;gap:8px;flex-wrap:wrap">
+    <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();openShippingDocsStandalone(${g.id})">🚢 Shipping Docs</button>
+    <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();openTradingAccountStandalone(${g.id})">📊 Trading Account</button>
+    <button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();openOrderGroupDetail(${g.id})">📜 Full Log &amp; Rates</button>
+  </div>`;
   return html;
 }
 function toggleOrderExpand(gid) {
@@ -6641,9 +6653,23 @@ function deleteShippingDoc(id) {
 }
 function refreshShippingDocsInOrderModal(gid) {
   const g = app.orderGroups.find(x => x.id == gid);
-  const el = document.getElementById('og-shipdocs-section');
-  if (g && el) el.innerHTML = renderShippingDocsSection(g);
+  if (!g) return;
+  if (app._shipDocsStandaloneGid == gid) {
+    const el = document.getElementById('shipdocs-standalone-body');
+    if (el) el.innerHTML = renderShippingDocsSection(g);
+  }
   renderOrders();
+}
+// Focused, single-purpose popup instead of burying this inside the much
+// heavier "Full Log & Rates" modal — one click from the Orders list gets
+// you straight to just this, nothing else to scroll past.
+function openShippingDocsStandalone(gid) {
+  const g = app.orderGroups.find(x => x.id == gid);
+  if (!g) { notify('Order not found', 'error'); return; }
+  app._shipDocsStandaloneGid = gid;
+  document.getElementById('shipdocs-standalone-title').textContent = `🚢 Shipping Documents — ${g.ref} (${g.customer})`;
+  document.getElementById('shipdocs-standalone-body').innerHTML = renderShippingDocsSection(g);
+  openModal('modal-shipdocs-standalone');
 }
 // ══════════════════════════════════════════════════════════════════════════
 // ── TRADING ACCOUNT ───────────────────────────────────────────────────────
@@ -6732,8 +6758,17 @@ function updateTAOverride(gid, field, value) {
   g.tradingAccountOverrides = g.tradingAccountOverrides || {};
   g.tradingAccountOverrides[field] = value;
   persist();
-  const el = document.getElementById('og-ta-section');
+  const el = document.getElementById('ta-standalone-body');
   if (el) el.innerHTML = renderTradingAccountSection(g);
+}
+// Same idea as Shipping Docs — a direct, focused popup from the Orders
+// list instead of digging through the full order log to find it.
+function openTradingAccountStandalone(gid) {
+  const g = app.orderGroups.find(x => x.id == gid);
+  if (!g) { notify('Order not found', 'error'); return; }
+  document.getElementById('ta-standalone-title').textContent = `📊 Trading Account — ${g.ref} (${g.customer})`;
+  document.getElementById('ta-standalone-body').innerHTML = renderTradingAccountSection(g);
+  openModal('modal-tradingaccount-standalone');
 }
 function openOrderGroupDetail(gid) {
   const g = app.orderGroups.find(x => x.id == gid);
@@ -6787,8 +6822,9 @@ function openOrderGroupDetail(gid) {
       </table>
       <div style="font-size:9.5px;color:var(--text3);margin-top:4px">Carried over from the source quote/proforma — counted in this order's total value in Payments.</div>`;
   }
-  html += `<div id="og-shipdocs-section">${renderShippingDocsSection(g)}</div>`;
-  html += `<div id="og-ta-section">${renderTradingAccountSection(g)}</div>`;
+  // Shipping Docs and Trading Account moved to their own quick-access
+  // popups (buttons on the Orders list row) — this log stays focused on
+  // just the item lots, charges, and activity history.
   html += '<div class="form-sec-title" style="margin:14px 0 8px">📜 Order Log</div><div style="font-size:11px">';
   g.log.slice().reverse().forEach(l => {
     const d = new Date(l.date);
@@ -10781,7 +10817,7 @@ function emailQuotationCustomer(id) {
   // item (the real field is fobEur) — every emailed quote line has been
   // showing 0.00 per unit regardless of the real price. Fixed here too
   // since it's the same function being touched for charges.
-  const itemLines = (q.items || []).map(r => `- ${r.item}: ${(r.qty || 0).toLocaleString()} x ${curSym(r.currency || sym)}${(r.fobEur || 0).toFixed(r.priceDecimals || 2)} = ${curSym(r.currency || sym)}${(r.total || 0).toFixed(2)}`).join('\n');
+  const itemLines = (q.items || []).map(r => `- ${r.item}: ${(r.qty || 0).toLocaleString()} x ${curSym(r.currency || sym)}${(r.fobEur || 0).toFixed(r.priceDecimals ?? 2)} = ${curSym(r.currency || sym)}${(r.total || 0).toFixed(2)}`).join('\n');
   const hasAdj = (q.charges || []).length > 0 || (q.discountAmount || 0) > 0.0001;
   const discountLine = (q.discountAmount || 0) > 0.0001 ? `\n${q.discount?.type === 'percent' ? `Discount (${q.discount.value}%)` : 'Discount'}: -${sym}${q.discountAmount.toFixed(2)}\nItems Subtotal: ${sym}${(q.itemsTotalAfterDiscount ?? q.itemsTotal ?? 0).toFixed(2)}` : '';
   const chargeLines = (q.charges || []).length ? '\n' + q.charges.map(ch => `${ch.label}: ${curSym(ch.currency || sym)}${(parseFloat(ch.amount) || 0).toFixed(2)}`).join('\n') : '';
