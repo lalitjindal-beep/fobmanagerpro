@@ -244,7 +244,7 @@ input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--ac
 .modal-header h2{color:#fff;font-size:12.5px;font-weight:700;text-transform:uppercase;flex:1}
 .modal-close{background:rgba(255,255,255,.15);border:none;color:rgba(255,255,255,.8);width:28px;height:28px;border-radius:6px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;font-weight:700}
 .modal-close:hover{background:rgba(255,255,255,.25);color:#fff}
-.modal-body{padding:20px;overflow-y:auto;overflow-x:auto;flex:1;min-width:0}
+.modal-body{padding:20px;overflow-y:auto;overflow-x:auto;flex:1;min-width:0;min-height:0}
 .modal-body table{max-width:100%}
 .modal-body td,.modal-body th{word-break:break-word}
 .modal-footer{padding:12px 16px;border-top:1px solid var(--border);display:flex;gap:6px;justify-content:flex-end;background:var(--surface2);flex-wrap:wrap}
@@ -1108,7 +1108,7 @@ table{min-width:820px}
   <p style="color:var(--text3);font-size:11px">It'll then open full-screen like a regular app, with its own icon — no browser bar.</p>
 </div><div class="modal-footer"><button class="btn btn-primary" onclick="closeModal('modal-ios-install')">Got it</button></div></div></div>
 <div class="modal-backdrop" id="modal-email"><div class="modal" style="max-width:600px"><div class="modal-header"><h2>📧 Send Email</h2><button class="modal-close" onclick="closeModal('modal-email')">✕</button></div><div class="modal-body" id="email-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-email')">Cancel</button><button class="btn btn-primary" id="email-send-btn" onclick="sendComposedEmail()">📤 Send</button></div></div></div>
-<div class="modal-backdrop" id="modal-target"><div class="modal" style="max-width:1180px"><div class="modal-header"><h2 id="tgt-title">🎯 Target Price Analysis</h2><button class="modal-close" onclick="closeTargetModal()">✕</button></div><div class="modal-body" id="tgt-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeTargetModal()">Close</button><button class="btn btn-info" onclick="exportTargetExcel()">📊 Export Excel</button><button class="btn btn-success" onclick="saveTargetAnalysis()">💾 Save Analysis</button></div></div></div>
+<div class="modal-backdrop" id="modal-target"><div class="modal" style="max-width:1080px;width:95vw"><div class="modal-header"><h2 id="tgt-title">🎯 Target Price Analysis</h2><button class="modal-close" onclick="closeTargetModal()">✕</button></div><div class="modal-body" id="tgt-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeTargetModal()">Close</button><button class="btn btn-info" onclick="exportTargetExcel()">📊 Export Excel</button><button class="btn btn-success" onclick="saveTargetAnalysis()">💾 Save Analysis</button></div></div></div>
 <div class="modal-backdrop" id="modal-trash"><div class="modal" style="max-width:640px"><div class="modal-header"><h2>🗑️ Trash</h2><button class="modal-close" onclick="closeModal('modal-trash')">✕</button></div><div class="modal-body"><p style="font-size:11px;color:var(--text3);margin-bottom:12px">Deleted quotes, proformas, and orders stay here for 30 days before being permanently removed, so a mistaken delete never means retyping everything.</p><div id="trash-list"></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-trash')">Close</button></div></div></div>
 <div class="modal-backdrop" id="modal-shipdoc"><div class="modal" style="max-width:640px"><div class="modal-header"><h2 id="shipdoc-form-title">🚢 Add Shipping Document</h2><button class="modal-close" onclick="closeModal('modal-shipdoc')">✕</button></div><div class="modal-body" id="shipdoc-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-shipdoc')">Cancel</button><button class="btn btn-success" onclick="saveShippingDoc()">💾 Save</button></div></div></div>
 <div class="modal-backdrop" id="modal-shipdocs-standalone"><div class="modal" style="max-width:640px"><div class="modal-header"><h2 id="shipdocs-standalone-title">🚢 Shipping Documents</h2><button class="modal-close" onclick="closeModal('modal-shipdocs-standalone')">✕</button></div><div class="modal-body" id="shipdocs-standalone-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-shipdocs-standalone')">Close</button></div></div></div>
@@ -4585,7 +4585,13 @@ function buildTargetModal() {
 
   let html = `<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Enter the client's target unit price for each item (defaults to your offered price). <strong>Cost/Unit</strong> is your landed cost with zero margin — Purchase Price + FOB/overhead %, at the quote's ex-rate — so anything targeted below it is a real loss on that line, not just thinner margin.</div>`;
   html += `<div style="margin-bottom:8px"><button class="btn btn-secondary btn-xs" onclick="tgtResetToOffer()">↺ Reset all targets = offered price</button></div>`;
-  html += `<table class="qt"><thead><tr><th>Item</th><th>Qty</th><th>Cost/Unit</th><th>Offered</th><th>Target</th><th>Diff/Unit</th><th>Diff %</th><th>Offered Total</th><th>Target Total</th><th>Margin@Target</th><th>Status</th></tr></thead><tbody>`;
+  html += `<div style="overflow-x:auto;border:1px solid var(--border);border-radius:var(--r-sm)">
+  <table class="qt" style="min-width:980px;font-size:11px"><thead><tr>
+    <th style="min-width:150px">Item</th><th style="white-space:nowrap">Qty</th><th style="white-space:nowrap">Cost/Unit</th><th style="white-space:nowrap">Offered</th>
+    <th style="white-space:nowrap;min-width:90px">Target</th><th style="white-space:nowrap">Diff/Unit</th><th style="white-space:nowrap">Diff %</th>
+    <th style="white-space:nowrap">Offered Total</th><th style="white-space:nowrap">Target Total</th><th style="white-space:nowrap">Margin@Target</th>
+    <th style="white-space:nowrap;min-width:110px">Status</th>
+  </tr></thead><tbody>`;
 
   items.forEach((r, i) => {
     const cost = itemBreakevenCost(r);
@@ -4602,17 +4608,17 @@ function buildTargetModal() {
     if (cost > 0 && target < cost - 0.0001) lossCount++;
     else if (target < offered - 0.0001) reducedCount++;
     html += `<tr>
-      <td><strong>${esc(r.item)}</strong></td>
-      <td>${qty}</td>
-      <td>${sym}${cost.toFixed(4)}</td>
-      <td>${sym}${offered.toFixed(4)}</td>
-      <td><input type="number" step="0.0001" value="${target}" style="width:80px" onchange="tgtUpd(${i},this.value)"></td>
+      <td style="min-width:150px">${esc(r.item)}</td>
+      <td style="white-space:nowrap">${qty}</td>
+      <td style="white-space:nowrap">${sym}${cost.toFixed(4)}</td>
+      <td style="white-space:nowrap">${sym}${offered.toFixed(4)}</td>
+      <td style="white-space:nowrap"><input type="number" step="0.0001" value="${target}" style="width:78px" onchange="tgtUpd(${i},this.value)"></td>
       <td style="white-space:nowrap;color:${diffUnit < -0.0001 ? 'var(--red)' : diffUnit > 0.0001 ? 'var(--green)' : 'var(--text3)'}">${diffUnit >= 0 ? '+' : ''}${sym}${diffUnit.toFixed(4)}</td>
-      <td style="color:${diffPct < -0.0001 ? 'var(--red)' : diffPct > 0.0001 ? 'var(--green)' : 'var(--text3)'}">${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%</td>
-      <td>${sym}${oTotal.toFixed(2)}</td>
-      <td style="font-weight:700">${sym}${tTotal.toFixed(2)}</td>
-      <td style="${cost > 0 && marginAtTarget < 0 ? 'color:var(--red);font-weight:700' : ''}">${marginAtTarget.toFixed(1)}%</td>
-      <td style="${st.cls}">${st.label}</td>
+      <td style="white-space:nowrap;color:${diffPct < -0.0001 ? 'var(--red)' : diffPct > 0.0001 ? 'var(--green)' : 'var(--text3)'}">${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%</td>
+      <td style="white-space:nowrap">${sym}${oTotal.toFixed(2)}</td>
+      <td style="white-space:nowrap;font-weight:700">${sym}${tTotal.toFixed(2)}</td>
+      <td style="white-space:nowrap;${cost > 0 && marginAtTarget < 0 ? 'color:var(--red);font-weight:700' : ''}">${marginAtTarget.toFixed(1)}%</td>
+      <td style="white-space:nowrap;${st.cls}">${st.label}</td>
     </tr>`;
   });
 
@@ -4622,8 +4628,8 @@ function buildTargetModal() {
   const blendedMarginTarget = costTotal ? ((targetTotal - costTotal) / costTotal * 100) : 0;
   const okCount = items.length - lossCount - reducedCount;
 
-  html += `<tr class="qt-total"><td colspan="7" style="text-align:right">TOTALS</td><td>${sym}${offeredTotal.toFixed(2)}</td><td>${sym}${targetTotal.toFixed(2)}</td><td colspan="2"></td></tr>`;
-  html += `</tbody></table>`;
+  html += `<tr class="qt-total"><td colspan="7" style="text-align:right;white-space:nowrap">TOTALS</td><td style="white-space:nowrap">${sym}${offeredTotal.toFixed(2)}</td><td style="white-space:nowrap">${sym}${targetTotal.toFixed(2)}</td><td colspan="2"></td></tr>`;
+  html += `</tbody></table></div>`;
 
   html += `<div class="form-sec" style="margin-top:14px"><div class="form-sec-title">Overall Comparison</div>
     <div class="fg fg-3">
@@ -4674,21 +4680,57 @@ function saveTargetAnalysis() {
   notify('💾 Target analysis saved to this quote', 'success');
 }
 
-function exportTargetExcel() {
+// Same navy/banded look as the Quotation Excel export (buildQuotationWorkbook),
+// so this lands in Lalit's inbox looking like the rest of FOB Manager Pro's
+// output, not a generic spreadsheet — with real colored fills for loss/margin
+// rows instead of plain numbers.
+async function exportTargetExcel() {
   const q = app.quotations.find(x => x.id == app._targetQuoteId);
   if (!q) { notify('Not found', 'error'); return; }
   const items = app._targetItems;
-  const headers = ['Item', 'Qty', 'Cost/Unit', 'Offered Unit', 'Target Unit', 'Diff/Unit', 'Diff %', 'Offered Total', 'Target Total', 'Margin@Target %'];
-  const rows = [
-    ['Target Price Analysis'],
-    ['Customer', q.customer || ''],
-    ['Document', docRef(q)],
-    ['Generated', new Date().toLocaleString()],
-    [],
-    headers
-  ];
-  let offeredTotal = 0, targetTotal = 0, costTotal = 0;
-  items.forEach(r => {
+  if (!items.length) { notify('No items to export', 'warning'); return; }
+  const cur = items[0]?.currency || 'EUR';
+  const sym = curSym(cur);
+
+  const NAVY = 'FF1E3A5F', BAND = 'FFF3F2ED', BORDER = 'FFD8D6CE';
+  const GREEN = 'FF2D7D46', GREEN_BG = 'FFE6F5EC', AMBER = 'FF8A6D1B', AMBER_BG = 'FFF5F0E0', RED = 'FF8B2C2C', RED_BG = 'FFF5E6E6';
+
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'FOB Manager Pro';
+  const ws = wb.addWorksheet('Target Analysis');
+  const headers = ['Item', 'Qty', 'Cost/Unit', 'Offered Unit', 'Target Unit', 'Diff/Unit', 'Diff %', 'Offered Total', 'Target Total', 'Margin@Target %', 'Status'];
+  const colCount = headers.length;
+
+  // Title banner
+  ws.mergeCells(1, 1, 1, colCount);
+  const title = ws.getCell(1, 1);
+  title.value = 'TARGET PRICE ANALYSIS  —  ' + (app.settings.company.name || '');
+  title.font = { bold: true, size: 14, color: { argb: 'FFFFFFFF' } };
+  title.alignment = { vertical: 'middle' };
+  ws.getRow(1).height = 28;
+  ws.getRow(1).eachCell(c => { c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } }; });
+
+  // Customer / ref meta row
+  ws.mergeCells(2, 1, 2, Math.ceil(colCount / 2));
+  ws.getCell(2, 1).value = 'Customer: ' + (q.customer || '—');
+  ws.mergeCells(2, Math.ceil(colCount / 2) + 1, 2, colCount);
+  ws.getCell(2, Math.ceil(colCount / 2) + 1).value = 'Ref: ' + docRef(q) + '    Generated: ' + new Date().toLocaleDateString();
+  ws.getRow(2).font = { italic: true, size: 10, color: { argb: 'FF5A5850' } };
+  ws.getRow(2).height = 18;
+
+  ws.addRow([]); // spacer
+
+  const headerRow = ws.addRow(headers);
+  headerRow.eachCell(c => {
+    c.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+    c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } };
+    c.alignment = { horizontal: 'center', vertical: 'middle' };
+    c.border = { top: { style: 'thin', color: { argb: BORDER } }, bottom: { style: 'thin', color: { argb: BORDER } }, left: { style: 'thin', color: { argb: BORDER } }, right: { style: 'thin', color: { argb: BORDER } } };
+  });
+  headerRow.height = 20;
+
+  let offeredTotal = 0, targetTotal = 0, costTotal = 0, lossCount = 0, reducedCount = 0;
+  items.forEach((r, i) => {
     const cost = itemBreakevenCost(r);
     const offered = r.fobEur || 0;
     const target = r.target || 0;
@@ -4697,20 +4739,83 @@ function exportTargetExcel() {
     const diffPct = offered ? (diffUnit / offered * 100) : 0;
     const marginAtTarget = cost > 0 ? ((target - cost) / cost * 100) : 0;
     offeredTotal += offered * qty; targetTotal += target * qty; costTotal += cost * qty;
-    rows.push([r.item, qty, +cost.toFixed(4), +offered.toFixed(4), +target.toFixed(4), +diffUnit.toFixed(4), +diffPct.toFixed(1), +(offered * qty).toFixed(2), +(target * qty).toFixed(2), +marginAtTarget.toFixed(1)]);
+    const st = targetStatus(offered, target, cost);
+    const isLoss = cost > 0 && target < cost - 0.0001;
+    const isReduced = !isLoss && target < offered - 0.0001;
+    if (isLoss) lossCount++; else if (isReduced) reducedCount++;
+
+    const row = ws.addRow([r.item || '', qty, cost, offered, target, diffUnit, diffPct / 100, offered * qty, target * qty, marginAtTarget / 100, st.label.replace(/^[^\s]+\s/, '')]);
+    const isBanded = i % 2 === 1;
+    const rowBg = isLoss ? RED_BG : isReduced ? AMBER_BG : null;
+    row.eachCell((c, colNum) => {
+      c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: rowBg || (isBanded ? BAND : 'FFFFFFFF') } };
+      c.border = { bottom: { style: 'hair', color: { argb: BORDER } } };
+      c.alignment = { vertical: 'middle', horizontal: colNum === 1 ? 'left' : 'center' };
+    });
+    row.getCell(3).numFmt = '#,##0.0000';
+    row.getCell(4).numFmt = '#,##0.0000';
+    row.getCell(5).numFmt = '#,##0.0000';
+    row.getCell(6).numFmt = '+#,##0.0000;-#,##0.0000';
+    row.getCell(7).numFmt = '+0.0%;-0.0%';
+    row.getCell(8).numFmt = '#,##0.00';
+    row.getCell(9).numFmt = '#,##0.00';
+    row.getCell(9).font = { bold: true };
+    row.getCell(10).numFmt = '0.0%';
+    const statusColor = isLoss ? RED : isReduced ? AMBER : GREEN;
+    row.getCell(10).font = { color: { argb: statusColor }, bold: isLoss };
+    row.getCell(11).font = { color: { argb: statusColor }, bold: true };
   });
-  const blendedMarginTarget = costTotal ? ((targetTotal - costTotal) / costTotal * 100) : 0;
-  rows.push([]);
-  rows.push(['', '', '', '', '', '', 'Offered Total', +offeredTotal.toFixed(2)]);
-  rows.push(['', '', '', '', '', '', 'Target Total', +targetTotal.toFixed(2)]);
-  rows.push(['', '', '', '', '', '', 'Overall Diff', +(targetTotal - offeredTotal).toFixed(2), (offeredTotal ? ((targetTotal - offeredTotal) / offeredTotal * 100).toFixed(1) + '%' : '')]);
-  rows.push(['', '', '', '', '', '', 'Total Landed Cost', +costTotal.toFixed(2)]);
-  rows.push(['', '', '', '', '', '', 'Blended Margin @ Target', blendedMarginTarget.toFixed(1) + '%']);
-  const wb = XLSX.utils.book_new();
-  const ws = XLSX.utils.aoa_to_sheet(rows);
-  ws['!cols'] = [{ wch: 28 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
-  XLSX.utils.book_append_sheet(wb, ws, 'Target Analysis');
-  XLSX.writeFile(wb, 'Target_Analysis_' + (q.customer || 'quote').replace(/[^a-z0-9]/gi, '_') + '_' + new Date().toISOString().split('T')[0] + '.xlsx');
+
+  // Totals row
+  const totalRow = ws.addRow(['TOTALS', '', '', '', '', '', '', offeredTotal, targetTotal, '', '']);
+  for (let c = 1; c <= colCount; c++) ws.getCell(totalRow.number, c).border = { top: { style: 'medium', color: { argb: NAVY } } };
+  totalRow.getCell(1).font = { bold: true };
+  totalRow.getCell(8).numFmt = '#,##0.00'; totalRow.getCell(8).font = { bold: true };
+  totalRow.getCell(9).numFmt = '#,##0.00'; totalRow.getCell(9).font = { bold: true, color: { argb: NAVY }, size: 12 };
+  totalRow.height = 20;
+
+  const diffTotal = targetTotal - offeredTotal;
+  const diffTotalPct = offeredTotal ? diffTotal / offeredTotal : 0;
+  const blendedMarginOffered = costTotal ? (offeredTotal - costTotal) / costTotal : 0;
+  const blendedMarginTarget = costTotal ? (targetTotal - costTotal) / costTotal : 0;
+  const overallLoss = blendedMarginTarget < 0;
+
+  ws.addRow([]);
+  const summaryStart = ws.rowCount + 1;
+  const summaryRows = [
+    ['Offered Total', sym + offeredTotal.toFixed(2)],
+    ['Target Total', sym + targetTotal.toFixed(2)],
+    ['Overall Diff', (diffTotal >= 0 ? '+' : '') + sym + diffTotal.toFixed(2), diffTotalPct],
+    ['Total Landed Cost', sym + costTotal.toFixed(2)],
+    ['Blended Margin @ Offered', null, blendedMarginOffered],
+    ['Blended Margin @ Target', null, blendedMarginTarget],
+    ['Items Below Cost', lossCount],
+    ['Items with Reduced Margin', reducedCount]
+  ];
+  summaryRows.forEach(([label, val, pct]) => {
+    const r = ws.addRow([label, val ?? '']);
+    ws.mergeCells(r.number, 1, r.number, 2);
+    r.getCell(1).font = { bold: true, color: { argb: 'FF5A5850' } };
+    if (pct !== undefined) {
+      const pctCell = ws.getCell(r.number, 3);
+      pctCell.value = pct; pctCell.numFmt = '+0.0%;-0.0%'; pctCell.font = { bold: true };
+    }
+  });
+  const verdictRow = ws.addRow([overallLoss
+    ? `WARNING: Accepting these targets as entered means an OVERALL LOSS of ${sym}${Math.abs(targetTotal - costTotal).toFixed(2)} across this order.`
+    : `Accepting these targets as entered still leaves an overall profit of ${sym}${(targetTotal - costTotal).toFixed(2)} (${(blendedMarginTarget * 100).toFixed(1)}% blended margin).`]);
+  ws.mergeCells(verdictRow.number, 1, verdictRow.number, colCount);
+  verdictRow.getCell(1).font = { bold: true, color: { argb: overallLoss ? RED : GREEN } };
+  verdictRow.getCell(1).fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: overallLoss ? RED_BG : GREEN_BG } };
+  verdictRow.getCell(1).alignment = { wrapText: true, vertical: 'middle' };
+  verdictRow.height = 26;
+  void summaryStart;
+
+  ws.columns = [{ width: 26 }, { width: 8 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 10 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 16 }];
+  ws.views = [{ state: 'frozen', ySplit: 4 }];
+
+  await downloadExcelWorkbook(wb, 'Target_Analysis_' + (q.customer || 'quote').replace(/[^a-z0-9]/gi, '_') + '_' + new Date().toISOString().split('T')[0] + '.xlsx');
+  notify('📊 Target analysis Excel generated!', 'success');
 }
 // ── TRASH / RECYCLE BIN ──────────────────────────────────────────────────
 // Deleting a Quote, Proforma, or Order used to be instant and permanent —
