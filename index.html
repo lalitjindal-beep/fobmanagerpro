@@ -1052,7 +1052,7 @@ table{min-width:820px}
 </div>
 
 <!-- MODALS -->
-<div class="modal-backdrop" id="modal-quote"><div class="modal" style="max-width:960px"><div class="modal-header"><h2 id="qm-title">Create Quotation</h2><button class="modal-close" onclick="closeQuoteModal()">✕</button></div><div class="modal-body" id="qm-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeQuoteModal()">Cancel</button><button class="btn btn-info" onclick="generateQExcel()">📊 Excel</button><button class="btn btn-secondary" onclick="generateQPDF(false)">📄 PDF</button><button class="btn btn-primary" onclick="generateQPDF(true)">🖼️ PDF+Photos</button><button class="btn btn-success" onclick="saveQuote()">💾 Save</button></div></div></div>
+<div class="modal-backdrop" id="modal-quote"><div class="modal" style="max-width:1300px;width:96vw"><div class="modal-header"><h2 id="qm-title">Create Quotation</h2><button class="modal-close" onclick="closeQuoteModal()">✕</button></div><div class="modal-body" id="qm-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeQuoteModal()">Cancel</button><button class="btn btn-info" onclick="generateQExcel()">📊 Excel</button><button class="btn btn-secondary" onclick="generateQPDF(false)">📄 PDF</button><button class="btn btn-primary" onclick="generateQPDF(true)">🖼️ PDF+Photos</button><button class="btn btn-success" onclick="saveQuote()">💾 Save</button></div></div></div>
 <div class="modal-backdrop" id="modal-dispatch"><div class="modal" style="max-width:960px"><div class="modal-header"><h2>🚚 Create Dispatch Plan</h2><button class="modal-close" onclick="closeModal('modal-dispatch')">✕</button></div><div class="modal-body" id="dm-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-dispatch')">Cancel</button><button class="btn btn-info" onclick="generateDExcel()">📊 Excel</button><button class="btn btn-secondary" onclick="generateDPDF()">📄 PDF</button><button class="btn btn-success" onclick="saveDPlan()">💾 Save</button></div></div></div>
 <div class="modal-backdrop" id="modal-container-plan"><div class="modal" style="max-width:1100px"><div class="modal-header"><h2>📦 Container Load Planner</h2><button class="modal-close" onclick="closeModal('modal-container-plan')">✕</button></div><div class="modal-body" id="cp-body" style="padding:16px"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-container-plan')">Close</button></div></div></div>
 <div class="modal-backdrop" id="modal-priority" style="z-index:400"><div class="modal" style="max-width:480px"><div class="modal-header"><h2>🔥 Mark as Priority</h2><button class="modal-close" onclick="closeModal('modal-priority')">✕</button></div><div class="modal-body" id="pr-body" style="padding:16px"></div><div class="modal-footer" id="pr-footer"></div></div></div>
@@ -1108,7 +1108,8 @@ table{min-width:820px}
   <p style="color:var(--text3);font-size:11px">It'll then open full-screen like a regular app, with its own icon — no browser bar.</p>
 </div><div class="modal-footer"><button class="btn btn-primary" onclick="closeModal('modal-ios-install')">Got it</button></div></div></div>
 <div class="modal-backdrop" id="modal-email"><div class="modal" style="max-width:600px"><div class="modal-header"><h2>📧 Send Email</h2><button class="modal-close" onclick="closeModal('modal-email')">✕</button></div><div class="modal-body" id="email-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-email')">Cancel</button><button class="btn btn-primary" id="email-send-btn" onclick="sendComposedEmail()">📤 Send</button></div></div></div>
-<div class="modal-backdrop" id="modal-target"><div class="modal" style="max-width:1080px;width:95vw"><div class="modal-header"><h2 id="tgt-title">🎯 Target Price Analysis</h2><button class="modal-close" onclick="closeTargetModal()">✕</button></div><div class="modal-body" id="tgt-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeTargetModal()">Close</button><button class="btn btn-info" onclick="exportTargetExcel()">📊 Export Excel</button><button class="btn btn-success" onclick="saveTargetAnalysis()">💾 Save Analysis</button></div></div></div>
+<div class="modal-backdrop" id="modal-target"><div class="modal" style="max-width:1080px;width:95vw"><div class="modal-header"><h2 id="tgt-title">🎯 Target Price Analysis</h2><button class="modal-close" onclick="closeTargetModal()">✕</button></div><div class="modal-body" id="tgt-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeTargetModal()">Close</button><button class="btn btn-info" onclick="exportTargetExcel()">📊 Export Excel</button><button class="btn btn-success" onclick="saveTargetAnalysis()">💾 Save Analysis</button><button class="btn btn-primary" onclick="applyTargetsToQuote()" title="Rewrites the saved quote's item prices to match the targets entered above, keeping the old version in History">✅ Apply to Quote</button></div></div></div>
+<div class="modal-backdrop" id="modal-qhistory"><div class="modal" style="max-width:1000px;width:94vw"><div class="modal-header"><h2 id="qh-title">🕘 Version History</h2><button class="modal-close" onclick="closeQuoteHistoryModal()">✕</button></div><div class="modal-body" id="qh-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeQuoteHistoryModal()">Close</button></div></div></div>
 <div class="modal-backdrop" id="modal-trash"><div class="modal" style="max-width:640px"><div class="modal-header"><h2>🗑️ Trash</h2><button class="modal-close" onclick="closeModal('modal-trash')">✕</button></div><div class="modal-body"><p style="font-size:11px;color:var(--text3);margin-bottom:12px">Deleted quotes, proformas, and orders stay here for 30 days before being permanently removed, so a mistaken delete never means retyping everything.</p><div id="trash-list"></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-trash')">Close</button></div></div></div>
 <div class="modal-backdrop" id="modal-shipdoc"><div class="modal" style="max-width:640px"><div class="modal-header"><h2 id="shipdoc-form-title">🚢 Add Shipping Document</h2><button class="modal-close" onclick="closeModal('modal-shipdoc')">✕</button></div><div class="modal-body" id="shipdoc-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-shipdoc')">Cancel</button><button class="btn btn-success" onclick="saveShippingDoc()">💾 Save</button></div></div></div>
 <div class="modal-backdrop" id="modal-shipdocs-standalone"><div class="modal" style="max-width:640px"><div class="modal-header"><h2 id="shipdocs-standalone-title">🚢 Shipping Documents</h2><button class="modal-close" onclick="closeModal('modal-shipdocs-standalone')">✕</button></div><div class="modal-body" id="shipdocs-standalone-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-shipdocs-standalone')">Close</button></div></div></div>
@@ -1251,7 +1252,7 @@ const DEF_TEAM = [
 const DEF_S = {
   company:{name:'Your Company',tagline:'Manufacturer & Exporter',address:'Your Address, India',phone:'',email:'',gst:'',iec:'',pan:'',bank:{name:'',branch:'',account:'',ifsc:'',swift:'',ad_code:''},logo:''},
   defaults:{margin:15,fob:5,exrate:87,currency:'EUR'},
-  quote:{prefix:'Q',nextNumber:1,validity:30,terms:'Prices are FOB India basis.',paymentTerms:'30% advance, 70% before dispatch.',incoterms:'FOB',portOfLoading:'',countryOfOrigin:'India',notes:''},
+  quote:{prefix:'Q',nextNumber:1,validity:30,terms:'Prices are FOB India basis.',paymentTerms:'30% advance, 70% before dispatch.',incoterms:'FOB',portOfLoading:'',countryOfOrigin:'India',notes:'',marginFloor:8,marginFloors:{}},
   invoice:{prefix:'PI',nextNumber:1},
   orders:{prefix:'ORD',nextNumber:1},
   dispatch:{portOfLoading:'',portOfDestination:'',countryOfOrigin:'India'},
@@ -4099,24 +4100,33 @@ function buildQModal() {
     </div></div>
     ${buildQModalInsightsHTML(data)}
     <div class="form-sec"><div class="form-sec-title">Items</div>
-    <table class="qt"><thead><tr><th>#</th><th>Item</th><th>Category</th><th>Type</th><th>Qty</th><th>PP</th><th>Marg%</th><th>FOB%</th><th>Ex Rate</th><th>Cur</th><th>FOB</th><th>Total</th><th style="width:24px"></th></tr></thead><tbody>`;
+    <div class="table-wrap">
+    <table class="qt" style="min-width:1080px;font-size:11px"><thead><tr><th style="width:26px">#</th><th style="min-width:130px">Item</th><th style="min-width:90px">Category</th><th style="min-width:110px">Type</th><th style="white-space:nowrap">Qty</th><th style="white-space:nowrap">PP</th><th style="white-space:nowrap">Marg%</th><th style="white-space:nowrap">FOB%</th><th style="white-space:nowrap">Ex Rate</th><th style="white-space:nowrap">Cur</th><th style="white-space:nowrap;min-width:100px">FOB</th><th style="white-space:nowrap">Total</th><th style="width:24px"></th></tr></thead><tbody>`;
   items.forEach((r, i) => {
     const sym = curSym(r.currency || 'EUR');
     const liveItem = getItem(r.id);
     const isStale = liveItem && ((liveItem.type || '') !== (r.type || '') || (liveItem.material || '') !== (r.material || '') || (liveItem.category || '') !== (r.category || ''));
+    // Margin floor check — flags the line before it ever reaches the client.
+    const floor = marginFloorFor(r.category);
+    const underFloor = (r.marg || 0) < floor;
+    // Last few prices quoted to THIS customer for THIS item, so you can see
+    // at a glance whether you're about to undercut or overshoot last time.
+    const custHistory = (data.customer && liveItem?.priceHistory?.length)
+      ? liveItem.priceHistory.filter(h => (h.customer || '').toLowerCase() === data.customer.toLowerCase()).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 3)
+      : [];
     html += `<tr>
       <td>${i+1}</td>
-      <td><strong>${esc(r.item || 'Item')}</strong></td>
-      <td><span class="cat-badge ${catCls(r.category)}">${esc(r.category || '—')}</span></td>
-      <td style="max-width:120px;font-size:10.5px">${esc(r.type || '')}</td>
-      <td><input type="number" step="1" value="${r.qty || 0}" style="width:60px" onchange="qUpd(${i},'qty',this.value)"></td>
-      <td><input type="number" step="0.01" value="${r.pp || 0}" style="width:70px" onchange="qUpd(${i},'pp',this.value)"></td>
-      <td><input type="number" step="0.1" value="${r.marg || 0}" style="width:50px" onchange="qUpd(${i},'marg',this.value)"></td>
-      <td><input type="number" step="0.1" value="${r.fob || 0}" style="width:50px" onchange="qUpd(${i},'fob',this.value)"></td>
-      <td><input type="number" step="0.5" value="${r.exrate || 0}" style="width:60px" onchange="qUpd(${i},'exrate',this.value)"></td>
-      <td><select style="width:55px" onchange="qUpd(${i},'currency',this.value)">${CURRENCIES.map(c => `<option value="${c}"${r.currency===c?' selected':''}>${c}</option>`).join('')}</select></td>
+      <td style="max-width:170px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${esc(r.item || '')}"><strong>${esc(r.item || 'Item')}</strong></td>
+      <td style="white-space:nowrap"><span class="cat-badge ${catCls(r.category)}">${esc(r.category || '—')}</span></td>
+      <td style="max-width:140px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:10.5px" title="${esc(r.type || '')}">${esc(r.type || '')}</td>
+      <td style="white-space:nowrap"><input type="number" step="1" value="${r.qty || 0}" style="width:56px" onchange="qUpd(${i},'qty',this.value)"></td>
+      <td style="white-space:nowrap"><input type="number" step="0.01" value="${r.pp || 0}" style="width:64px" onchange="qUpd(${i},'pp',this.value)"></td>
+      <td style="white-space:nowrap"><input type="number" step="0.1" value="${r.marg || 0}" style="width:46px;${underFloor ? 'border-color:var(--red);background:var(--red-bg);color:var(--red);font-weight:700' : ''}" title="${underFloor ? `Below the ${floor}% margin floor for ${r.category || 'this category'}` : ''}" onchange="qUpd(${i},'marg',this.value)"><br>${underFloor ? `<span style="font-size:8.5px;color:var(--red);font-weight:700;white-space:nowrap">⚠️ &lt;${floor}%</span>` : ''}</td>
+      <td style="white-space:nowrap"><input type="number" step="0.1" value="${r.fob || 0}" style="width:46px" onchange="qUpd(${i},'fob',this.value)"></td>
+      <td style="white-space:nowrap"><input type="number" step="0.5" value="${r.exrate || 0}" style="width:56px" onchange="qUpd(${i},'exrate',this.value)"></td>
+      <td style="white-space:nowrap"><select style="width:52px" onchange="qUpd(${i},'currency',this.value)">${CURRENCIES.map(c => `<option value="${c}"${r.currency===c?' selected':''}>${c}</option>`).join('')}</select></td>
       <td style="font-weight:700;color:var(--green);white-space:nowrap">${sym}${r.fobEur.toFixed(r.priceDecimals ?? 2)}<select style="width:56px;height:18px;font-size:8.5px;padding:0 2px;margin-left:3px;vertical-align:middle" title="Decimal places shown for this item's unit price on the PDF/Excel" onchange="qUpd(${i},'priceDecimals',parseInt(this.value))">${[0, 2, 3, 4].map(d => `<option value="${d}" ${(r.priceDecimals ?? 2) === d ? 'selected' : ''}>${d === 0 ? 'Round' : d + 'dp'}</option>`).join('')}</select></td>
-      <td style="font-weight:700;color:var(--accent2)">${sym}${(r.total || 0).toFixed(2)}</td>
+      <td style="font-weight:700;color:var(--accent2);white-space:nowrap">${sym}${(r.total || 0).toFixed(2)}</td>
       <td><button class="btn btn-danger btn-xs" onclick="rmQItem(${i})">✕</button></td>
     </tr>
     <tr class="qt-subrow"><td></td><td colspan="12" style="padding:4px 6px 10px">
@@ -4124,16 +4134,18 @@ function buildQModal() {
         <input placeholder="Customer-requested customization for this item (e.g. black coating, modified hole diameter)…" value="${esc(r.customization || '')}" oninput="qUpdCustomization(${i},this.value)" style="flex:1;min-width:220px;height:26px;border:1px solid var(--border);border-radius:4px;padding:0 8px;font-size:10.5px;font-family:var(--font)">
         ${isStale ? `<button class="btn btn-secondary btn-xs" title="Inventory now shows: ${esc([liveItem.category, liveItem.type, liveItem.material].filter(Boolean).join(' · '))}" onclick="syncQItemFromInventory(${i})">🔄 Sync from Inventory (changed)</button>` : (liveItem ? `<span style="font-size:9.5px;color:var(--text3)">✓ Matches current inventory</span>` : '')}
       </div>
+      ${custHistory.length ? `<div style="font-size:9.5px;color:var(--text3);margin-top:5px">📜 Last quoted to <strong>${esc(data.customer)}</strong>: ${custHistory.map(h => `${curSym(r.currency)}${(h.salePrice || 0).toFixed(r.priceDecimals ?? 2)} <span style="color:var(--text3)">(${new Date(h.date).toLocaleDateString()}${h.source ? ' · ' + esc(h.source) : ''})</span>`).join(' &nbsp;·&nbsp; ')}</div>` : ''}
     </td></tr>`;
   });
   const hasAdjustments = (data.charges || []).length > 0 || (data.discountAmount || 0) > 0.0001;
   html += `<tr class="qt-total"><td colspan="11" style="text-align:right;white-space:nowrap">${hasAdjustments ? 'Items Subtotal' : 'Grand Total'}</td><td style="font-size:14px;white-space:nowrap">${curSym(items[0]?.currency || 'EUR')}${data.itemsTotal.toFixed(2)}</td><td></td></tr>`;
-  html += `</tbody></table>
+  html += `</tbody></table></div>
     <div style="display:flex;gap:8px;align-items:center;margin-top:10px;padding-top:10px;border-top:1px dashed var(--border)">
-      <input id="q-add-item-search" list="oc-item-list" placeholder="🔍 Search an item to add…" autocomplete="off" style="flex:1;min-width:200px;height:32px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 10px;font-size:11.5px;font-family:var(--font)">
+      <input id="q-add-item-search" list="oc-item-list" placeholder="🔍 Search an item to add…" autocomplete="off" style="flex:1;min-width:200px;height:32px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 10px;font-size:11.5px;font-family:var(--font)" oninput="qAddItemPreview()">
       <input id="q-add-item-qty" type="number" min="1" value="1" style="width:70px;height:32px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 8px;font-size:11.5px" title="Quantity">
       <button class="btn btn-primary btn-sm" onclick="addItemToQuote()">＋ Add Item</button>
     </div>
+    <div id="q-add-item-preview"></div>
     </div>
     <div class="form-sec"><div class="form-sec-title">Discount</div>
     <p style="font-size:10.5px;color:var(--text3);margin-bottom:8px">Applies to the items value only — freight/other charges below aren't discounted.</p>
@@ -4322,6 +4334,26 @@ function addItemToQuote() {
   buildQModal();
   notify('✅ Added ' + row.item, 'success');
 }
+// Live preview under the "add item" search box — shows the last prices
+// quoted to the CURRENT quote's customer for whatever item name is typed,
+// before it's even added, so a price isn't set blind.
+function qAddItemPreview() {
+  const el = document.getElementById('q-add-item-preview');
+  if (!el) return;
+  const searchEl = document.getElementById('q-add-item-search');
+  const custEl = document.getElementById('q-customer');
+  const name = (searchEl?.value || '').trim();
+  const customer = (custEl?.value || '').trim();
+  if (!name) { el.innerHTML = ''; return; }
+  const row = app.items.find(r => (r.item || '').toLowerCase() === name.toLowerCase());
+  if (!row) { el.innerHTML = ''; return; }
+  if (!customer) { el.innerHTML = `<div style="font-size:9.5px;color:var(--text3);margin-top:4px">Enter a customer above to see prices you've quoted them before for this item.</div>`; return; }
+  const hist = (row.priceHistory || []).filter(h => (h.customer || '').toLowerCase() === customer.toLowerCase()).sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 3);
+  const sym = curSym(row.currency || 'EUR');
+  el.innerHTML = hist.length
+    ? `<div style="font-size:9.5px;color:var(--text3);margin-top:4px">📜 Last quoted to <strong>${esc(customer)}</strong>: ${hist.map(h => `${sym}${(h.salePrice || 0).toFixed(2)} <span style="color:var(--text3)">(${new Date(h.date).toLocaleDateString()})</span>`).join(' &nbsp;·&nbsp; ')}</div>`
+    : `<div style="font-size:9.5px;color:var(--text3);margin-top:4px">No previous quotes to ${esc(customer)} on record for this item.</div>`;
+}
 // Pulls the current category/type/material straight from Inventory into
 // this quote line — for when a spec changed after the quote was first
 // built and the document needs to reflect what's actually being supplied.
@@ -4362,6 +4394,17 @@ function editQuote(id) {
     notify('Note: this has already been converted to an Order — editing here won\'t change that order.', 'warning');
   }
 }
+// Snapshots a quote's current items/charges/discount/total before it gets
+// overwritten, so History always has what the client was actually looking
+// at before each change — capped so this never grows unbounded.
+function snapshotQuoteRevision(existing) {
+  const snapshot = {
+    items: existing.items, charges: existing.charges, discount: existing.discount,
+    total: existing.total, itemsTotal: existing.itemsTotal, customer: existing.customer,
+    savedAt: existing.editedAt || existing.savedAt, savedBy: existing.editedBy || existing.savedBy
+  };
+  return [...(existing.revisions || []), snapshot].slice(-20);
+}
 function saveQuote() {
   const data = getQData();
   if (!data.items.length) { notify('No items to save', 'warning'); return; }
@@ -4370,8 +4413,9 @@ function saveQuote() {
     if (idx === -1) { notify('Original document not found — it may have been deleted', 'error'); return; }
     const existing = app.quotations[idx];
     const updatedRef = (data.ref && data.ref.trim()) ? data.ref.trim() : existing.ref;
+    const revisions = snapshotQuoteRevision(existing);
     app.quotations[idx] = {
-      ...existing, ...data, ref: updatedRef, id: existing.id, mode: existing.mode,
+      ...existing, ...data, ref: updatedRef, id: existing.id, mode: existing.mode, revisions,
       editedAt: new Date().toISOString(), editedBy: getCurrentUser().name || getCurrentUser().email || 'Unknown'
     };
     logActivity('DOCUMENT_EDITED', { customer: data.customer, ref: updatedRef, mode: existing.mode }, null);
@@ -4381,7 +4425,7 @@ function saveQuote() {
     persist();
     renderAll();
     closeModal('modal-quote');
-    notify('✅ Document updated!', 'success');
+    notify('✅ Document updated! Previous version kept in History.', 'success');
     return;
   }
   // A unique tracking number is now assigned to EVERY quote/proforma on
@@ -4403,7 +4447,10 @@ function saveQuote() {
     docNumber,
     ref: (data.ref || '').trim(),
     savedAt: new Date().toISOString(),
-    savedBy: getCurrentUser().name || getCurrentUser().email || 'Unknown'
+    savedBy: getCurrentUser().name || getCurrentUser().email || 'Unknown',
+    revisions: [],
+    status: 'pending', statusReason: '', statusAt: null, statusBy: null,
+    originalTotal: data.total
   };
   data.items.forEach(item => {
     const row = getItem(item.id);
@@ -4417,6 +4464,7 @@ function saveQuote() {
         totalPrice: item.total,
         oldPrice: row.pp,
         newPrice: item.pp,
+        currency: item.currency || 'EUR',
         source: (data.mode === 'proforma' ? 'Proforma' : 'Quotation') + ' ' + autoRef,
         ref: autoRef
       });
@@ -4446,10 +4494,18 @@ function renderQList() {
     });
   }
   if (!list.length) { el.innerHTML = '<div class="empty-state"><h3>No matching quotations</h3><p>Try a different search term.</p></div>'; return; }
-  let html = '<div class="doc-list">';
+  let html = winLossSummaryHTML() + '<div class="doc-list">';
   list.forEach(q => {
     const sym = curSym(q.items?.[0]?.currency || 'EUR');
     const custCountry = findCustomerByName(q.customer)?.country || '';
+    const status = q.status || 'pending';
+    const STATUS_META = {
+      pending: { label: 'Pending', color: 'var(--text3)', bg: 'var(--surface2)' },
+      won: { label: '🟢 Won', color: 'var(--green)', bg: 'var(--green-bg)' },
+      lost: { label: '🔴 Lost', color: 'var(--red)', bg: 'var(--red-bg)' },
+      revised: { label: '🔵 Revised', color: 'var(--accent2)', bg: 'var(--surface2)' }
+    };
+    const sm = STATUS_META[status] || STATUS_META.pending;
     html += `<div class="doc-card">
       <div class="doc-icon">${q.mode === 'proforma' ? '🧾' : '📄'}</div>
       <div class="doc-info">
@@ -4457,15 +4513,24 @@ function renderQList() {
           <strong style="font-size:14px;color:var(--text)">${esc(q.customer || 'No customer')}</strong>
           ${custCountry ? `<span style="font-size:11px;font-weight:600;color:var(--text2)">🌍 ${esc(custCountry)}</span>` : ''}
           ${q.ref ? `<span style="font-size:11px;font-weight:600;color:var(--accent2)">Ref: ${esc(q.ref)}</span>` : ''}
+          <span style="font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:10px;background:${sm.bg};color:${sm.color}">${sm.label}</span>
         </div>
         <span>${q.mode === 'proforma' ? 'Proforma' : 'Quotation'} ${esc(docRef(q))} — ${q.items?.length || 0} items — ${sym}${(q.total || 0).toFixed(2)}</span>
-        <div style="font-size:9px;color:var(--text3)">${new Date(q.date || q.savedAt).toLocaleDateString()} | ${esc(q.savedBy || 'System')}</div>
+        <div style="font-size:9px;color:var(--text3)">${new Date(q.date || q.savedAt).toLocaleDateString()} | ${esc(q.savedBy || 'System')}${q.revisions?.length ? ` · ${q.revisions.length} earlier version${q.revisions.length > 1 ? 's' : ''}` : ''}</div>
         ${q.targetAnalysis ? `<div style="font-size:9.5px;margin-top:3px;font-weight:600;color:${q.targetAnalysis.blendedMarginTarget < 0 ? 'var(--red)' : 'var(--text2)'}">🎯 Target check saved: ${curSym(q.targetAnalysis.currency)}${q.targetAnalysis.diffTotal >= 0 ? '+' : ''}${q.targetAnalysis.diffTotal.toFixed(2)} vs offer · blended margin @ target ${q.targetAnalysis.blendedMarginTarget.toFixed(1)}%</div>` : ''}
+        ${status === 'lost' && q.statusReason ? `<div style="font-size:9.5px;margin-top:3px;color:var(--red)">Reason: ${esc(q.statusReason)}</div>` : ''}
+        <div style="margin-top:5px;display:flex;gap:4px;flex-wrap:wrap">
+          <span style="font-size:9px;color:var(--text3);align-self:center;margin-right:2px">Mark:</span>
+          <button class="btn btn-secondary btn-xs" style="${status==='pending'?'outline:2px solid var(--text3)':''}" onclick="setQuoteStatus('${q.id}','pending')">Pending</button>
+          <button class="btn btn-secondary btn-xs" style="${status==='won'?'outline:2px solid var(--green)':''};color:var(--green)" onclick="setQuoteStatus('${q.id}','won')">Won</button>
+          <button class="btn btn-secondary btn-xs" style="${status==='lost'?'outline:2px solid var(--red)':''};color:var(--red)" onclick="setQuoteStatus('${q.id}','lost')">Lost</button>
+        </div>
       </div>
       <div class="doc-actions">
         <button class="btn btn-info btn-xs" onclick="viewDoc('${q.id}','quote')">👁️ View</button>
         <button class="btn btn-secondary btn-xs" onclick="editQuote('${q.id}')">✏️ Edit</button>
         <button class="btn btn-purple btn-xs" onclick="openTargetAnalysis('${q.id}')" title="Compare the client's target prices against what you offered, item by item and overall">🎯 Target Check</button>
+        <button class="btn btn-secondary btn-xs" onclick="openQuoteHistory('${q.id}')" title="See and restore earlier versions of this document">🕘 History${q.revisions?.length ? ' (' + q.revisions.length + ')' : ''}</button>
         <button class="btn btn-secondary btn-xs" onclick="duplicateQuote('${q.id}')" title="Start a new document from this one's details">📋 Duplicate</button>
         <button class="btn btn-secondary btn-xs" onclick="dlQXLS('${q.id}')">📊 Excel</button>
         <button class="btn btn-secondary btn-xs" onclick="dlQPDF('${q.id}',false)">📄 PDF</button>
@@ -4516,6 +4581,122 @@ function duplicateQuote(id) {
   buildQModal();
   openModal('modal-quote');
   notify('📋 Duplicated — review the details, then Save to create a new document', 'success');
+}
+// ── QUOTE VERSION HISTORY ────────────────────────────────────────────────
+// Every save while editing an existing quote now keeps the prior version
+// (see snapshotQuoteRevision in saveQuote), so a client negotiation across
+// several rounds doesn't just leave you with the final number — you can
+// look back at exactly what changed, and pull an older version back if
+// a revision went further than intended.
+function openQuoteHistory(id) {
+  const q = app.quotations.find(x => x.id == id);
+  if (!q) { notify('Not found', 'error'); return; }
+  app._historyQuoteId = id;
+  document.getElementById('qh-title').textContent = `🕘 Version History — ${q.customer || 'No customer'} (${docRef(q)})`;
+  buildQuoteHistoryModal();
+  openModal('modal-qhistory');
+}
+function closeQuoteHistoryModal() {
+  app._historyQuoteId = null;
+  closeModal('modal-qhistory');
+}
+function buildQuoteHistoryModal() {
+  const q = app.quotations.find(x => x.id == app._historyQuoteId);
+  const body = document.getElementById('qh-body');
+  if (!q) { body.innerHTML = '<p>Not found.</p>'; return; }
+  const revisions = q.revisions || [];
+  const sym = curSym(q.items?.[0]?.currency || 'EUR');
+  if (!revisions.length) {
+    body.innerHTML = `<div style="color:var(--text3);padding:20px;text-align:center">No earlier versions yet — this document hasn't been edited since it was created. Every future edit will keep the version it replaces here.</div>`;
+    return;
+  }
+  const versions = [...revisions.map((r, i) => ({ ...r, versionLabel: 'v' + (i + 1), isCurrent: false })), { items: q.items, total: q.total, itemsTotal: q.itemsTotal, customer: q.customer, savedAt: q.editedAt || q.savedAt, savedBy: q.editedBy || q.savedBy, versionLabel: 'Current', isCurrent: true }];
+  let html = `<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Every save while editing keeps the version it replaced. Expand a version to see its item prices, or restore it into the editor to review before saving over the current one.</div>`;
+  versions.slice().reverse().forEach((v, ridx) => {
+    const i = versions.length - 1 - ridx; // original index, for restore lookup into `revisions`
+    const itemsTotal = v.itemsTotal ?? (v.items || []).reduce((s, r) => s + (r.total || 0), 0);
+    html += `<div class="form-sec" style="margin-bottom:10px;${v.isCurrent ? 'border:1px solid var(--accent2)' : ''}">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+        <div>
+          <strong style="font-size:12px;${v.isCurrent ? 'color:var(--accent2)' : ''}">${v.versionLabel}${v.isCurrent ? ' (current)' : ''}</strong>
+          <span style="font-size:10.5px;color:var(--text3);margin-left:8px">${v.savedAt ? new Date(v.savedAt).toLocaleString() : '—'} · ${esc(v.savedBy || 'Unknown')}</span>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px">
+          <strong style="font-size:13px">${sym}${(v.total ?? itemsTotal).toFixed(2)}</strong>
+          ${!v.isCurrent ? `<button class="btn btn-secondary btn-xs" onclick="restoreQuoteRevision(${i})" title="Loads this version into the editor — you'll still need to click Save to make it current">↺ Restore into Editor</button>` : ''}
+        </div>
+      </div>
+      <div style="margin-top:8px;font-size:10.5px;color:var(--text2)">
+        ${(v.items || []).map(r => `${esc(r.item || 'Item')} — Qty ${r.qty || 0} × ${curSym(r.currency || 'EUR')}${(r.fobEur || 0).toFixed(r.priceDecimals ?? 2)} = ${curSym(r.currency || 'EUR')}${(r.total || 0).toFixed(2)}`).join('<br>')}
+      </div>
+    </div>`;
+  });
+  body.innerHTML = html;
+}
+// Loads an older revision back into the quote editor for review — doesn't
+// touch the saved document until Save is clicked, same as any other edit.
+function restoreQuoteRevision(revisionIndex) {
+  const q = app.quotations.find(x => x.id == app._historyQuoteId);
+  if (!q) return;
+  const rev = (q.revisions || [])[revisionIndex];
+  if (!rev) { notify('Version not found', 'error'); return; }
+  if (!confirm('Load this older version into the editor? Your current saved version stays untouched until you click Save.')) return;
+  closeQuoteHistoryModal();
+  resetQuoteFormDOM();
+  app.quoteMode = q.mode;
+  app._quoteItems = JSON.parse(JSON.stringify(rev.items || []));
+  app._quoteCharges = JSON.parse(JSON.stringify(rev.charges || []));
+  app._quoteDiscount = JSON.parse(JSON.stringify(rev.discount || { type: 'none', value: 0 }));
+  app._editingQuoteId = q.id;
+  app._editingQuote = q;
+  buildQModal();
+  openModal('modal-quote');
+  notify('Older version loaded — review it, then Save to make it current (this replaces the current version, which itself gets kept in History)', 'warning');
+}
+// ── WIN / LOSS TRACKING ──────────────────────────────────────────────────
+// A lightweight status per quote so conversion and discount-to-win can be
+// seen at a glance across the whole list, instead of only living in your
+// head or a separate spreadsheet.
+function setQuoteStatus(id, status) {
+  const q = app.quotations.find(x => x.id == id);
+  if (!q) return;
+  let reason = q.statusReason || '';
+  if (status === 'lost') {
+    const entered = prompt('Optional: why was it lost? (price, delivery time, competitor, etc. — leave blank to skip)', reason);
+    if (entered === null) return; // cancelled
+    reason = entered.trim();
+  }
+  q.status = status;
+  q.statusReason = status === 'lost' ? reason : '';
+  q.statusAt = new Date().toISOString();
+  q.statusBy = getCurrentUser().name || getCurrentUser().email || 'Unknown';
+  persist();
+  renderQList();
+  notify('Status set to ' + status.charAt(0).toUpperCase() + status.slice(1), 'success');
+}
+function winLossSummaryHTML() {
+  const list = app.quotations || [];
+  if (!list.length) return '';
+  const counts = { pending: 0, won: 0, lost: 0, revised: 0 };
+  let wonTotal = 0, wonOrigTotal = 0, lostCount = 0;
+  list.forEach(q => {
+    const st = q.status || 'pending';
+    counts[st] = (counts[st] || 0) + 1;
+    if (st === 'won') {
+      wonTotal += q.total || 0;
+      wonOrigTotal += q.originalTotal ?? q.total ?? 0;
+    }
+  });
+  const decided = counts.won + counts.lost;
+  const winRate = decided ? (counts.won / decided * 100) : null;
+  const avgConcession = (counts.won && wonOrigTotal) ? ((wonOrigTotal - wonTotal) / wonOrigTotal * 100) : null;
+  return `<div style="display:flex;gap:16px;flex-wrap:wrap;align-items:center;padding:10px 14px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);margin-bottom:10px;font-size:11px">
+    <span>🟡 Pending: <strong>${counts.pending || 0}</strong></span>
+    <span style="color:var(--green)">🟢 Won: <strong>${counts.won || 0}</strong></span>
+    <span style="color:var(--red)">🔴 Lost: <strong>${counts.lost || 0}</strong></span>
+    ${winRate !== null ? `<span>Win rate: <strong>${winRate.toFixed(0)}%</strong> <span style="color:var(--text3)">(of ${decided} decided)</span></span>` : ''}
+    ${avgConcession !== null && avgConcession > 0.05 ? `<span>Avg. concession on won deals: <strong style="color:var(--amber)">${avgConcession.toFixed(1)}%</strong> off the original offer</span>` : ''}
+  </div>`;
 }
 // ── TARGET PRICE ANALYSIS ────────────────────────────────────────────────
 // After a quote goes out, the client often comes back with their own
@@ -4678,6 +4859,47 @@ function saveTargetAnalysis() {
   persist();
   renderQList();
   notify('💾 Target analysis saved to this quote', 'success');
+}
+// Rewrites the saved quote's item prices to match the entered targets —
+// solving each item's margin% backwards from the target unit price so the
+// existing pp/fob%/ex-rate formula still drives the number (rather than
+// bolting on a separate override field that would silently go stale the
+// next time someone edits pp or the ex-rate). The previous version is kept
+// in Version History, same as any other edit.
+function applyTargetsToQuote() {
+  const q = app.quotations.find(x => x.id == app._targetQuoteId);
+  if (!q) { notify('Not found', 'error'); return; }
+  if (!app._targetItems.length) { notify('Nothing to apply', 'warning'); return; }
+  if (!confirm('Apply these target prices to the saved quote?\n\nThis rewrites each item\'s margin so its price matches the target you entered, and creates a new version — the version before this stays in History.')) return;
+
+  const revisions = snapshotQuoteRevision(q);
+  const newItems = (q.items || []).map(orig => {
+    const t = app._targetItems.find(x => x.id === orig.id && x.item === orig.item);
+    if (!t) return orig;
+    const target = t.target ?? orig.fobEur ?? 0;
+    let marg = orig.marg || 0;
+    if (orig.pp && orig.exrate) {
+      marg = ((target * orig.exrate / orig.pp) - 1) * 100 - (orig.fob || 0);
+    }
+    const fobEur = calcFOB(orig.pp, marg, orig.fob, orig.exrate);
+    return { ...orig, marg, fobEur, total: fobEur * (orig.qty || 0) };
+  });
+  const itemsTotal = newItems.reduce((s, r) => s + (r.total || 0), 0);
+  const discount = q.discount || { type: 'none', value: 0 };
+  const discountAmount = discount.type === 'percent' ? itemsTotal * ((parseFloat(discount.value) || 0) / 100) : discount.type === 'amount' ? (parseFloat(discount.value) || 0) : 0;
+  const itemsTotalAfterDiscount = itemsTotal - discountAmount;
+  const chargesTotal = (q.charges || []).reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
+  const total = itemsTotalAfterDiscount + chargesTotal;
+
+  const idx = app.quotations.findIndex(x => x.id === q.id);
+  app.quotations[idx] = {
+    ...q, items: newItems, itemsTotal, itemsTotalAfterDiscount, discountAmount, total, revisions,
+    editedAt: new Date().toISOString(), editedBy: getCurrentUser().name || getCurrentUser().email || 'Unknown'
+  };
+  persist();
+  renderQList();
+  closeTargetModal();
+  notify('✅ Target prices applied to the quote as a new version', 'success');
 }
 
 // Same navy/banded look as the Quotation Excel export (buildQuotationWorkbook),
@@ -10779,6 +11001,19 @@ function renderSettings() {
           </div>
           <div style="margin-top:10px;padding:8px 12px;background:var(--surface2);border-radius:var(--r-sm);font-size:11px;color:var(--text2)">Next auto-generated ref will be <strong style="font-family:var(--mono);color:var(--accent2)">${esc(s.quote.prefix)}-${String(s.quote.nextNumber).padStart(5, '0')}</strong>. This is only used when you leave "Your Ref" blank while creating a quotation — type your own ref there any time to override it.</div>
           <div style="margin-top:12px"><button class="btn btn-success btn-sm" onclick="persist();notify('Quotation settings saved!','success')">💾 Save</button></div>
+        </div>
+        <div class="form-sec">
+          <div class="form-sec-title">⚠️ Margin Floor Alerts</div>
+          <p style="font-size:10.5px;color:var(--text3);margin-bottom:8px">When building or editing a quote, any item priced below its margin floor is flagged inline before you save — catches an under-priced line before it reaches the client.</p>
+          <div class="fg fg-2">
+            <div class="ff"><label>Default Floor % (all categories)</label><input id="s-quote-marginfloor" type="number" step="0.5" value="${s.quote.marginFloor ?? 8}" onchange="s_set('quote.marginFloor',parseFloat(this.value)||0)"></div>
+          </div>
+          <div style="margin-top:10px">
+            <label style="font-size:9px;font-weight:600;text-transform:uppercase;color:var(--text3);display:block;margin-bottom:6px">Per-category overrides <span style="text-transform:none;font-weight:400">(optional — blank uses the default above)</span></label>
+            <div class="fg fg-3">
+              ${CATEGORIES.map(cat => `<div class="ff"><label style="font-size:9.5px">${esc(cat)}</label><input type="number" step="0.5" placeholder="${s.quote.marginFloor ?? 8}" value="${s.quote.marginFloors?.[cat] ?? ''}" onchange="s_setMarginFloor('${esc(cat)}',this.value)"></div>`).join('')}
+            </div>
+          </div>
         </div>`;
       break;
       
@@ -10917,6 +11152,22 @@ function s_set(path, value) {
   obj[parts[parts.length - 1]] = value;
   persist();
   applySysBranding();
+}
+// Per-category margin floor override — blank clears the override so that
+// category falls back to the single default floor above it.
+function s_setMarginFloor(category, value) {
+  app.settings.quote.marginFloors = app.settings.quote.marginFloors || {};
+  const v = parseFloat(value);
+  if (value === '' || isNaN(v)) delete app.settings.quote.marginFloors[category];
+  else app.settings.quote.marginFloors[category] = v;
+  persist();
+}
+// Effective minimum margin % for a given category — its own override if
+// set, otherwise the quote-wide default floor.
+function marginFloorFor(category) {
+  const floors = app.settings.quote.marginFloors || {};
+  if (category && floors[category] !== undefined && floors[category] !== null && floors[category] !== '') return floors[category];
+  return app.settings.quote.marginFloor ?? 8;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
