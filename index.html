@@ -1108,6 +1108,7 @@ table{min-width:820px}
   <p style="color:var(--text3);font-size:11px">It'll then open full-screen like a regular app, with its own icon — no browser bar.</p>
 </div><div class="modal-footer"><button class="btn btn-primary" onclick="closeModal('modal-ios-install')">Got it</button></div></div></div>
 <div class="modal-backdrop" id="modal-email"><div class="modal" style="max-width:600px"><div class="modal-header"><h2>📧 Send Email</h2><button class="modal-close" onclick="closeModal('modal-email')">✕</button></div><div class="modal-body" id="email-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-email')">Cancel</button><button class="btn btn-primary" id="email-send-btn" onclick="sendComposedEmail()">📤 Send</button></div></div></div>
+<div class="modal-backdrop" id="modal-target"><div class="modal" style="max-width:1180px"><div class="modal-header"><h2 id="tgt-title">🎯 Target Price Analysis</h2><button class="modal-close" onclick="closeTargetModal()">✕</button></div><div class="modal-body" id="tgt-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeTargetModal()">Close</button><button class="btn btn-info" onclick="exportTargetExcel()">📊 Export Excel</button><button class="btn btn-success" onclick="saveTargetAnalysis()">💾 Save Analysis</button></div></div></div>
 <div class="modal-backdrop" id="modal-trash"><div class="modal" style="max-width:640px"><div class="modal-header"><h2>🗑️ Trash</h2><button class="modal-close" onclick="closeModal('modal-trash')">✕</button></div><div class="modal-body"><p style="font-size:11px;color:var(--text3);margin-bottom:12px">Deleted quotes, proformas, and orders stay here for 30 days before being permanently removed, so a mistaken delete never means retyping everything.</p><div id="trash-list"></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-trash')">Close</button></div></div></div>
 <div class="modal-backdrop" id="modal-shipdoc"><div class="modal" style="max-width:640px"><div class="modal-header"><h2 id="shipdoc-form-title">🚢 Add Shipping Document</h2><button class="modal-close" onclick="closeModal('modal-shipdoc')">✕</button></div><div class="modal-body" id="shipdoc-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-shipdoc')">Cancel</button><button class="btn btn-success" onclick="saveShippingDoc()">💾 Save</button></div></div></div>
 <div class="modal-backdrop" id="modal-shipdocs-standalone"><div class="modal" style="max-width:640px"><div class="modal-header"><h2 id="shipdocs-standalone-title">🚢 Shipping Documents</h2><button class="modal-close" onclick="closeModal('modal-shipdocs-standalone')">✕</button></div><div class="modal-body" id="shipdocs-standalone-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-shipdocs-standalone')">Close</button></div></div></div>
@@ -4459,10 +4460,12 @@ function renderQList() {
         </div>
         <span>${q.mode === 'proforma' ? 'Proforma' : 'Quotation'} ${esc(docRef(q))} — ${q.items?.length || 0} items — ${sym}${(q.total || 0).toFixed(2)}</span>
         <div style="font-size:9px;color:var(--text3)">${new Date(q.date || q.savedAt).toLocaleDateString()} | ${esc(q.savedBy || 'System')}</div>
+        ${q.targetAnalysis ? `<div style="font-size:9.5px;margin-top:3px;font-weight:600;color:${q.targetAnalysis.blendedMarginTarget < 0 ? 'var(--red)' : 'var(--text2)'}">🎯 Target check saved: ${curSym(q.targetAnalysis.currency)}${q.targetAnalysis.diffTotal >= 0 ? '+' : ''}${q.targetAnalysis.diffTotal.toFixed(2)} vs offer · blended margin @ target ${q.targetAnalysis.blendedMarginTarget.toFixed(1)}%</div>` : ''}
       </div>
       <div class="doc-actions">
         <button class="btn btn-info btn-xs" onclick="viewDoc('${q.id}','quote')">👁️ View</button>
         <button class="btn btn-secondary btn-xs" onclick="editQuote('${q.id}')">✏️ Edit</button>
+        <button class="btn btn-purple btn-xs" onclick="openTargetAnalysis('${q.id}')" title="Compare the client's target prices against what you offered, item by item and overall">🎯 Target Check</button>
         <button class="btn btn-secondary btn-xs" onclick="duplicateQuote('${q.id}')" title="Start a new document from this one's details">📋 Duplicate</button>
         <button class="btn btn-secondary btn-xs" onclick="dlQXLS('${q.id}')">📊 Excel</button>
         <button class="btn btn-secondary btn-xs" onclick="dlQPDF('${q.id}',false)">📄 PDF</button>
@@ -4513,6 +4516,201 @@ function duplicateQuote(id) {
   buildQModal();
   openModal('modal-quote');
   notify('📋 Duplicated — review the details, then Save to create a new document', 'success');
+}
+// ── TARGET PRICE ANALYSIS ────────────────────────────────────────────────
+// After a quote goes out, the client often comes back with their own
+// target price per item. This lets Lalit key those targets in against
+// what was actually offered and see, line by line AND blended overall,
+// where he's still in margin, where he'd be selling below landed cost,
+// and what accepting the whole counter-offer would do to the deal —
+// so items that must be held firm can offset items he's fine conceding.
+app._targetQuoteId = null;
+app._targetItems = [];
+
+// Cost per unit with NO margin baked in — Purchase Price plus FOB/overhead %,
+// converted to the quote's currency at its ex-rate. Anything the client
+// targets below this is a straight loss on that line, not just "less profit".
+function itemBreakevenCost(r) {
+  if (!r.exrate) return 0;
+  return r.pp * (1 + (r.fob || 0) / 100) / r.exrate;
+}
+
+function openTargetAnalysis(id) {
+  const q = app.quotations.find(x => x.id == id);
+  if (!q) { notify('Not found', 'error'); return; }
+  app._targetQuoteId = id;
+  const savedRows = q.targetAnalysis?.items || [];
+  app._targetItems = (q.items || []).map(r => {
+    const prev = savedRows.find(s => s.rowId === r.id && s.item === r.item);
+    return { ...JSON.parse(JSON.stringify(r)), target: prev ? prev.target : (r.fobEur || 0) };
+  });
+  document.getElementById('tgt-title').textContent = `🎯 Target Price Analysis — ${q.customer || 'No customer'} (${docRef(q)})`;
+  buildTargetModal();
+  openModal('modal-target');
+}
+
+function closeTargetModal() {
+  app._targetQuoteId = null;
+  app._targetItems = [];
+  closeModal('modal-target');
+}
+
+function tgtUpd(i, value) {
+  if (!app._targetItems[i]) return;
+  app._targetItems[i].target = parseFloat(value) || 0;
+  buildTargetModal();
+}
+
+// Resets every row's target back to the offered price (i.e. "client accepted as-is").
+function tgtResetToOffer() {
+  app._targetItems.forEach(r => r.target = r.fobEur || 0);
+  buildTargetModal();
+  notify('Reset all targets to your offered prices', 'success');
+}
+
+function targetStatus(offered, target, cost) {
+  if (cost > 0 && target < cost - 0.0001) return { label: '🔴 Below Cost', cls: 'color:var(--red);font-weight:700' };
+  if (target < offered - 0.0001) return { label: '🟠 Reduced Margin', cls: 'color:var(--amber);font-weight:700' };
+  if (Math.abs(target - offered) <= 0.0001) return { label: '⚪ At Offer', cls: 'color:var(--text3)' };
+  return { label: '🟢 Above Offer', cls: 'color:var(--green);font-weight:700' };
+}
+
+function buildTargetModal() {
+  const items = app._targetItems;
+  const body = document.getElementById('tgt-body');
+  if (!items.length) { body.innerHTML = '<p>No items on this document.</p>'; return; }
+  const cur = items[0]?.currency || 'EUR';
+  const sym = curSym(cur);
+  let offeredTotal = 0, targetTotal = 0, costTotal = 0, lossCount = 0, reducedCount = 0;
+
+  let html = `<div style="font-size:11px;color:var(--text3);margin-bottom:10px">Enter the client's target unit price for each item (defaults to your offered price). <strong>Cost/Unit</strong> is your landed cost with zero margin — Purchase Price + FOB/overhead %, at the quote's ex-rate — so anything targeted below it is a real loss on that line, not just thinner margin.</div>`;
+  html += `<div style="margin-bottom:8px"><button class="btn btn-secondary btn-xs" onclick="tgtResetToOffer()">↺ Reset all targets = offered price</button></div>`;
+  html += `<table class="qt"><thead><tr><th>Item</th><th>Qty</th><th>Cost/Unit</th><th>Offered</th><th>Target</th><th>Diff/Unit</th><th>Diff %</th><th>Offered Total</th><th>Target Total</th><th>Margin@Target</th><th>Status</th></tr></thead><tbody>`;
+
+  items.forEach((r, i) => {
+    const cost = itemBreakevenCost(r);
+    const offered = r.fobEur || 0;
+    const target = r.target || 0;
+    const qty = r.qty || 0;
+    const diffUnit = target - offered;
+    const diffPct = offered ? (diffUnit / offered * 100) : 0;
+    const oTotal = offered * qty;
+    const tTotal = target * qty;
+    const marginAtTarget = cost > 0 ? ((target - cost) / cost * 100) : 0;
+    offeredTotal += oTotal; targetTotal += tTotal; costTotal += cost * qty;
+    const st = targetStatus(offered, target, cost);
+    if (cost > 0 && target < cost - 0.0001) lossCount++;
+    else if (target < offered - 0.0001) reducedCount++;
+    html += `<tr>
+      <td><strong>${esc(r.item)}</strong></td>
+      <td>${qty}</td>
+      <td>${sym}${cost.toFixed(4)}</td>
+      <td>${sym}${offered.toFixed(4)}</td>
+      <td><input type="number" step="0.0001" value="${target}" style="width:80px" onchange="tgtUpd(${i},this.value)"></td>
+      <td style="white-space:nowrap;color:${diffUnit < -0.0001 ? 'var(--red)' : diffUnit > 0.0001 ? 'var(--green)' : 'var(--text3)'}">${diffUnit >= 0 ? '+' : ''}${sym}${diffUnit.toFixed(4)}</td>
+      <td style="color:${diffPct < -0.0001 ? 'var(--red)' : diffPct > 0.0001 ? 'var(--green)' : 'var(--text3)'}">${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%</td>
+      <td>${sym}${oTotal.toFixed(2)}</td>
+      <td style="font-weight:700">${sym}${tTotal.toFixed(2)}</td>
+      <td style="${cost > 0 && marginAtTarget < 0 ? 'color:var(--red);font-weight:700' : ''}">${marginAtTarget.toFixed(1)}%</td>
+      <td style="${st.cls}">${st.label}</td>
+    </tr>`;
+  });
+
+  const diffTotal = targetTotal - offeredTotal;
+  const diffTotalPct = offeredTotal ? (diffTotal / offeredTotal * 100) : 0;
+  const blendedMarginOffered = costTotal ? ((offeredTotal - costTotal) / costTotal * 100) : 0;
+  const blendedMarginTarget = costTotal ? ((targetTotal - costTotal) / costTotal * 100) : 0;
+  const okCount = items.length - lossCount - reducedCount;
+
+  html += `<tr class="qt-total"><td colspan="7" style="text-align:right">TOTALS</td><td>${sym}${offeredTotal.toFixed(2)}</td><td>${sym}${targetTotal.toFixed(2)}</td><td colspan="2"></td></tr>`;
+  html += `</tbody></table>`;
+
+  html += `<div class="form-sec" style="margin-top:14px"><div class="form-sec-title">Overall Comparison</div>
+    <div class="fg fg-3">
+      <div class="ff"><label>Offered Total</label><div style="font-size:15px;font-weight:700">${sym}${offeredTotal.toFixed(2)}</div></div>
+      <div class="ff"><label>Target Total</label><div style="font-size:15px;font-weight:700">${sym}${targetTotal.toFixed(2)}</div></div>
+      <div class="ff"><label>Overall Diff</label><div style="font-size:15px;font-weight:700;color:${diffTotal < -0.0001 ? 'var(--red)' : 'var(--green)'}">${diffTotal >= 0 ? '+' : ''}${sym}${diffTotal.toFixed(2)} (${diffTotalPct >= 0 ? '+' : ''}${diffTotalPct.toFixed(1)}%)</div></div>
+      <div class="ff"><label>Total Landed Cost</label><div style="font-size:15px;font-weight:700">${sym}${costTotal.toFixed(2)}</div></div>
+      <div class="ff"><label>Blended Margin @ Offered</label><div style="font-size:15px;font-weight:700">${blendedMarginOffered.toFixed(1)}%</div></div>
+      <div class="ff"><label>Blended Margin @ Target</label><div style="font-size:15px;font-weight:700;color:${blendedMarginTarget < 0 ? 'var(--red)' : blendedMarginTarget < blendedMarginOffered - 0.05 ? 'var(--amber)' : 'var(--green)'}">${blendedMarginTarget.toFixed(1)}%</div></div>
+    </div>
+    <div style="margin-top:10px;padding:10px 12px;border-radius:var(--r-sm);font-size:12px;background:${blendedMarginTarget < 0 ? 'var(--red-bg)' : 'var(--green-bg)'};color:${blendedMarginTarget < 0 ? 'var(--red)' : 'var(--green)'}">
+      ${blendedMarginTarget < 0
+        ? `⚠️ Accepting these targets as entered means an <strong>overall loss of ${sym}${Math.abs(targetTotal - costTotal).toFixed(2)}</strong> across this order — not just a thin margin.`
+        : `✅ Accepting these targets as entered still leaves an <strong>overall profit of ${sym}${(targetTotal - costTotal).toFixed(2)}</strong> (${blendedMarginTarget.toFixed(1)}% blended margin).`}
+      ${lossCount ? ` ${lossCount} item(s) are individually below cost.` : ''}${reducedCount ? ` ${reducedCount} item(s) have reduced but positive margin.` : ''}${okCount ? ` ${okCount} item(s) are at or above your offered price.` : ''}
+      ${lossCount && okCount ? ` Consider holding firm on the below-cost item(s) and letting the stronger-margin item(s) cover the gap, rather than conceding across the board.` : ''}
+    </div>
+  </div>`;
+
+  body.innerHTML = html;
+}
+
+function saveTargetAnalysis() {
+  const q = app.quotations.find(x => x.id == app._targetQuoteId);
+  if (!q) { notify('Not found', 'error'); return; }
+  const items = app._targetItems;
+  const cur = items[0]?.currency || 'EUR';
+  let offeredTotal = 0, targetTotal = 0, costTotal = 0;
+  const rows = items.map(r => {
+    const cost = itemBreakevenCost(r);
+    const offered = r.fobEur || 0;
+    const target = r.target || 0;
+    const qty = r.qty || 0;
+    offeredTotal += offered * qty; targetTotal += target * qty; costTotal += cost * qty;
+    return { rowId: r.id, item: r.item, qty, offered, target, cost };
+  });
+  q.targetAnalysis = {
+    items: rows,
+    currency: cur,
+    offeredTotal, targetTotal, costTotal,
+    diffTotal: targetTotal - offeredTotal,
+    blendedMarginTarget: costTotal ? ((targetTotal - costTotal) / costTotal * 100) : 0,
+    savedAt: new Date().toISOString(),
+    savedBy: getCurrentUser().name || getCurrentUser().email || 'Unknown'
+  };
+  persist();
+  renderQList();
+  notify('💾 Target analysis saved to this quote', 'success');
+}
+
+function exportTargetExcel() {
+  const q = app.quotations.find(x => x.id == app._targetQuoteId);
+  if (!q) { notify('Not found', 'error'); return; }
+  const items = app._targetItems;
+  const headers = ['Item', 'Qty', 'Cost/Unit', 'Offered Unit', 'Target Unit', 'Diff/Unit', 'Diff %', 'Offered Total', 'Target Total', 'Margin@Target %'];
+  const rows = [
+    ['Target Price Analysis'],
+    ['Customer', q.customer || ''],
+    ['Document', docRef(q)],
+    ['Generated', new Date().toLocaleString()],
+    [],
+    headers
+  ];
+  let offeredTotal = 0, targetTotal = 0, costTotal = 0;
+  items.forEach(r => {
+    const cost = itemBreakevenCost(r);
+    const offered = r.fobEur || 0;
+    const target = r.target || 0;
+    const qty = r.qty || 0;
+    const diffUnit = target - offered;
+    const diffPct = offered ? (diffUnit / offered * 100) : 0;
+    const marginAtTarget = cost > 0 ? ((target - cost) / cost * 100) : 0;
+    offeredTotal += offered * qty; targetTotal += target * qty; costTotal += cost * qty;
+    rows.push([r.item, qty, +cost.toFixed(4), +offered.toFixed(4), +target.toFixed(4), +diffUnit.toFixed(4), +diffPct.toFixed(1), +(offered * qty).toFixed(2), +(target * qty).toFixed(2), +marginAtTarget.toFixed(1)]);
+  });
+  const blendedMarginTarget = costTotal ? ((targetTotal - costTotal) / costTotal * 100) : 0;
+  rows.push([]);
+  rows.push(['', '', '', '', '', '', 'Offered Total', +offeredTotal.toFixed(2)]);
+  rows.push(['', '', '', '', '', '', 'Target Total', +targetTotal.toFixed(2)]);
+  rows.push(['', '', '', '', '', '', 'Overall Diff', +(targetTotal - offeredTotal).toFixed(2), (offeredTotal ? ((targetTotal - offeredTotal) / offeredTotal * 100).toFixed(1) + '%' : '')]);
+  rows.push(['', '', '', '', '', '', 'Total Landed Cost', +costTotal.toFixed(2)]);
+  rows.push(['', '', '', '', '', '', 'Blended Margin @ Target', blendedMarginTarget.toFixed(1) + '%']);
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  ws['!cols'] = [{ wch: 28 }, { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 14 }, { wch: 14 }, { wch: 14 }];
+  XLSX.utils.book_append_sheet(wb, ws, 'Target Analysis');
+  XLSX.writeFile(wb, 'Target_Analysis_' + (q.customer || 'quote').replace(/[^a-z0-9]/gi, '_') + '_' + new Date().toISOString().split('T')[0] + '.xlsx');
 }
 // ── TRASH / RECYCLE BIN ──────────────────────────────────────────────────
 // Deleting a Quote, Proforma, or Order used to be instant and permanent —
