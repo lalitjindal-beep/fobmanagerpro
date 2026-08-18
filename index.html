@@ -1145,6 +1145,11 @@ const INITIAL_ITEMS = [
 ];
 const BASE_CATEGORIES=['CASTING','FORGING','BALLS','PIPE','EYE BOLT','EYE END','BOLT','LINKAGE','DISC','WHEEL','PIN','WELD ON END','OTHER'];
 const CURRENCIES = ['EUR','USD','GBP','PLN','SEK','DKK','NOK','CHF','AUD','CAD'];
+// Which optional details print on a Quotation/Proforma's item table — kept
+// per-document (not global) since a client who wants to see your internal
+// Ref Code isn't the norm, but some do. category/type/material default ON
+// to match how the PDF/Excel already looked before this was configurable.
+const DEFAULT_DOC_COLUMNS = { refCode: false, clientCode: false, category: true, type: true, material: true, weight: false };
 const COUNTRIES = ['Austria','Australia','Belgium','Canada','China','Czech Republic','Denmark','Finland','France','Germany','India','Italy','Japan','Netherlands','Norway','Poland','Portugal','Romania','Russia','Saudi Arabia','South Africa','Spain','Sweden','Switzerland','Turkey','UAE','UK','USA','Ukraine','Other'];
 let CATEGORIES = [...BASE_CATEGORIES];
 function refreshCategories(){ const custom=app.settings.customCategories||[]; CATEGORIES=[...BASE_CATEGORIES]; custom.forEach(c=>{if(c&&!CATEGORIES.includes(c.toUpperCase()))CATEGORIES.push(c.toUpperCase());}); }
@@ -3949,9 +3954,12 @@ function quickQ(id, mode) {
   app._editingQuote = null;
   app._quoteCharges = [];
   app._quoteDiscount = { type: 'none', value: 0 };
+  app._quoteDocColumns = { ...DEFAULT_DOC_COLUMNS };
   app._quoteItems = [{
     id: id,
     item: row.item || 'Item ' + id,
+    refCode: row.refCode || '',
+    clientCode: '',
     category: row.category || '',
     type: row.type || '',
     material: row.material || '',
@@ -3984,12 +3992,15 @@ function openQModal(mode) {
   app._editingQuote = null;
   app._quoteCharges = [];
   app._quoteDiscount = { type: 'none', value: 0 };
+  app._quoteDocColumns = { ...DEFAULT_DOC_COLUMNS };
   app._quoteItems = sel.map(id => {
     const row = getItem(id);
     if (!row) return null;
     return {
       id: id,
       item: row.item || 'Item ' + id,
+      refCode: row.refCode || '',
+      clientCode: '',
       category: row.category || '',
       type: row.type || '',
       material: row.material || '',
@@ -4100,6 +4111,10 @@ function buildQModal() {
     </div></div>
     ${buildQModalInsightsHTML(data)}
     <div class="form-sec"><div class="form-sec-title">Items</div>
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;margin-bottom:10px;padding:8px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm)">
+      <span style="font-size:9.5px;font-weight:700;text-transform:uppercase;color:var(--text3)">Show on this Quote/Proforma:</span>
+      ${[['refCode', 'Ref Code'], ['clientCode', 'Client Code'], ['category', 'Category'], ['type', 'Type'], ['material', 'Material'], ['weight', 'Weight']].map(([key, label]) => `<label style="display:flex;align-items:center;gap:4px;font-size:11px;cursor:pointer"><input type="checkbox" ${data.docColumns?.[key] ? 'checked' : ''} onchange="qUpdDocColumn('${key}',this.checked)"> ${label}</label>`).join('')}
+    </div>
     <div class="table-wrap">
     <table class="qt" style="min-width:1080px;font-size:11px"><thead><tr><th style="width:26px">#</th><th style="min-width:130px">Item</th><th style="min-width:90px">Category</th><th style="min-width:110px">Type</th><th style="white-space:nowrap">Qty</th><th style="white-space:nowrap">PP</th><th style="white-space:nowrap">Marg%</th><th style="white-space:nowrap">FOB%</th><th style="white-space:nowrap">Ex Rate</th><th style="white-space:nowrap">Cur</th><th style="white-space:nowrap;min-width:100px">FOB</th><th style="white-space:nowrap">Total</th><th style="width:24px"></th></tr></thead><tbody>`;
   items.forEach((r, i) => {
@@ -4131,6 +4146,8 @@ function buildQModal() {
     </tr>
     <tr class="qt-subrow"><td></td><td colspan="12" style="padding:4px 6px 10px">
       <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+        <input placeholder="Ref Code (internal)" value="${esc(r.refCode || '')}" oninput="qUpdText(${i},'refCode',this.value)" style="width:110px;height:26px;border:1px solid var(--border);border-radius:4px;padding:0 8px;font-size:10.5px;font-family:var(--mono);color:var(--purple)" title="Your internal reference code for this item">
+        <input placeholder="Client Code" value="${esc(r.clientCode || '')}" oninput="qUpdText(${i},'clientCode',this.value)" style="width:130px;height:26px;border:1px solid var(--border);border-radius:4px;padding:0 8px;font-size:10.5px;font-family:var(--mono)" title="The customer's own part/item number, if they gave you one">
         <input placeholder="Customer-requested customization for this item (e.g. black coating, modified hole diameter)…" value="${esc(r.customization || '')}" oninput="qUpdCustomization(${i},this.value)" style="flex:1;min-width:220px;height:26px;border:1px solid var(--border);border-radius:4px;padding:0 8px;font-size:10.5px;font-family:var(--font)">
         ${isStale ? `<button class="btn btn-secondary btn-xs" title="Inventory now shows: ${esc([liveItem.category, liveItem.type, liveItem.material].filter(Boolean).join(' · '))}" onclick="syncQItemFromInventory(${i})">🔄 Sync from Inventory (changed)</button>` : (liveItem ? `<span style="font-size:9.5px;color:var(--text3)">✓ Matches current inventory</span>` : '')}
       </div>
@@ -4237,7 +4254,23 @@ function getQData() {
   const charges = app._quoteCharges || [];
   const chargesTotal = charges.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
   const total = itemsTotalAfterDiscount + chargesTotal;
-  return { items: app._quoteItems, charges, discount, discountAmount, itemsTotal, itemsTotalAfterDiscount, customer: cust, email: custEmail, phone: custPhone, address: custAddr, ref: ref, date: date, validity: valid, terms: terms, payment: payment, notes: notes, total: total, mode: app.quoteMode };
+  return { items: app._quoteItems, charges, discount, discountAmount, itemsTotal, itemsTotalAfterDiscount, customer: cust, email: custEmail, phone: custPhone, address: custAddr, ref: ref, date: date, validity: valid, terms: terms, payment: payment, notes: notes, total: total, mode: app.quoteMode, docColumns: app._quoteDocColumns || { ...DEFAULT_DOC_COLUMNS } };
+}
+// Toggled by the "Document Columns" checkboxes — controls what prints on
+// THIS quote/proforma's PDF and Excel, saved per-document since not every
+// client needs to see your Ref Code, and per-quote Item Code is only
+// filled in when the customer actually gave you one.
+function qUpdDocColumn(field, checked) {
+  app._quoteDocColumns = app._quoteDocColumns || { ...DEFAULT_DOC_COLUMNS };
+  app._quoteDocColumns[field] = checked;
+  buildQModal();
+}
+// Lightweight text write for per-item Ref Code / Client Item Code — same
+// reasoning as qUpdCustomization: these don't feed any calculation, so a
+// full buildQModal() rebuild on every keystroke would only kick focus out.
+function qUpdText(i, field, value) {
+  if (!app._quoteItems[i]) return;
+  app._quoteItems[i][field] = value;
 }
 function updateQuoteDiscount(type, value) {
   app._quoteDiscount = { type, value: parseFloat(value) || 0 };
@@ -4314,6 +4347,8 @@ function addItemToQuote() {
   app._quoteItems.push({
     id: row.id,
     item: row.item || 'Item ' + row.id,
+    refCode: row.refCode || '',
+    clientCode: '',
     category: row.category || '',
     type: row.type || '',
     material: row.material || '',
@@ -4385,6 +4420,7 @@ function editQuote(id) {
   app.quoteMode = q.mode;
   app._quoteItems = JSON.parse(JSON.stringify(q.items || []));
   app._quoteCharges = JSON.parse(JSON.stringify(q.charges || []));
+  app._quoteDocColumns = { ...DEFAULT_DOC_COLUMNS, ...(q.docColumns || {}) };
   app._quoteDiscount = JSON.parse(JSON.stringify(q.discount || { type: 'none', value: 0 }));
   app._editingQuoteId = q.id;
   app._editingQuote = q;
@@ -4401,6 +4437,7 @@ function snapshotQuoteRevision(existing) {
   const snapshot = {
     items: existing.items, charges: existing.charges, discount: existing.discount,
     total: existing.total, itemsTotal: existing.itemsTotal, customer: existing.customer,
+    docColumns: existing.docColumns,
     savedAt: existing.editedAt || existing.savedAt, savedBy: existing.editedBy || existing.savedBy
   };
   return [...(existing.revisions || []), snapshot].slice(-20);
@@ -4576,6 +4613,7 @@ function duplicateQuote(id) {
   app._quoteItems = JSON.parse(JSON.stringify(q.items || []));
   app._quoteCharges = JSON.parse(JSON.stringify(q.charges || []));
   app._quoteDiscount = JSON.parse(JSON.stringify(q.discount || { type: 'none', value: 0 }));
+  app._quoteDocColumns = { ...DEFAULT_DOC_COLUMNS, ...(q.docColumns || {}) };
   app._editingQuoteId = null; // null → Save creates a NEW record, doesn't touch the original
   app._editingQuote = { ...q, docNumber: '', ref: '', date: today() }; // blank docNumber/ref → fresh tracking number auto-assigned on Save, not the original's
   buildQModal();
@@ -4647,6 +4685,7 @@ function restoreQuoteRevision(revisionIndex) {
   app._quoteItems = JSON.parse(JSON.stringify(rev.items || []));
   app._quoteCharges = JSON.parse(JSON.stringify(rev.charges || []));
   app._quoteDiscount = JSON.parse(JSON.stringify(rev.discount || { type: 'none', value: 0 }));
+  app._quoteDocColumns = { ...DEFAULT_DOC_COLUMNS, ...(rev.docColumns || q.docColumns || {}) };
   app._editingQuoteId = q.id;
   app._editingQuote = q;
   buildQModal();
@@ -5114,7 +5153,8 @@ function viewDoc(id, type) {
       <colgroup><col style="width:22%"><col style="width:20%"><col style="width:10%"><col style="width:16%"><col style="width:16%"><col style="width:16%"></colgroup>
       <thead><tr><th>Item</th><th>Type</th><th>Qty</th><th>PP</th><th>FOB</th><th>Total</th></tr></thead><tbody>`;
   (q.items || []).forEach(r => {
-    html += `<tr><td>${esc(r.item)}</td><td style="font-size:10px">${esc(r.type || '')}</td><td>${r.qty}</td><td>₹${(r.pp || 0).toFixed(2)}</td><td>${curSym(r.currency||'EUR')}${(r.fobEur || 0).toFixed(r.priceDecimals ?? 2)}</td><td>${curSym(r.currency||'EUR')}${(r.total||0).toFixed(2)}</td></tr>`;
+    const codeLine = [r.refCode ? 'Ref: ' + r.refCode : '', r.clientCode ? 'Client Code: ' + r.clientCode : ''].filter(Boolean).join(' · ');
+    html += `<tr><td>${esc(r.item)}${codeLine ? `<div style="font-size:9px;color:var(--purple)">${esc(codeLine)}</div>` : ''}</td><td style="font-size:10px">${esc(r.type || '')}</td><td>${r.qty}</td><td>₹${(r.pp || 0).toFixed(2)}</td><td>${curSym(r.currency||'EUR')}${(r.fobEur || 0).toFixed(r.priceDecimals ?? 2)}</td><td>${curSym(r.currency||'EUR')}${(r.total||0).toFixed(2)}</td></tr>`;
   });
   const hasAdj = (q.charges || []).length > 0 || (q.discountAmount || 0) > 0.0001;
   html += `<tr class="qt-total"><td colspan="5" style="text-align:right;white-space:nowrap">${hasAdj ? 'Items Total' : 'Total'}</td><td style="white-space:nowrap">${sym}${(q.itemsTotal ?? q.total ?? 0).toFixed(2)}</td></tr></tbody></table></div>`;
@@ -5370,8 +5410,17 @@ async function buildQPDF(data, withPhotos) {
       doc.text(fitOneLine(doc, (i + 1) + '. ' + (r.item || 'Item'), (rightX - textX) - 90), textX, y + 18);
       doc.setFont(undefined, 'normal');
       doc.setFontSize(8.3); doc.setTextColor(90, 88, 80);
-      doc.text(fitOneLine(doc, [r.category, r.type].filter(Boolean).join('  •  '), rightX - textX - 10), textX, y + 32);
-      if (r.material) doc.text(fitOneLine(doc, 'Material: ' + r.material, rightX - textX - 10), textX, y + 44);
+      const dc = data.docColumns || DEFAULT_DOC_COLUMNS;
+      const specParts = [];
+      if (dc.category) specParts.push(r.category);
+      if (dc.type) specParts.push(r.type);
+      doc.text(fitOneLine(doc, specParts.filter(Boolean).join('  •  '), rightX - textX - 10), textX, y + 32);
+      let lineY = y + 44;
+      if (dc.material && r.material) { doc.text(fitOneLine(doc, 'Material: ' + r.material, rightX - textX - 10), textX, lineY); lineY += 10; }
+      const codeParts = [];
+      if (dc.refCode && r.refCode) codeParts.push('Ref: ' + r.refCode);
+      if (dc.clientCode && r.clientCode) codeParts.push('Client Code: ' + r.clientCode);
+      if (codeParts.length) { doc.setTextColor(120, 90, 150); doc.text(fitOneLine(doc, codeParts.join('  •  '), rightX - textX - 10), textX, lineY); doc.setTextColor(90, 88, 80); lineY += 10; }
       doc.setFontSize(8.3); doc.setTextColor(60, 58, 52);
       doc.text(fitOneLine(doc, 'Qty: ' + (r.qty || 0).toLocaleString(), rightX - textX - 10), textX, y + 58);
       if (r.customization) {
@@ -5402,36 +5451,71 @@ async function buildQPDF(data, withPhotos) {
     // ---- Item table ----
     // Note: only customer-facing figures appear here (unit rate & amount) —
     // internal purchase price is deliberately left off a document that goes
-    // to the buyer.
+    // to the buyer. Which optional columns show (Ref Code, Client Item
+    // Code, Category, Type, Material) is controlled per-document via the
+    // "Document Columns" checkboxes above the item table in the editor.
+    const dc = data.docColumns || DEFAULT_DOC_COLUMNS;
+    const headRow = ['#', 'Item Code'];
+    if (dc.refCode) headRow.push('Ref Code');
+    if (dc.clientCode) headRow.push('Client Code');
+    headRow.push('Description', 'Qty', 'Rate / Unit', 'Amount');
+
     const tableData = data.items.map((r, i) => {
       const sym = curSym(r.currency || 'EUR');
-      const desc = [r.category, r.type, r.material].filter(Boolean).join(' • ') || '—';
-      return [
-        (i + 1).toString(),
-        r.item || '',
+      const descParts = [];
+      if (dc.category) descParts.push(r.category);
+      if (dc.type) descParts.push(r.type);
+      if (dc.material) descParts.push(r.material);
+      if (dc.weight && r.weight) descParts.push(r.weight + ' kg/pc');
+      const desc = descParts.filter(Boolean).join(' • ') || '—';
+      const row = [(i + 1).toString(), r.item || ''];
+      if (dc.refCode) row.push(r.refCode || '—');
+      if (dc.clientCode) row.push(r.clientCode || '—');
+      row.push(
         r.customization ? desc + '\nCustomization: ' + r.customization : desc,
         (r.qty || 0).toLocaleString(),
         sym + (r.fobEur || 0).toFixed(r.priceDecimals ?? 2),
         sym + (r.total || 0).toFixed(2)
-      ];
+      );
+      return row;
     });
+
+    // Fixed columns keep a set width; Description absorbs whatever's left
+    // over after the optional Ref Code / Item Code columns are accounted
+    // for, so the table always fills the page width exactly.
+    const FIXED = { hash: 20, item: 95, qty: 48, rate: 75, amount: 88 };
+    const REF_W = 70, CLIENT_W = 60; // Ref Code widened — codes were getting cramped/clipped at 46pt
+    let optW = 0;
+    const columnStyles = {
+      0: { cellWidth: FIXED.hash, halign: 'center', cellPadding: { top: 5, right: 2, bottom: 5, left: 4 } },
+      1: { cellWidth: FIXED.item, fontStyle: 'bold', halign: 'left', cellPadding: { top: 5, right: 4, bottom: 5, left: 2 } }
+    };
+    let colIdx = 2;
+    if (dc.refCode) { columnStyles[colIdx] = { cellWidth: REF_W, halign: 'center', font: 'courier', fontSize: 7.5 }; optW += REF_W; colIdx++; }
+    if (dc.clientCode) { columnStyles[colIdx] = { cellWidth: CLIENT_W, halign: 'center', font: 'courier', fontSize: 7.5 }; optW += CLIENT_W; colIdx++; }
+    const descW = Math.max(60, contentW - FIXED.hash - FIXED.item - FIXED.qty - FIXED.rate - FIXED.amount - optW);
+    columnStyles[colIdx] = { cellWidth: descW }; colIdx++;
+    columnStyles[colIdx] = { cellWidth: FIXED.qty, halign: 'center' }; colIdx++;
+    columnStyles[colIdx] = { cellWidth: FIXED.rate, halign: 'right' }; colIdx++;
+    columnStyles[colIdx] = { cellWidth: FIXED.amount, halign: 'right', fontStyle: 'bold' };
+
     doc.autoTable({
       startY: y,
-      head: [['#', 'Item', 'Description', 'Qty', 'Rate / Unit', 'Amount']],
+      head: [headRow],
       body: tableData,
       theme: 'striped',
       headStyles: { fillColor: NAVY, textColor: [255, 255, 255], fontSize: 8.5, halign: 'center' },
       bodyStyles: { fontSize: 8.5, textColor: [45, 44, 40] },
       alternateRowStyles: { fillColor: [246, 245, 240] },
-      columnStyles: {
-        0: { cellWidth: 24, halign: 'center' },
-        1: { cellWidth: 108, fontStyle: 'bold' },
-        2: { cellWidth: 155 },
-        3: { cellWidth: 55, halign: 'center' },
-        4: { cellWidth: 80, halign: 'right' },
-        5: { cellWidth: 93, halign: 'right', fontStyle: 'bold' }
-      },
-      margin: { left: M, right: M }
+      columnStyles: columnStyles,
+      margin: { left: M, right: M },
+      // headStyles.halign wins over columnStyles for the header row in
+      // this version of autoTable, which left "Item Code" centered while
+      // its data column was left-aligned below it. Forcing it here in
+      // didParseCell applies to both head AND body, so they always match.
+      didParseCell: function (cellData) {
+        if (cellData.column.index === 1) cellData.cell.styles.halign = 'left';
+      }
     });
     y = doc.lastAutoTable.finalY + 14;
   }
@@ -5560,8 +5644,33 @@ function buildQuotationWorkbook(data) {
   const ws = wb.addWorksheet(data.mode === 'proforma' ? 'Proforma' : 'Quotation');
   const NAVY = 'FF1E3A5F', BAND = 'FFF3F2ED', GREEN = 'FF2D7D46', BORDER = 'FFD8D6CE';
   const anyPhoto = data.items.some(r => r.photo);
-  const headers = ['#', 'Item', 'Ref Code', 'Category', 'Type', 'Material', 'Qty', 'Weight', 'PP (INR)', 'Margin %', 'FOB %', 'Ex Rate', 'Cur', 'FOB Price', 'Total'];
-  if (anyPhoto) headers.push('Photo');
+  // Ref Code / Item Code / Category / Type / Material / Weight are optional
+  // columns controlled by the "Document Columns" checkboxes in the quote
+  // editor (data.docColumns) — everything else here is always shown since
+  // it's the internal cost breakdown this sheet is for.
+  const dc = data.docColumns || DEFAULT_DOC_COLUMNS;
+  const WIDTH_MAP = { idx: 5, item: 16, refCode: 11, clientCode: 13, category: 13, type: 18, material: 13, qty: 7, weight: 8, pp: 11, marg: 9, fob: 8, exrate: 9, currency: 7, fobEur: 12, total: 12, photo: 12 };
+  const colDefs = [
+    { key: 'idx', header: '#' },
+    { key: 'item', header: 'Item Code' },
+    ...(dc.refCode ? [{ key: 'refCode', header: 'Ref Code' }] : []),
+    ...(dc.clientCode ? [{ key: 'clientCode', header: 'Client Code' }] : []),
+    ...(dc.category ? [{ key: 'category', header: 'Category' }] : []),
+    ...(dc.type ? [{ key: 'type', header: 'Type' }] : []),
+    ...(dc.material ? [{ key: 'material', header: 'Material' }] : []),
+    { key: 'qty', header: 'Qty' },
+    ...(dc.weight ? [{ key: 'weight', header: 'Weight' }] : []),
+    { key: 'pp', header: 'PP (INR)' },
+    { key: 'marg', header: 'Margin %' },
+    { key: 'fob', header: 'FOB %' },
+    { key: 'exrate', header: 'Ex Rate' },
+    { key: 'currency', header: 'Cur' },
+    { key: 'fobEur', header: 'FOB Price' },
+    { key: 'total', header: 'Total' },
+    ...(anyPhoto ? [{ key: 'photo', header: 'Photo' }] : [])
+  ];
+  const colIndexOf = key => colDefs.findIndex(c => c.key === key) + 1;
+  const headers = colDefs.map(c => c.header);
   const colCount = headers.length;
 
   // Title banner
@@ -5595,8 +5704,13 @@ function buildQuotationWorkbook(data) {
 
   // Data rows
   data.items.forEach((r, i) => {
-    const rowData = [i + 1, r.item || '', r.refCode || '', r.category || '', r.type || '', r.material || '', r.qty || 0, r.weight || 0, r.pp || 0, r.marg || 0, r.fob || 0, r.exrate || 0, r.currency || 'EUR', r.fobEur || 0, r.total || 0];
-    if (anyPhoto) rowData.push(r.photo ? 'View Photo' : '');
+    const CELL_VALUE = {
+      idx: i + 1, item: r.item || '', refCode: r.refCode || '', clientCode: r.clientCode || '',
+      category: r.category || '', type: r.type || '', material: r.material || '', qty: r.qty || 0,
+      weight: r.weight || 0, pp: r.pp || 0, marg: r.marg || 0, fob: r.fob || 0, exrate: r.exrate || 0,
+      currency: r.currency || 'EUR', fobEur: r.fobEur || 0, total: r.total || 0, photo: r.photo ? 'View Photo' : ''
+    };
+    const rowData = colDefs.map(c => CELL_VALUE[c.key]);
     const row = ws.addRow(rowData);
     const isBanded = i % 2 === 1;
     row.eachCell((c, colNum) => {
@@ -5604,12 +5718,12 @@ function buildQuotationWorkbook(data) {
       c.border = { bottom: { style: 'hair', color: { argb: BORDER } } };
       c.alignment = { vertical: 'middle', horizontal: colNum === 2 ? 'left' : 'center' };
     });
-    row.getCell(9).numFmt = '#,##0.00';   // PP
+    row.getCell(colIndexOf('pp')).numFmt = '#,##0.00';   // PP
     const pd = r.priceDecimals ?? 2;
-    row.getCell(14).numFmt = pd === 0 ? '#,##0' : '#,##0.' + '0'.repeat(pd); // FOB Price — per-item decimal precision (Round = whole number), set in the quote builder
-    row.getCell(15).numFmt = '#,##0.00';   // Total
+    row.getCell(colIndexOf('fobEur')).numFmt = pd === 0 ? '#,##0' : '#,##0.' + '0'.repeat(pd); // FOB Price — per-item decimal precision (Round = whole number), set in the quote builder
+    row.getCell(colIndexOf('total')).numFmt = '#,##0.00';   // Total
     if (anyPhoto && r.photo) {
-      const linkCell = row.getCell(16);
+      const linkCell = row.getCell(colIndexOf('photo'));
       linkCell.value = { text: 'View Photo', hyperlink: r.photo };
       linkCell.font = { color: { argb: 'FF2B5A8A' }, underline: true };
     }
@@ -5617,33 +5731,36 @@ function buildQuotationWorkbook(data) {
 
   // Discount and additional charges (sea freight, packing, etc.) — shown
   // as their own rows between the items and the final total, same idea as
-  // the PDF breakdown box.
+  // the PDF breakdown box. Label sits one column left of Total, value in
+  // the Total column — same layout regardless of which optional columns
+  // are showing.
+  const labelCol = colIndexOf('total') - 1, valueCol = colIndexOf('total');
   const hasAdjustments = (data.charges || []).length > 0 || (data.discountAmount || 0) > 0.0001;
   if (hasAdjustments) {
     const itemsRow = ws.addRow([]);
-    ws.getCell(itemsRow.number, colCount - (anyPhoto ? 2 : 1)).value = 'Items Total';
-    ws.getCell(itemsRow.number, colCount - (anyPhoto ? 2 : 1)).font = { italic: true };
-    ws.getCell(itemsRow.number, colCount - (anyPhoto ? 1 : 0)).value = data.itemsTotal ?? data.total;
-    ws.getCell(itemsRow.number, colCount - (anyPhoto ? 1 : 0)).numFmt = '#,##0.00';
+    ws.getCell(itemsRow.number, labelCol).value = 'Items Total';
+    ws.getCell(itemsRow.number, labelCol).font = { italic: true };
+    ws.getCell(itemsRow.number, valueCol).value = data.itemsTotal ?? data.total;
+    ws.getCell(itemsRow.number, valueCol).numFmt = '#,##0.00';
     if ((data.discountAmount || 0) > 0.0001) {
       const discRow = ws.addRow([]);
       const discLabel = data.discount?.type === 'percent' ? `Discount (${data.discount.value}%)` : 'Discount';
-      ws.getCell(discRow.number, colCount - (anyPhoto ? 2 : 1)).value = discLabel;
-      ws.getCell(discRow.number, colCount - (anyPhoto ? 2 : 1)).font = { italic: true, color: { argb: 'FF8B2C2C' } };
-      ws.getCell(discRow.number, colCount - (anyPhoto ? 1 : 0)).value = -data.discountAmount;
-      ws.getCell(discRow.number, colCount - (anyPhoto ? 1 : 0)).numFmt = '#,##0.00';
-      ws.getCell(discRow.number, colCount - (anyPhoto ? 1 : 0)).font = { color: { argb: 'FF8B2C2C' } };
+      ws.getCell(discRow.number, labelCol).value = discLabel;
+      ws.getCell(discRow.number, labelCol).font = { italic: true, color: { argb: 'FF8B2C2C' } };
+      ws.getCell(discRow.number, valueCol).value = -data.discountAmount;
+      ws.getCell(discRow.number, valueCol).numFmt = '#,##0.00';
+      ws.getCell(discRow.number, valueCol).font = { color: { argb: 'FF8B2C2C' } };
       const subRow = ws.addRow([]);
-      ws.getCell(subRow.number, colCount - (anyPhoto ? 2 : 1)).value = 'Items Subtotal';
-      ws.getCell(subRow.number, colCount - (anyPhoto ? 2 : 1)).font = { italic: true };
-      ws.getCell(subRow.number, colCount - (anyPhoto ? 1 : 0)).value = data.itemsTotalAfterDiscount ?? data.itemsTotal;
-      ws.getCell(subRow.number, colCount - (anyPhoto ? 1 : 0)).numFmt = '#,##0.00';
+      ws.getCell(subRow.number, labelCol).value = 'Items Subtotal';
+      ws.getCell(subRow.number, labelCol).font = { italic: true };
+      ws.getCell(subRow.number, valueCol).value = data.itemsTotalAfterDiscount ?? data.itemsTotal;
+      ws.getCell(subRow.number, valueCol).numFmt = '#,##0.00';
     }
     (data.charges || []).forEach(c => {
       const chRow = ws.addRow([]);
-      ws.getCell(chRow.number, colCount - (anyPhoto ? 2 : 1)).value = c.label || 'Charge';
-      ws.getCell(chRow.number, colCount - (anyPhoto ? 1 : 0)).value = parseFloat(c.amount) || 0;
-      ws.getCell(chRow.number, colCount - (anyPhoto ? 1 : 0)).numFmt = '#,##0.00';
+      ws.getCell(chRow.number, labelCol).value = c.label || 'Charge';
+      ws.getCell(chRow.number, valueCol).value = parseFloat(c.amount) || 0;
+      ws.getCell(chRow.number, valueCol).numFmt = '#,##0.00';
     });
   }
 
@@ -5652,16 +5769,15 @@ function buildQuotationWorkbook(data) {
   for (let c = 1; c <= colCount; c++) {
     ws.getCell(totalRow.number, c).border = { top: { style: 'medium', color: { argb: NAVY } } };
   }
-  ws.getCell(totalRow.number, colCount - (anyPhoto ? 2 : 1)).value = hasAdjustments ? 'GRAND TOTAL' : 'TOTAL';
-  ws.getCell(totalRow.number, colCount - (anyPhoto ? 2 : 1)).font = { bold: true };
-  ws.getCell(totalRow.number, colCount - (anyPhoto ? 1 : 0)).value = data.total;
-  ws.getCell(totalRow.number, colCount - (anyPhoto ? 1 : 0)).numFmt = '#,##0.00';
-  ws.getCell(totalRow.number, colCount - (anyPhoto ? 1 : 0)).font = { bold: true, color: { argb: GREEN }, size: 12 };
+  ws.getCell(totalRow.number, labelCol).value = hasAdjustments ? 'GRAND TOTAL' : 'TOTAL';
+  ws.getCell(totalRow.number, labelCol).font = { bold: true };
+  ws.getCell(totalRow.number, valueCol).value = data.total;
+  ws.getCell(totalRow.number, valueCol).numFmt = '#,##0.00';
+  ws.getCell(totalRow.number, valueCol).font = { bold: true, color: { argb: GREEN }, size: 12 };
   totalRow.height = 20;
 
   // Column widths
-  const widths = [5, 16, 11, 13, 18, 13, 7, 8, 11, 9, 8, 9, 7, 12, 12];
-  if (anyPhoto) widths.push(12);
+  const widths = colDefs.map(c => WIDTH_MAP[c.key] || 12);
   ws.columns = widths.map(w => ({ width: w }));
 
   ws.views = [{ state: 'frozen', ySplit: 4 }];
