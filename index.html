@@ -931,7 +931,7 @@ table{min-width:820px}
 </div>
 
 <!-- Other views -->
-<div id="view-quotations" class="view"><div class="toolbar"><strong style="color:var(--text);font-size:12.5px;font-weight:700;letter-spacing:-.02em">🧾 Quotations &amp; Proforma</strong><input id="q-search" placeholder="Search ref, customer, item…" style="height:32px;width:220px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 10px;font-size:11.5px;font-family:var(--font)" oninput="renderQList()" autocomplete="off"><div style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-secondary btn-sm" onclick="openTrash()">🗑️ Trash</button><button class="btn btn-secondary btn-sm" onclick="switchView('inventory')">← Back</button></div></div><div id="quotations-list"></div></div>
+<div id="view-quotations" class="view"><div class="toolbar"><strong style="color:var(--text);font-size:12.5px;font-weight:700;letter-spacing:-.02em">🧾 Quotations &amp; Proforma</strong><input id="q-search" placeholder="Search anything — ref, customer, country, item, status, who saved it…" style="height:32px;width:300px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 10px;font-size:11.5px;font-family:var(--font)" oninput="renderQList()" autocomplete="off"><div style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-secondary btn-sm" onclick="openTrash()">🗑️ Trash</button><button class="btn btn-secondary btn-sm" onclick="switchView('inventory')">← Back</button></div></div><div id="quotations-list"></div></div>
 <div id="view-dispatch" class="view"><div class="toolbar"><strong style="color:var(--text);font-size:12.5px;font-weight:700;letter-spacing:-.02em">🚚 Dispatch Plans</strong><div style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="openContainerPlanner()">📦 Container Load Planner</button><button class="btn btn-secondary btn-sm" onclick="switchView('inventory')">← Back</button></div></div><div id="dispatch-list"></div></div>
 <div id="view-orders" class="view">
   <div class="toolbar">
@@ -2024,6 +2024,16 @@ function calcSP(pp, marg, fob) { return pp * (1 + (marg + fob) / 100); }
 function fmtI(v) { return '₹' + (v || 0).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 }); }
 function curSym(c) { const m = { EUR: '€', USD: '$', GBP: '£', PLN: 'zł', SEK: 'kr', DKK: 'kr', NOK: 'kr', CHF: 'CHF', AUD: 'A$', CAD: 'C$', INR: '₹' }; return m[c] || '€'; }
 function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+// Used on customer-facing documents: Category stays exactly as stored
+// (it's always uppercase already, by design), while Type/Material — which
+// get typed freeform and end up in all sorts of casing — are normalized to
+// Title Case (every word capitalized) so the printed description looks
+// consistent regardless of how they were entered in Inventory.
+function toTitleCase(str) {
+  const s = String(str || '').trim();
+  if (!s) return s;
+  return s.toLowerCase().replace(/\b\w/g, c => c.toUpperCase());
+}
 function uid() { return ++app._nextId; }
 function getItem(id) { return app.items.find(r => r.id === id); }
 function getItemByCode(code) { 
@@ -4734,10 +4744,19 @@ function renderQList() {
   const term = (searchEl?.value || '').trim().toLowerCase();
   let list = app.quotations.slice().reverse();
   if (term) {
+    // Universal search — matches on essentially anything visible about the
+    // document: customer + their country/email/phone, who created/edited
+    // it, status, every item's name/type/category/material/ref codes, and
+    // more — not just ref/customer/item name like before.
     list = list.filter(q => {
+      const cust = findCustomerByName(q.customer);
       const haystack = [
-        docRef(q), q.ref, q.customer, q.mode, q.terms, q.payment, q.notes,
-        ...(q.items || []).map(r => r.item), ...(q.items || []).map(r => r.type)
+        docRef(q), q.docNumber, q.ref, q.customer, q.mode, q.terms, q.payment, q.notes,
+        q.savedBy, q.editedBy, q.status, q.statusReason,
+        cust?.country, cust?.email, cust?.phone, cust?.nickname,
+        q.total, new Date(q.date || q.savedAt).toLocaleDateString(),
+        ...(q.items || []).flatMap(r => [r.item, r.type, r.category, r.material, r.refCode, r.clientCode, r.currency, r.customization]),
+        ...(q.charges || []).map(c => c.label)
       ].filter(Boolean).join(' ').toLowerCase();
       return haystack.includes(term);
     });
@@ -5660,10 +5679,10 @@ async function buildQPDF(data, withPhotos) {
       const dc = data.docColumns || DEFAULT_DOC_COLUMNS;
       const specParts = [];
       if (dc.category) specParts.push(r.category);
-      if (dc.type) specParts.push(r.type);
+      if (dc.type) specParts.push(toTitleCase(r.type));
       doc.text(fitOneLine(doc, specParts.filter(Boolean).join('  •  '), rightX - textX - 10), textX, y + 32);
       let lineY = y + 44;
-      if (dc.material && r.material) { doc.text(fitOneLine(doc, 'Material: ' + r.material, rightX - textX - 10), textX, lineY); lineY += 10; }
+      if (dc.material && r.material) { doc.text(fitOneLine(doc, 'Material: ' + toTitleCase(r.material), rightX - textX - 10), textX, lineY); lineY += 10; }
       const codeParts = [];
       if (dc.refCode && r.refCode) codeParts.push('Ref: ' + r.refCode);
       if (dc.clientCode && r.clientCode) codeParts.push('Client Code: ' + r.clientCode);
@@ -5710,9 +5729,9 @@ async function buildQPDF(data, withPhotos) {
     const tableData = data.items.map((r, i) => {
       const sym = curSym(r.currency || 'EUR');
       const descParts = [];
-      if (dc.category) descParts.push(r.category);
-      if (dc.type) descParts.push(r.type);
-      if (dc.material) descParts.push(r.material);
+      if (dc.category) descParts.push(r.category); // Category stays exactly as stored (already uppercase)
+      if (dc.type) descParts.push(toTitleCase(r.type));
+      if (dc.material) descParts.push(toTitleCase(r.material));
       if (dc.weight && r.weight) descParts.push(r.weight + ' kg/pc');
       const desc = descParts.filter(Boolean).join(' • ') || '—';
       const row = [(i + 1).toString(), r.item || ''];
@@ -5727,24 +5746,48 @@ async function buildQPDF(data, withPhotos) {
       return row;
     });
 
-    // Fixed columns keep a set width; Description absorbs whatever's left
-    // over after the optional Ref Code / Item Code columns are accounted
-    // for, so the table always fills the page width exactly.
-    const FIXED = { hash: 20, item: 95, qty: 48, rate: 75, amount: 88 };
-    const REF_W = 70, CLIENT_W = 60; // Ref Code widened — codes were getting cramped/clipped at 46pt
+    // Item Code and Ref Code are content-sized (measured against what's
+    // actually in them, not a fixed guess) so a column of short codes sits
+    // tight against its neighbour instead of leaving a wide empty gap, and
+    // a column of long codes still gets the room it needs. Description
+    // absorbs whatever width is left over, so the table always fills the
+    // page edge-to-edge regardless.
+    function measureColWidth(doc, values, header, bold, fontSize, min, max, pad) {
+      doc.setFont(undefined, bold ? 'bold' : 'normal');
+      doc.setFontSize(fontSize);
+      const widest = Math.max(...[header, ...values].map(t => doc.getTextWidth(String(t || ''))));
+      doc.setFont(undefined, 'normal');
+      return Math.min(max, Math.max(min, widest + pad));
+    }
+    const itemColW = measureColWidth(doc, data.items.map(r => r.item), 'Item Code', true, 8.5, 55, 140, 16);
+    const refColW = dc.refCode ? measureColWidth(doc, data.items.map(r => r.refCode || '—'), 'Ref Code', false, 8, 40, 90, 16) : 0;
+    const clientColW = dc.clientCode ? measureColWidth(doc, data.items.map(r => r.clientCode || '—'), 'Client Code', false, 8, 40, 90, 16) : 0;
+    const FIXED = { hash: 20, item: itemColW, qty: 48, rate: 75, amount: 88 };
     let optW = 0;
     const columnStyles = {
       0: { cellWidth: FIXED.hash, halign: 'center', cellPadding: { top: 5, right: 2, bottom: 5, left: 4 } },
-      1: { cellWidth: FIXED.item, fontStyle: 'bold', halign: 'left', cellPadding: { top: 5, right: 4, bottom: 5, left: 2 } }
+      // Right padding trimmed to 2 so Item Code sits close against Ref
+      // Code right after it — they're related fields (both codes for the
+      // same item) and read better grouped tight, not spread apart.
+      1: { cellWidth: FIXED.item, fontStyle: 'bold', halign: 'left', cellPadding: { top: 5, right: 2, bottom: 5, left: 2 } }
     };
     let colIdx = 2;
-    if (dc.refCode) { columnStyles[colIdx] = { cellWidth: REF_W, halign: 'center', font: 'courier', fontSize: 7.5 }; optW += REF_W; colIdx++; }
-    if (dc.clientCode) { columnStyles[colIdx] = { cellWidth: CLIENT_W, halign: 'center', font: 'courier', fontSize: 7.5 }; optW += CLIENT_W; colIdx++; }
+    // Ref/Client Code — switched off the monospace "courier" look to the
+    // same font as the rest of the table, just tinted so the codes still
+    // stand out at a glance without looking like a different document.
+    // Left padding trimmed to keep it visually paired with Item Code.
+    if (dc.refCode) { columnStyles[colIdx] = { cellWidth: refColW, halign: 'left', fontSize: 8, textColor: [110, 75, 140], cellPadding: { top: 5, right: 4, bottom: 5, left: 3 } }; optW += refColW; colIdx++; }
+    if (dc.clientCode) { columnStyles[colIdx] = { cellWidth: clientColW, halign: 'left', fontSize: 8, textColor: [45, 44, 40], cellPadding: { top: 5, right: 4, bottom: 5, left: 3 } }; optW += clientColW; colIdx++; }
     const descW = Math.max(60, contentW - FIXED.hash - FIXED.item - FIXED.qty - FIXED.rate - FIXED.amount - optW);
-    columnStyles[colIdx] = { cellWidth: descW }; colIdx++;
+    const descColIdx = colIdx;
+    columnStyles[colIdx] = { cellWidth: descW, halign: 'left', cellPadding: { top: 5, right: 4, bottom: 5, left: 6 } }; colIdx++;
     columnStyles[colIdx] = { cellWidth: FIXED.qty, halign: 'center' }; colIdx++;
-    columnStyles[colIdx] = { cellWidth: FIXED.rate, halign: 'right' }; colIdx++;
+    const rateColIdx = colIdx;
+    columnStyles[colIdx] = { cellWidth: FIXED.rate, halign: 'center' }; colIdx++;
+    const amountColIdx = colIdx;
     columnStyles[colIdx] = { cellWidth: FIXED.amount, halign: 'right', fontStyle: 'bold' };
+    const refColIdx = dc.refCode ? 2 : -1;
+    const clientColIdx = dc.clientCode ? (dc.refCode ? 3 : 2) : -1;
 
     doc.autoTable({
       startY: y,
@@ -5756,12 +5799,18 @@ async function buildQPDF(data, withPhotos) {
       alternateRowStyles: { fillColor: [246, 245, 240] },
       columnStyles: columnStyles,
       margin: { left: M, right: M },
-      // headStyles.halign wins over columnStyles for the header row in
-      // this version of autoTable, which left "Item Code" centered while
-      // its data column was left-aligned below it. Forcing it here in
-      // didParseCell applies to both head AND body, so they always match.
+      // headStyles.halign wins over columnStyles for the HEADER row in this
+      // version of autoTable — that's what left "Item Code"/"Description"
+      // (and now "Ref Code"/"Client Code"/"Amount") out of step with their
+      // data columns below. Forcing it here in didParseCell applies to
+      // both head AND body for each of these columns, so every header
+      // lines up exactly over its own data. Rate/Unit is intentionally
+      // center-aligned (matches the default header alignment already);
+      // Amount is right-aligned to line up as a column of numbers.
       didParseCell: function (cellData) {
-        if (cellData.column.index === 1) cellData.cell.styles.halign = 'left';
+        if ([1, refColIdx, clientColIdx, descColIdx].includes(cellData.column.index)) cellData.cell.styles.halign = 'left';
+        if (cellData.column.index === amountColIdx) cellData.cell.styles.halign = 'right';
+        if (cellData.column.index === rateColIdx) cellData.cell.styles.halign = 'center';
       }
     });
     y = doc.lastAutoTable.finalY + 14;
@@ -5953,7 +6002,7 @@ function buildQuotationWorkbook(data) {
   data.items.forEach((r, i) => {
     const CELL_VALUE = {
       idx: i + 1, item: r.item || '', refCode: r.refCode || '', clientCode: r.clientCode || '',
-      category: r.category || '', type: r.type || '', material: r.material || '', qty: r.qty || 0,
+      category: r.category || '', type: toTitleCase(r.type), material: toTitleCase(r.material), qty: r.qty || 0,
       weight: r.weight || 0, pp: r.pp || 0, marg: r.marg || 0, fob: r.fob || 0, exrate: r.exrate || 0,
       currency: r.currency || 'EUR', fobEur: r.fobEur || 0, total: r.total || 0, photo: r.photo ? 'View Photo' : ''
     };
@@ -11305,7 +11354,12 @@ function renderSettings() {
       
     case 'prefixes':
       const prefixes = s.categoryPrefixes || {};
-      let prefixHTML = Object.keys(prefixes).map(cat => `
+      // Was only listing categories that already had a saved prefix, so a
+      // newly-added custom category (Settings → Categories) never showed up
+      // here at all — nothing to click on to give it one. Iterating the
+      // live CATEGORIES list (base + custom) instead fixes that; a category
+      // with no prefix yet just shows a blank box ready to fill in.
+      let prefixHTML = CATEGORIES.map(cat => `
         <div class="prefix-row">
           <span class="cat-badge ${catCls(cat)}">${cat}</span>
           <input type="text" value="${esc(prefixes[cat] || '')}" onchange="s_set('categoryPrefixes.${cat}',this.value.toUpperCase())" placeholder="Prefix">
