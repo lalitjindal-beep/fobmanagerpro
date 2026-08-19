@@ -337,6 +337,34 @@ select[style*="width:55px"],select[style*="width:70px"],select[style*="width:96p
    label centered) reads as one deliberate row instead of ragged sizes. */
 .doc-actions{display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:6px;flex:1 1 460px}
 .doc-actions .btn{width:100%;justify-content:center}
+/* Quotations & Proforma list — redesigned as a two-tier card: an always-
+   visible summary + primary actions row, with everything else tucked
+   under a native <details> "More actions" toggle. Nothing was removed,
+   it's just not all fighting for attention at once. */
+.doc-section-header{display:flex;align-items:center;gap:8px;margin:20px 0 10px;padding-bottom:7px;border-bottom:2px solid var(--border)}
+.doc-section-header:first-child{margin-top:0}
+.doc-section-header h3{font-size:12px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.03em}
+.doc-section-count{font-size:10px;font-weight:700;padding:2px 9px;border-radius:var(--r-full);background:var(--surface2);color:var(--text3);border:1px solid var(--border)}
+.doc-card2{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);box-shadow:var(--shadow-xs);margin-bottom:8px;overflow:hidden;transition:box-shadow .15s}
+.doc-card2:hover{box-shadow:var(--shadow-sm)}
+.doc-card2-main{display:flex;align-items:flex-start;gap:12px;padding:12px 14px;flex-wrap:wrap}
+.doc-info2{flex:1 1 260px;min-width:0}
+.doc-info2-row1{display:flex;align-items:center;gap:7px;flex-wrap:wrap;margin-bottom:3px}
+.doc-info2-row1 strong{font-size:13.5px;font-weight:700;color:var(--text)}
+.doc-info2-row2{font-size:10.5px;color:var(--text3);font-weight:500}
+.doc-quick-actions{display:flex;gap:6px;flex-shrink:0;flex-wrap:wrap;align-items:center;margin-left:auto}
+.doc-quick-actions .btn{white-space:nowrap}
+.doc-status-select{height:26px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 6px;font-size:11px;font-weight:600;font-family:var(--font);background:var(--surface);cursor:pointer}
+.doc-more{border-top:1px solid var(--border);background:var(--surface2)}
+.doc-more>summary{list-style:none;cursor:pointer;padding:7px 14px;font-size:10.5px;font-weight:700;color:var(--text3);display:flex;align-items:center;gap:5px;user-select:none}
+.doc-more>summary::-webkit-details-marker{display:none}
+.doc-more>summary::before{content:'▸';font-size:9px;transition:transform .15s}
+.doc-more[open]>summary::before{transform:rotate(90deg)}
+.doc-more>summary:hover{color:var(--accent2)}
+.doc-more[open]>summary{color:var(--accent2);border-bottom:1px solid var(--border)}
+.doc-more-actions{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:6px;padding:10px 14px}
+.doc-more-actions .btn{width:100%;justify-content:center}
+.doc-status-pill{font-size:9.5px;font-weight:700;padding:2px 9px;border-radius:10px;white-space:nowrap}
 .srow{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px;margin-bottom:14px}
 .scard{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:8px 6px;text-align:center;box-shadow:var(--shadow-xs);overflow:hidden}
 .scard .val{font-size:22px;font-weight:700;color:var(--text);font-family:var(--mono);line-height:1.1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block}
@@ -349,8 +377,15 @@ select[style*="width:55px"],select[style*="width:70px"],select[style*="width:96p
 .mis-bar-bg{flex:1;height:14px;background:var(--surface2);border-radius:var(--r-full);overflow:hidden}
 .mis-bar-fill{height:100%;background:var(--accent2);border-radius:var(--r-full);transition:width .45s;min-width:3px}
 .mis-bar-val{font-family:var(--mono);font-size:10px;font-weight:700;color:var(--text2);white-space:nowrap;min-width:50px}
-.notif{position:fixed;bottom:20px;right:20px;background:var(--text);color:#fff;padding:12px 18px;border-radius:var(--r);font-size:12px;font-weight:600;z-index:500;transform:translateY(120px);transition:transform .3s;box-shadow:var(--shadow-lg);max-width:300px}
-.notif.show{transform:translateY(0)}.notif.success{background:var(--green)}.notif.error{background:var(--red)}.notif.warning{background:var(--amber)}
+#notif-stack{position:fixed;bottom:20px;right:20px;z-index:9000;display:flex;flex-direction:column;gap:10px;max-width:340px;pointer-events:none}
+.toast{position:relative;display:flex;align-items:flex-start;background:var(--text);color:#fff;padding:12px 30px 12px 14px;border-radius:var(--r);font-size:12px;font-weight:600;line-height:1.45;box-shadow:var(--shadow-lg);pointer-events:auto;opacity:0;transform:translateX(48px);transition:transform .28s cubic-bezier(.2,.8,.3,1),opacity .28s;cursor:grab;user-select:none}
+.toast.show{opacity:1;transform:translateX(0)}
+.toast.dismissing{opacity:0;transform:translateX(60px);transition:transform .2s ease-in,opacity .2s ease-in}
+.toast.success{background:var(--green)}.toast.error{background:var(--red)}.toast.warning{background:var(--amber);color:#2b2200}
+.toast-icon{margin-right:7px;flex-shrink:0}
+.toast-msg{flex:1;word-break:break-word}
+.toast-close{position:absolute;top:5px;right:6px;background:none;border:none;color:inherit;opacity:.65;font-size:13px;line-height:1;cursor:pointer;padding:4px}
+.toast-close:hover{opacity:1}
 .empty-state{text-align:center;padding:48px 20px;color:var(--text3)}
 .empty-state h3{font-size:16px;font-weight:600;color:var(--text2)}
 .empty-state p{font-size:12px;line-height:1.6;max-width:380px;margin:0 auto}
@@ -425,7 +460,7 @@ select[style*="width:55px"],select[style*="width:70px"],select[style*="width:96p
 .setup-step{display:flex;gap:10px;margin-bottom:8px;font-size:12px;color:var(--text2);line-height:1.6}
 .setup-num{width:20px;height:20px;background:var(--accent);color:#fff;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
 .conn-badge{display:inline-flex;align-items:center;gap:4px;padding:2px 8px;border-radius:var(--r-full);font-size:9.5px;font-weight:600}
-.conn-online{background:var(--green-bg);color:var(--green)}.conn-offline{background:var(--red-bg);color:var(--red)}.conn-syncing{background:var(--amber-bg);color:var(--amber)}
+.conn-online{background:var(--green-bg);color:var(--green)}.conn-offline{background:var(--red-bg);color:var(--red)}.conn-syncing{background:var(--amber-bg);color:var(--amber)}.conn-pending{background:var(--purple-bg);color:var(--purple)}
 .conn-dot{width:6px;height:6px;border-radius:50%;background:currentColor}
 .user-badge{display:flex;align-items:center;gap:5px;padding:3px 10px;background:var(--surface2);border-radius:var(--r-full);border:1px solid var(--border)}
 .user-avatar{width:22px;height:22px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:#fff}
@@ -722,7 +757,7 @@ table{min-width:820px}
 <div class="modal-backdrop" id="modal-delete-all"><div class="modal" style="max-width:400px;text-align:center"><div class="modal-header"><h2 style="color:var(--red)">⚠️ Delete All Items</h2><button class="modal-close" onclick="closeModal('modal-delete-all')">✕</button></div><div class="modal-body" style="padding:20px"><div style="font-size:36px;margin-bottom:10px">🗑️</div><div style="font-size:13px;font-weight:600;color:var(--text);margin-bottom:6px">Permanently deletes ALL inventory items.</div><div style="font-size:11.5px;color:var(--text3);margin-bottom:16px;line-height:1.7">Enter your system password to confirm.</div><input type="password" id="delete-all-pin" placeholder="System Password" style="width:100%;height:38px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 12px;font-size:15px;font-family:var(--mono);text-align:center;letter-spacing:.15em;outline:none;background:var(--bg);margin-bottom:8px" onkeydown="if(event.key==='Enter')confirmDeleteAll()"><div id="delete-all-err" style="display:none;color:var(--red);font-size:11.5px;font-weight:600"></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-delete-all')">Cancel</button><button class="btn btn-danger" onclick="confirmDeleteAll()">Delete All</button></div></div></div>
 <div class="modal-backdrop" id="modal-approve"><div class="modal" style="max-width:500px"><div class="modal-header"><h2>📋 Price Change Request</h2><button class="modal-close" onclick="closeModal('modal-approve')">✕</button></div><div class="modal-body" id="approve-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-approve')">Cancel</button><button class="btn btn-danger" onclick="rejectCurrentApproval()">✕ Reject</button><button class="btn btn-success" onclick="approveCurrentRequest()">✓ Approve</button></div></div></div>
 <div class="modal-backdrop" id="modal-duplicates"><div class="modal" style="max-width:800px"><div class="modal-header"><h2>🔍 Duplicate Management</h2><button class="modal-close" onclick="closeModal('modal-duplicates')">✕</button></div><div class="modal-body" id="duplicate-body" style="padding:16px"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-duplicates')">Close</button></div></div></div>
-<div id="notif" class="notif"></div>
+<div id="notif-stack"></div>
 <!-- Loading Overlay -->
 <div id="upload-overlay" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9999;display:none;align-items:center;justify-content:center;flex-direction:column;gap:16px;">
   <div style="background:#fff;padding:24px 32px;border-radius:12px;text-align:center;min-width:200px;box-shadow:0 8px 32px rgba(0,0,0,0.2);">
@@ -760,7 +795,7 @@ table{min-width:820px}
   </nav>
   <div class="header-actions">
     <button class="btn btn-secondary btn-sm" onclick="openUniversalSearch()" title="Search everything (Ctrl+K)" style="gap:6px">🔎 <span class="hide-mobile">Search</span> <span style="font-size:9px;opacity:.6;border:1px solid currentColor;border-radius:3px;padding:0 4px">⌘K</span></button>
-    <span id="conn-badge" class="conn-badge conn-offline"><span class="conn-dot"></span><span id="conn-text">Offline</span></span>
+    <span id="conn-badge" class="conn-badge conn-offline" onclick="handleConnBadgeClick()" style="cursor:pointer" title="Click to sync manually"><span class="conn-dot"></span><span id="conn-text">Offline</span></span>
     <div id="user-badge" class="user-badge" style="display:none">
       <div class="user-avatar" id="user-avatar">?</div>
       <span class="user-name" id="user-name-display">User</span>
@@ -784,7 +819,7 @@ table{min-width:820px}
       <div style="font-weight:700;font-size:13px" id="sheet-user-name">User</div>
       <div style="font-size:10px;color:var(--text3)" id="sheet-user-role"></div>
     </div>
-    <span id="sheet-conn-badge" class="conn-badge conn-offline"><span class="conn-dot"></span><span id="sheet-conn-text">Offline</span></span>
+    <span id="sheet-conn-badge" class="conn-badge conn-offline" onclick="handleConnBadgeClick()" style="cursor:pointer" title="Click to sync manually"><span class="conn-dot"></span><span id="sheet-conn-text">Offline</span></span>
   </div>
   <div class="sheet-grid" id="more-sheet-items"></div>
   <div class="sheet-footer">
@@ -1110,6 +1145,7 @@ table{min-width:820px}
 <div class="modal-backdrop" id="modal-email"><div class="modal" style="max-width:600px"><div class="modal-header"><h2>📧 Send Email</h2><button class="modal-close" onclick="closeModal('modal-email')">✕</button></div><div class="modal-body" id="email-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-email')">Cancel</button><button class="btn btn-primary" id="email-send-btn" onclick="sendComposedEmail()">📤 Send</button></div></div></div>
 <div class="modal-backdrop" id="modal-target"><div class="modal" style="max-width:1080px;width:95vw"><div class="modal-header"><h2 id="tgt-title">🎯 Target Price Analysis</h2><button class="modal-close" onclick="closeTargetModal()">✕</button></div><div class="modal-body" id="tgt-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeTargetModal()">Close</button><button class="btn btn-info" onclick="exportTargetExcel()">📊 Export Excel</button><button class="btn btn-success" onclick="saveTargetAnalysis()">💾 Save Analysis</button><button class="btn btn-primary" onclick="applyTargetsToQuote()" title="Rewrites the saved quote's item prices to match the targets entered above, keeping the old version in History">✅ Apply to Quote</button></div></div></div>
 <div class="modal-backdrop" id="modal-qhistory"><div class="modal" style="max-width:1000px;width:94vw"><div class="modal-header"><h2 id="qh-title">🕘 Version History</h2><button class="modal-close" onclick="closeQuoteHistoryModal()">✕</button></div><div class="modal-body" id="qh-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeQuoteHistoryModal()">Close</button></div></div></div>
+<div class="modal-backdrop" id="modal-syncreminder"><div class="modal" style="max-width:440px"><div class="modal-header"><h2>🔄 Sync Reminder</h2><button class="modal-close" onclick="closeSyncReminderModal()">✕</button></div><div class="modal-body" id="syncrem-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeSyncReminderModal()">Keep Waiting</button><button class="btn btn-success" onclick="syncNow();closeSyncReminderModal()">🔄 Sync Now</button></div></div></div>
 <div class="modal-backdrop" id="modal-trash"><div class="modal" style="max-width:640px"><div class="modal-header"><h2>🗑️ Trash</h2><button class="modal-close" onclick="closeModal('modal-trash')">✕</button></div><div class="modal-body"><p style="font-size:11px;color:var(--text3);margin-bottom:12px">Deleted quotes, proformas, and orders stay here for 30 days before being permanently removed, so a mistaken delete never means retyping everything.</p><div id="trash-list"></div></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-trash')">Close</button></div></div></div>
 <div class="modal-backdrop" id="modal-shipdoc"><div class="modal" style="max-width:640px"><div class="modal-header"><h2 id="shipdoc-form-title">🚢 Add Shipping Document</h2><button class="modal-close" onclick="closeModal('modal-shipdoc')">✕</button></div><div class="modal-body" id="shipdoc-form-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-shipdoc')">Cancel</button><button class="btn btn-success" onclick="saveShippingDoc()">💾 Save</button></div></div></div>
 <div class="modal-backdrop" id="modal-shipdocs-standalone"><div class="modal" style="max-width:640px"><div class="modal-header"><h2 id="shipdocs-standalone-title">🚢 Shipping Documents</h2><button class="modal-close" onclick="closeModal('modal-shipdocs-standalone')">✕</button></div><div class="modal-body" id="shipdocs-standalone-body"></div><div class="modal-footer"><button class="btn btn-secondary" onclick="closeModal('modal-shipdocs-standalone')">Close</button></div></div></div>
@@ -1419,6 +1455,25 @@ let _db = null, _auth = null, _syncEnabled = false, _persistTimer = null;
 // this, which meant a teammate's real update could be silently ignored (and later overwritten)
 // if it arrived within 2 seconds of your own save.
 const _clientId = 'c_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 10);
+// ── Sync reliability state ──────────────────────────────────────────────
+// _hasPendingChanges tracks whether the last edit made it to Firebase yet.
+// This used to have no timeout at all: if the write genuinely hung (flaky
+// connection, tab backgrounded mid-write, etc.) the badge just sat on
+// "Saving…" forever with nothing to tell the person or let them retry —
+// that's the "stuck saving" behaviour. Now a write races against a
+// timeout, retries itself with backoff, and — if it's been stuck for a
+// while — surfaces a popup instead of staying silently broken.
+let _hasPendingChanges = false;
+let _syncRetryTimer = null;
+let _syncRetryDelay = 3000;
+let _syncReminderTimer = null;
+let _syncReminderOpen = false;
+// Auto vs manual sync mode, remembered across sessions. Auto (default)
+// behaves as before — every change pushes to Firebase on its own. Manual
+// holds changes locally (still safe — the local backup keeps saving) until
+// "Sync Now" is tapped, for anyone who'd rather control when it goes out
+// on a slow/metered connection.
+let _autoSyncMode = (localStorage.getItem('fob_auto_sync') ?? 'true') === 'true';
 // Built-in fallback so clearing browser data doesn't force re-entering the
 // Firebase config every time. This is safe to embed — a Firebase web
 // config identifies the project, it isn't a secret credential; real
@@ -1536,6 +1591,13 @@ function setConnStatus(state, text) {
   const label = document.getElementById('conn-text');
   if (badge) { badge.className = 'conn-badge conn-' + state; }
   if (label) { label.textContent = text; }
+}
+// Clicking the sync badge anywhere in the app: if something's actually
+// pending, jump straight to the reminder/manual-sync popup; otherwise just
+// confirm there's nothing to do, so the badge is a useful control either way.
+function handleConnBadgeClick() {
+  if (_hasPendingChanges) openSyncReminderModal();
+  else notify('✅ Already synced', 'success');
 }
 // Boot screen — covers the very first moment of loading the page, before
 // Firebase has even determined whether there's a signed-in session. Faded
@@ -1799,14 +1861,99 @@ function persist() {
   }, 400);
 
   if (_syncEnabled && _db) {
-    clearTimeout(_persistTimer);
-    setConnStatus('syncing', 'Saving…');
-    _persistTimer = setTimeout(() => {
-      const stateToWrite = getFullState();
-      stateToWrite._writer = _clientId;
-      _db.ref('fob_manager').set(stateToWrite).then(() => setConnStatus('online', 'Synced ✓')).catch(e => { setConnStatus('offline', 'Sync error'); notify('Sync error: ' + e.message, 'error'); });
-    }, 800);
+    _hasPendingChanges = true;
+    if (_autoSyncMode) {
+      scheduleSyncWrite();
+    } else {
+      // Manual mode — don't push automatically. The local backup above
+      // still runs, so nothing is lost; this just waits for "Sync Now".
+      setConnStatus('pending', 'Unsynced — tap to sync');
+      scheduleSyncReminder();
+    }
   }
+}
+// Debounced entry point for an auto-sync write — same 800ms "wait for
+// typing to pause" behaviour as before.
+function scheduleSyncWrite() {
+  clearTimeout(_persistTimer);
+  setConnStatus('syncing', 'Saving…');
+  _persistTimer = setTimeout(() => attemptSyncWrite(), 800);
+}
+// Does the actual Firebase write, but never lets it hang indefinitely:
+// racing it against a timeout means "Saving…" always resolves into either
+// "Synced ✓" or a visible "Sync delayed" state within 20s, instead of
+// sitting there forever with no feedback. On failure/timeout it retries
+// on its own with growing backoff, and — if that's been going on for a
+// while — pops the sync reminder so it's not just failing silently.
+function attemptSyncWrite() {
+  if (!_db) return;
+  const stateToWrite = getFullState();
+  stateToWrite._writer = _clientId;
+  const writePromise = _db.ref('fob_manager').set(stateToWrite);
+  const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error('TIMEOUT')), 20000));
+  Promise.race([writePromise, timeoutPromise]).then(() => {
+    _hasPendingChanges = false;
+    _syncRetryDelay = 3000;
+    clearTimeout(_syncRetryTimer);
+    clearTimeout(_syncReminderTimer);
+    setConnStatus('online', 'Synced ✓');
+    closeSyncReminderModal();
+  }).catch(e => {
+    const timedOut = e.message === 'TIMEOUT';
+    setConnStatus('offline', timedOut ? 'Sync delayed' : 'Sync error');
+    if (!timedOut) notify('Sync error: ' + e.message, 'error');
+    clearTimeout(_syncRetryTimer);
+    _syncRetryTimer = setTimeout(() => attemptSyncWrite(), _syncRetryDelay);
+    _syncRetryDelay = Math.min(_syncRetryDelay * 2, 60000); // 3s → 6s → 12s… capped at 60s
+    scheduleSyncReminder();
+  });
+}
+// If changes have been sitting unsynced for a while — whether because
+// manual mode is on, or auto-sync keeps failing/timing out — this surfaces
+// an actual popup instead of a toast that would just vanish. Only queues
+// once at a time so it can't stack reminders on top of itself.
+function scheduleSyncReminder() {
+  if (_syncReminderOpen) return;
+  clearTimeout(_syncReminderTimer);
+  _syncReminderTimer = setTimeout(() => {
+    if (_hasPendingChanges) openSyncReminderModal();
+  }, 15000);
+}
+function openSyncReminderModal() {
+  _syncReminderOpen = true;
+  const body = document.getElementById('syncrem-body');
+  if (body) {
+    body.innerHTML = `
+      <p style="font-size:12.5px;color:var(--text2);line-height:1.6">${_autoSyncMode
+        ? 'Your latest changes haven\'t confirmed as synced yet — this can happen on a slow or unstable connection. They\'re safe in a local backup either way; you can keep waiting or force a retry now.'
+        : 'You\'re in manual sync mode and have changes that haven\'t been sent yet. Tap Sync Now to push them, or switch to automatic so this happens on its own from now on.'}</p>
+      <label style="display:flex;align-items:center;gap:8px;margin-top:14px;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);cursor:pointer">
+        <input type="checkbox" id="syncrem-auto" ${_autoSyncMode ? 'checked' : ''} onchange="setAutoSyncMode(this.checked)">
+        <span style="font-size:12px"><strong>Always sync automatically</strong><br><span style="color:var(--text3);font-size:10.5px">Recommended — turns this reminder off since changes save on their own.</span></span>
+      </label>`;
+  }
+  openModal('modal-syncreminder');
+}
+function closeSyncReminderModal() {
+  _syncReminderOpen = false;
+  closeModal('modal-syncreminder');
+}
+function setAutoSyncMode(checked) {
+  _autoSyncMode = checked;
+  localStorage.setItem('fob_auto_sync', checked ? 'true' : 'false');
+  notify(checked ? '🔄 Auto-sync turned on — your changes will save automatically from now on' : '✋ Manual sync mode — remember to tap Sync Now (or the status badge) to save your changes online', checked ? 'success' : 'warning');
+  if (checked && _hasPendingChanges) attemptSyncWrite();
+}
+// Manual "sync now" — used by the reminder popup, the header status badge,
+// and available any time there's a pending write to force through.
+function syncNow() {
+  if (!_db) { notify('Not connected yet', 'warning'); return; }
+  clearTimeout(_persistTimer);
+  clearTimeout(_syncRetryTimer);
+  _syncRetryDelay = 3000;
+  setConnStatus('syncing', 'Saving…');
+  attemptSyncWrite();
+  notify('🔄 Syncing now…', 'success');
 }
 function getFullState() {
   return { items: app.items, settings: app.settings, quotations: app.quotations, dispatchPlans: app.dispatchPlans, customers: app.customers, customerOrders: app.customerOrders, orderDispatches: app.orderDispatches, orderGroups: app.orderGroups, readinessUpdates: app.readinessUpdates, enquiries: app.enquiries, pendingApprovals: app.pendingApprovals, activityLog: app.activityLog, payments: app.payments, qualityIssues: app.qualityIssues, samples: app.samples, trash: app.trash, shippingDocs: app.shippingDocs, _nextId: app._nextId };
@@ -1925,7 +2072,72 @@ function getStatus(raw) {
   return { label: orig.length > 20 ? orig.substring(0, 20) + '…' : orig, cls: 's-custom' };
 }
 function catCls(cat) { return 'cat-' + (cat || 'OTHER').replace(/\s+/g, '-').replace(/[^A-Z0-9-]/gi, '').toUpperCase(); }
-function notify(msg, type) { const el = document.getElementById('notif'); el.textContent = msg; el.className = 'notif show ' + (type || ''); setTimeout(() => el.className = 'notif', 3200); }
+// Windows-style stacked toasts: multiple can be visible at once, each
+// slides in, gets its own ✕ button, and can be swiped away (mouse-drag or
+// touch). Success/info clear themselves after a while; warnings and
+// errors ("caution" notices) stay up until dismissed — those are exactly
+// the ones that were easy to miss when everything vanished in ~3s flat.
+let _toastSeq = 0;
+function notify(msg, type) {
+  const stack = document.getElementById('notif-stack');
+  if (!stack) return;
+  const id = 'toast_' + (++_toastSeq);
+  const el = document.createElement('div');
+  el.className = 'toast ' + (type || '');
+  el.id = id;
+  const icon = type === 'success' ? '✅' : type === 'error' ? '⛔' : type === 'warning' ? '⚠️' : 'ℹ️';
+  el.innerHTML = '<span class="toast-icon">' + icon + '</span><span class="toast-msg"></span><button class="toast-close" title="Dismiss">✕</button>';
+  el.querySelector('.toast-msg').textContent = msg;
+  el.querySelector('.toast-close').onclick = () => dismissToast(id);
+  stack.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+
+  const autoHideMs = type === 'error' ? 0 : type === 'warning' ? 9000 : 5000;
+  if (autoHideMs > 0) setTimeout(() => dismissToast(id), autoHideMs);
+  attachToastSwipe(el, id);
+
+  // Cap the stack so a burst of notifications can't fill the screen —
+  // drop the oldest one still showing instead of piling up endlessly.
+  const toasts = stack.querySelectorAll('.toast');
+  if (toasts.length > 5) dismissToast(toasts[0].id);
+}
+function dismissToast(id) {
+  const el = document.getElementById(id);
+  if (!el || el.classList.contains('dismissing')) return;
+  el.classList.add('dismissing');
+  el.classList.remove('show');
+  setTimeout(() => el.remove(), 240);
+}
+function attachToastSwipe(el, id) {
+  let startX = 0, dx = 0, dragging = false;
+  const threshold = 70;
+  function move(clientX) {
+    dx = Math.max(0, clientX - startX); // only allow swiping toward the edge
+    el.style.transform = 'translateX(' + dx + 'px)';
+    el.style.opacity = String(Math.max(0.15, 1 - dx / 200));
+  }
+  function mouseMoveHandler(e) { move(e.clientX); }
+  function mouseUpHandler() { end(); }
+  function end() {
+    if (!dragging) return;
+    dragging = false;
+    el.style.transition = '';
+    el.style.cursor = 'grab';
+    document.removeEventListener('mousemove', mouseMoveHandler);
+    document.removeEventListener('mouseup', mouseUpHandler);
+    if (dx > threshold) dismissToast(id);
+    else { el.style.transform = ''; el.style.opacity = ''; }
+    dx = 0;
+  }
+  el.addEventListener('mousedown', e => {
+    dragging = true; startX = e.clientX; el.style.transition = 'none'; el.style.cursor = 'grabbing';
+    document.addEventListener('mousemove', mouseMoveHandler);
+    document.addEventListener('mouseup', mouseUpHandler);
+  });
+  el.addEventListener('touchstart', e => { dragging = true; startX = e.touches[0].clientX; el.style.transition = 'none'; }, { passive: true });
+  el.addEventListener('touchmove', e => { if (dragging) move(e.touches[0].clientX); }, { passive: true });
+  el.addEventListener('touchend', end);
+}
 
 // ── PWA: INSTALL PROMPT + OFFLINE APP SHELL ──────────────────────────────
 // Makes the app properly installable — a home screen icon, full-screen
@@ -4094,7 +4306,7 @@ function buildQModal() {
     <div class="fg fg-3">
       <div class="ff">
         <label>Customer / Company</label>
-        <input id="q-customer" list="customer-list" value="${esc(data.customer)}" onchange="getQData()" placeholder="Start typing customer name..." autocomplete="off">
+        <input id="q-customer" list="customer-list" value="${esc(data.customer)}" onchange="qAutofillCustomer()" placeholder="Start typing customer name..." autocomplete="off">
         <datalist id="customer-list">${customerOptions}</datalist>
       </div>
       <div class="ff"><label>Email</label><input id="q-email" value="${esc(data.email)}" onchange="getQData()" placeholder="email@domain.com"></div>
@@ -4531,57 +4743,92 @@ function renderQList() {
     });
   }
   if (!list.length) { el.innerHTML = '<div class="empty-state"><h3>No matching quotations</h3><p>Try a different search term.</p></div>'; return; }
-  let html = winLossSummaryHTML() + '<div class="doc-list">';
-  list.forEach(q => {
-    const sym = curSym(q.items?.[0]?.currency || 'EUR');
-    const custCountry = findCustomerByName(q.customer)?.country || '';
-    const status = q.status || 'pending';
-    const STATUS_META = {
-      pending: { label: 'Pending', color: 'var(--text3)', bg: 'var(--surface2)' },
-      won: { label: '🟢 Won', color: 'var(--green)', bg: 'var(--green-bg)' },
-      lost: { label: '🔴 Lost', color: 'var(--red)', bg: 'var(--red-bg)' },
-      revised: { label: '🔵 Revised', color: 'var(--accent2)', bg: 'var(--surface2)' }
-    };
-    const sm = STATUS_META[status] || STATUS_META.pending;
-    html += `<div class="doc-card">
-      <div class="doc-icon">${q.mode === 'proforma' ? '🧾' : '📄'}</div>
-      <div class="doc-info">
-        <div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap">
-          <strong style="font-size:14px;color:var(--text)">${esc(q.customer || 'No customer')}</strong>
-          ${custCountry ? `<span style="font-size:11px;font-weight:600;color:var(--text2)">🌍 ${esc(custCountry)}</span>` : ''}
-          ${q.ref ? `<span style="font-size:11px;font-weight:600;color:var(--accent2)">Ref: ${esc(q.ref)}</span>` : ''}
-          <span style="font-size:9.5px;font-weight:700;padding:2px 7px;border-radius:10px;background:${sm.bg};color:${sm.color}">${sm.label}</span>
-        </div>
-        <span>${q.mode === 'proforma' ? 'Proforma' : 'Quotation'} ${esc(docRef(q))} — ${q.items?.length || 0} items — ${sym}${(q.total || 0).toFixed(2)}</span>
-        <div style="font-size:9px;color:var(--text3)">${new Date(q.date || q.savedAt).toLocaleDateString()} | ${esc(q.savedBy || 'System')}${q.revisions?.length ? ` · ${q.revisions.length} earlier version${q.revisions.length > 1 ? 's' : ''}` : ''}</div>
-        ${q.targetAnalysis ? `<div style="font-size:9.5px;margin-top:3px;font-weight:600;color:${q.targetAnalysis.blendedMarginTarget < 0 ? 'var(--red)' : 'var(--text2)'}">🎯 Target check saved: ${curSym(q.targetAnalysis.currency)}${q.targetAnalysis.diffTotal >= 0 ? '+' : ''}${q.targetAnalysis.diffTotal.toFixed(2)} vs offer · blended margin @ target ${q.targetAnalysis.blendedMarginTarget.toFixed(1)}%</div>` : ''}
-        ${status === 'lost' && q.statusReason ? `<div style="font-size:9.5px;margin-top:3px;color:var(--red)">Reason: ${esc(q.statusReason)}</div>` : ''}
-        <div style="margin-top:5px;display:flex;gap:4px;flex-wrap:wrap">
-          <span style="font-size:9px;color:var(--text3);align-self:center;margin-right:2px">Mark:</span>
-          <button class="btn btn-secondary btn-xs" style="${status==='pending'?'outline:2px solid var(--text3)':''}" onclick="setQuoteStatus('${q.id}','pending')">Pending</button>
-          <button class="btn btn-secondary btn-xs" style="${status==='won'?'outline:2px solid var(--green)':''};color:var(--green)" onclick="setQuoteStatus('${q.id}','won')">Won</button>
-          <button class="btn btn-secondary btn-xs" style="${status==='lost'?'outline:2px solid var(--red)':''};color:var(--red)" onclick="setQuoteStatus('${q.id}','lost')">Lost</button>
-        </div>
-      </div>
-      <div class="doc-actions">
-        <button class="btn btn-info btn-xs" onclick="viewDoc('${q.id}','quote')">👁️ View</button>
-        <button class="btn btn-secondary btn-xs" onclick="editQuote('${q.id}')">✏️ Edit</button>
-        <button class="btn btn-purple btn-xs" onclick="openTargetAnalysis('${q.id}')" title="Compare the client's target prices against what you offered, item by item and overall">🎯 Target Check</button>
-        <button class="btn btn-secondary btn-xs" onclick="openQuoteHistory('${q.id}')" title="See and restore earlier versions of this document">🕘 History${q.revisions?.length ? ' (' + q.revisions.length + ')' : ''}</button>
-        <button class="btn btn-secondary btn-xs" onclick="duplicateQuote('${q.id}')" title="Start a new document from this one's details">📋 Duplicate</button>
-        <button class="btn btn-secondary btn-xs" onclick="dlQXLS('${q.id}')">📊 Excel</button>
-        <button class="btn btn-secondary btn-xs" onclick="dlQPDF('${q.id}',false)">📄 PDF</button>
-        <button class="btn btn-secondary btn-xs" onclick="dlQPDF('${q.id}',true)">🖼️ PDF+Photo</button>
-        <button class="btn btn-success btn-xs" onclick="emailQuotationCustomer('${q.id}')">📧 Email</button>
-        ${q.convertedOrderGroupId
-          ? `<button class="btn btn-purple btn-xs" onclick="switchView('orders');setTimeout(()=>openOrderGroupDetail(${q.convertedOrderGroupId}),50)">✅ View Order</button>`
-          : `<button class="btn btn-warning btn-xs" onclick="openConvertToOrder('${q.id}')">➡️ Convert to Order</button>`}
-        <button class="btn btn-danger btn-xs" onclick="delQ('${q.id}')">🗑️ Delete</button>
-      </div>
-    </div>`;
-  });
-  html += '</div>';
+
+  // Converted-to-order documents are effectively done — kept separate from
+  // the working set so an active list of 6 pending quotes isn't buried
+  // under a run of already-converted ones. Within each group: pending
+  // items float to the top (they're the ones needing a decision), then
+  // most recent first.
+  const STATUS_ORDER = { pending: 0, won: 1, revised: 1, lost: 2 };
+  const byPriorityThenDate = (a, b) => {
+    const sa = STATUS_ORDER[a.status || 'pending'] ?? 0, sb = STATUS_ORDER[b.status || 'pending'] ?? 0;
+    if (sa !== sb) return sa - sb;
+    return new Date(b.date || b.savedAt) - new Date(a.date || a.savedAt);
+  };
+  const converted = list.filter(q => q.convertedOrderGroupId).sort((a, b) => new Date(b.date || b.savedAt) - new Date(a.date || a.savedAt));
+  const active = list.filter(q => !q.convertedOrderGroupId).sort(byPriorityThenDate);
+
+  let html = winLossSummaryHTML();
+  if (active.length) {
+    html += `<div class="doc-section-header"><h3>🧾 Quotations &amp; Proforma</h3><span class="doc-section-count">${active.length}</span></div>`;
+    html += '<div class="doc-list">' + active.map(q => buildQuoteCard2HTML(q)).join('') + '</div>';
+  }
+  if (converted.length) {
+    html += `<div class="doc-section-header"><h3>📦 Converted to Orders</h3><span class="doc-section-count">${converted.length}</span></div>`;
+    html += '<div class="doc-list">' + converted.map(q => buildQuoteCard2HTML(q)).join('') + '</div>';
+  }
   el.innerHTML = html;
+}
+const Q_STATUS_META = {
+  pending: { label: 'Pending', color: 'var(--text3)', bg: 'var(--surface2)' },
+  won: { label: '🟢 Won', color: 'var(--green)', bg: 'var(--green-bg)' },
+  lost: { label: '🔴 Lost', color: 'var(--red)', bg: 'var(--red-bg)' },
+  revised: { label: '🔵 Revised', color: 'var(--accent2)', bg: 'var(--surface2)' }
+};
+// One card, two tiers: an always-visible summary + the handful of actions
+// used on nearly every quote (View/Edit/Email + status), and a "More
+// actions" toggle underneath holding everything else — PDF variants,
+// Excel, Target Check, History, Duplicate, Convert/View Order, Delete.
+// Same set of options as before, just not all competing for attention.
+function buildQuoteCard2HTML(q) {
+  const sym = curSym(q.items?.[0]?.currency || 'EUR');
+  const custCountry = findCustomerByName(q.customer)?.country || '';
+  const status = q.status || 'pending';
+  const sm = Q_STATUS_META[status] || Q_STATUS_META.pending;
+  const isConverted = !!q.convertedOrderGroupId;
+  return `<div class="doc-card2">
+      <div class="doc-card2-main">
+        <div class="doc-icon">${q.mode === 'proforma' ? '🧾' : '📄'}</div>
+        <div class="doc-info2">
+          <div class="doc-info2-row1">
+            <strong>${esc(q.customer || 'No customer')}</strong>
+            ${custCountry ? `<span style="font-size:11px;font-weight:600;color:var(--text2)">🌍 ${esc(custCountry)}</span>` : ''}
+            ${q.ref ? `<span style="font-size:11px;font-weight:600;color:var(--accent2)">Ref: ${esc(q.ref)}</span>` : ''}
+            <span class="doc-status-pill" style="background:${sm.bg};color:${sm.color}">${sm.label}</span>
+            ${isConverted ? `<span class="doc-status-pill" style="background:var(--purple-bg);color:var(--purple)">✅ Converted</span>` : ''}
+          </div>
+          <div class="doc-info2-row2">${q.mode === 'proforma' ? 'Proforma' : 'Quotation'} ${esc(docRef(q))} · ${q.items?.length || 0} items · <strong style="color:var(--text2)">${sym}${(q.total || 0).toFixed(2)}</strong> · ${new Date(q.date || q.savedAt).toLocaleDateString()} · ${esc(q.savedBy || 'System')}${q.revisions?.length ? ` · ${q.revisions.length} earlier version${q.revisions.length > 1 ? 's' : ''}` : ''}</div>
+          ${q.targetAnalysis ? `<div style="font-size:9.5px;margin-top:3px;font-weight:600;color:${q.targetAnalysis.blendedMarginTarget < 0 ? 'var(--red)' : 'var(--text2)'}">🎯 Target check: ${curSym(q.targetAnalysis.currency)}${q.targetAnalysis.diffTotal >= 0 ? '+' : ''}${q.targetAnalysis.diffTotal.toFixed(2)} vs offer · margin @ target ${q.targetAnalysis.blendedMarginTarget.toFixed(1)}%</div>` : ''}
+          ${status === 'lost' && q.statusReason ? `<div style="font-size:9.5px;margin-top:3px;color:var(--red)">Reason: ${esc(q.statusReason)}</div>` : ''}
+        </div>
+        <div class="doc-quick-actions">
+          <select class="doc-status-select" title="Mark as" onchange="setQuoteStatus('${q.id}',this.value)">
+            <option value="pending" ${status === 'pending' ? 'selected' : ''}>⚪ Pending</option>
+            <option value="won" ${status === 'won' ? 'selected' : ''}>🟢 Won</option>
+            <option value="lost" ${status === 'lost' ? 'selected' : ''}>🔴 Lost</option>
+          </select>
+          <button class="btn btn-info btn-xs" onclick="viewDoc('${q.id}','quote')">👁️ View</button>
+          <button class="btn btn-secondary btn-xs" onclick="editQuote('${q.id}')">✏️ Edit</button>
+          ${isConverted
+            ? `<button class="btn btn-purple btn-xs" onclick="switchView('orders');setTimeout(()=>openOrderGroupDetail(${q.convertedOrderGroupId}),50)">✅ View Order</button>`
+            : `<button class="btn btn-success btn-xs" onclick="emailQuotationCustomer('${q.id}')">📧 Email</button>`}
+        </div>
+      </div>
+      <details class="doc-more">
+        <summary>More actions</summary>
+        <div class="doc-more-actions">
+          ${isConverted ? `<button class="btn btn-success btn-xs" onclick="emailQuotationCustomer('${q.id}')">📧 Email</button>` : ''}
+          <button class="btn btn-secondary btn-xs" onclick="dlQPDF('${q.id}',false)">📄 PDF</button>
+          <button class="btn btn-secondary btn-xs" onclick="dlQPDF('${q.id}',true)">🖼️ PDF+Photo</button>
+          <button class="btn btn-secondary btn-xs" onclick="dlQXLS('${q.id}')">📊 Excel</button>
+          <button class="btn btn-purple btn-xs" onclick="openTargetAnalysis('${q.id}')" title="Compare the client's target prices against what you offered, item by item and overall">🎯 Target Check</button>
+          <button class="btn btn-secondary btn-xs" onclick="openQuoteHistory('${q.id}')" title="See and restore earlier versions of this document">🕘 History${q.revisions?.length ? ' (' + q.revisions.length + ')' : ''}</button>
+          <button class="btn btn-secondary btn-xs" onclick="duplicateQuote('${q.id}')" title="Start a new document from this one's details">📋 Duplicate</button>
+          ${!isConverted ? `<button class="btn btn-warning btn-xs" onclick="openConvertToOrder('${q.id}')">➡️ Convert to Order</button>` : ''}
+          <button class="btn btn-danger btn-xs" onclick="delQ('${q.id}')">🗑️ Delete</button>
+        </div>
+      </details>
+    </div>`;
 }
 
 function delQ(id) {
@@ -9679,7 +9926,7 @@ function enquiryFormHTML(prefillItems) {
   return `
     <div class="form-sec"><div class="form-sec-title">Customer & Enquiry Details</div>
     <div class="fg fg-2">
-      <div class="ff"><label>Customer *</label><input id="enq-customer" list="oc-customer-list" placeholder="Customer / company name" autocomplete="off"></div>
+      <div class="ff"><label>Customer *</label><input id="enq-customer" list="oc-customer-list" placeholder="Customer / company name" autocomplete="off" onchange="enqAutofillCustomer()"></div>
       <div class="ff"><label>Country</label><input id="enq-country" placeholder="Country"></div>
       <div class="ff"><label>Contact Person</label><input id="enq-contact" placeholder="Contact name"></div>
       <div class="ff"><label>Email</label><input id="enq-email" placeholder="email@customer.com"></div>
@@ -10403,7 +10650,7 @@ function sampleFormHTML() {
   return `
     <div class="form-sec"><div class="form-sec-title">Sample Details</div>
     <div class="fg fg-2">
-      <div class="ff"><label>Customer *</label><input id="smp-customer" list="oc-customer-list" placeholder="Customer / company name" autocomplete="off"></div>
+      <div class="ff"><label>Customer *</label><input id="smp-customer" list="oc-customer-list" placeholder="Customer / company name" autocomplete="off" onchange="smpAutofillCustomer()"></div>
       <div class="ff"><label>Country</label><input id="smp-country" placeholder="Country"></div>
       <div class="ff"><label>Received From *</label><select id="smp-received-from">
         <option value="customer_sent">Received from customer (courier/post)</option>
@@ -11225,7 +11472,17 @@ function renderSettings() {
       const decimalHTML = `<div class="form-sec"><div class="form-sec-title">FOB Display Precision</div><div style="display:flex;gap:10px;align-items:center;padding:6px 0"><label style="font-size:12px;font-weight:500">Decimal places:</label><select onchange="setFOBDecimals(parseInt(this.value))" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px">${[0,1,2,3,4,5,6].map(d => `<option value="${d}" ${decimals===d?'selected':''}>${d}</option>`).join('')}</select><span style="font-size:11px;color:var(--text3)">Example: ${curSym('EUR')}${(123.456789).toFixed(decimals)}</span></div></div>`;
       const passHTML = `<div class="form-sec"><div class="form-sec-title">System Password</div><div style="display:flex;gap:8px;align-items:center"><input id="s-sys-password" type="password" value="${esc(s.system.password)}" style="border:1px solid var(--border);border-radius:4px;padding:4px 8px;flex:1" onchange="s_set('system.password',this.value)"><button class="btn btn-secondary btn-sm" onclick="document.getElementById('s-sys-password').type=document.getElementById('s-sys-password').type==='password'?'text':'password'">👁️</button></div><div style="font-size:10px;color:var(--text3);margin-top:4px">Leave empty to disable lock screen.</div></div>`;
       const nameHTML = `<div class="form-sec"><div class="form-sec-title">System Name</div><div class="fg fg-2"><div class="ff"><label>System Name</label><input id="s-sys-name" value="${esc(s.system.name)}" onchange="s_set('system.name',this.value)"></div><div class="ff"><label>Subtitle</label><input id="s-sys-subtitle" value="${esc(s.system.subtitle)}" onchange="s_set('system.subtitle',this.value)"></div></div></div>`;
-      content.innerHTML = `<h2>⚙️ System Settings</h2>${gitHubConfigHTML}${nameHTML}${passHTML}${decimalHTML}${columnHTML}`;
+      const syncHTML = `<div class="form-sec"><div class="form-sec-title">🔄 Sync</div>
+        <label style="display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border:1px solid var(--border);border-radius:var(--r-sm);cursor:pointer">
+          <input type="checkbox" ${_autoSyncMode ? 'checked' : ''} onchange="setAutoSyncMode(this.checked)">
+          <span style="font-size:12px"><strong>Sync automatically</strong><br><span style="color:var(--text3);font-size:10.5px">Off = changes save locally only until you tap the sync badge or "Sync Now" — useful on a slow/metered connection.</span></span>
+        </label>
+        <div style="margin-top:8px;display:flex;align-items:center;gap:10px">
+          <button class="btn btn-secondary btn-sm" onclick="syncNow()">🔄 Sync Now</button>
+          <span style="font-size:10.5px;color:var(--text3)">${_hasPendingChanges ? '⏳ Changes pending' : '✓ Up to date as of last check'}</span>
+        </div>
+      </div>`;
+      content.innerHTML = `<h2>⚙️ System Settings</h2>${gitHubConfigHTML}${syncHTML}${nameHTML}${passHTML}${decimalHTML}${columnHTML}`;
       break;
       
     case 'data_mgmt':
@@ -11302,6 +11559,34 @@ function getMyGasUrl() {
 function findCustomerByName(name) {
   if (!name) return null;
   return app.customers.find(c => (c.name || '').toLowerCase() === (name || '').toLowerCase()) || null;
+}
+// Shared autofill: once a saved customer is picked (or an exact name match
+// is typed), pull their stored contact details into whichever fields this
+// form actually has — same behaviour as picking a customer/contact on most
+// CRM or invoicing platforms, instead of retyping address/phone every time.
+// Only overwrites fields the customer record actually has a value for, so
+// picking a customer with no phone on file won't blank out one you already
+// typed by hand.
+function autofillCustomerFields(name, fieldMap) {
+  const cust = findCustomerByName((name || '').trim());
+  if (!cust) return;
+  Object.entries(fieldMap).forEach(([customerField, inputId]) => {
+    const val = cust[customerField];
+    if (!val) return;
+    const el = document.getElementById(inputId);
+    if (el) el.value = val;
+  });
+}
+function qAutofillCustomer() {
+  autofillCustomerFields(document.getElementById('q-customer')?.value, { email: 'q-email', phone: 'q-phone', address: 'q-address' });
+  getQData();
+  qAddItemPreview(); // customer changed — refresh the "last quoted to them" preview too
+}
+function enqAutofillCustomer() {
+  autofillCustomerFields(document.getElementById('enq-customer')?.value, { country: 'enq-country', email: 'enq-email', phone: 'enq-phone' });
+}
+function smpAutofillCustomer() {
+  autofillCustomerFields(document.getElementById('smp-customer')?.value, { country: 'smp-country' });
 }
 const GAS_SCRIPT_CODE = `function doGet(e) {
   return ContentService.createTextOutput('FOB Manager Pro email script is running. POST to this URL to send mail.');
