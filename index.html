@@ -12019,21 +12019,21 @@ function runUniversalSearch(qRaw) {
   const procRole = isProcurementUser();
   const groups = [];
 
-  const itemMatches = (app.items || []).filter(r => (r.item || '').toLowerCase().includes(q) || (r.type || '').toLowerCase().includes(q) || (r.refCode || '').toLowerCase().includes(q) || (r.material || '').toLowerCase().includes(q)).slice(0, 6);
+  const itemMatches = (app.items || []).filter(r => (r.item || '').toLowerCase().includes(q) || (r.type || '').toLowerCase().includes(q) || (r.refCode || '').toLowerCase().includes(q) || (r.material || '').toLowerCase().includes(q) || (r.category || '').toLowerCase().includes(q)).slice(0, 6);
   if (itemMatches.length) groups.push({ label: 'Items', rows: itemMatches.map(r => ({
     icon: '📦', title: r.item, sub: [r.type, r.category].filter(Boolean).join(' · '),
     onClick: `navigateFromSearch('${procRole ? 'products-safe' : 'inventory'}', () => jumpToItemFromSearch(${r.id}))`
   })) });
 
   if (!procRole) {
-    const custMatches = (app.customers || []).filter(c => (c.name || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q)).slice(0, 6);
+    const custMatches = (app.customers || []).filter(c => (c.name || '').toLowerCase().includes(q) || (c.email || '').toLowerCase().includes(q) || (c.phone || '').toLowerCase().includes(q) || (c.country || '').toLowerCase().includes(q) || (c.nickname || '').toLowerCase().includes(q)).slice(0, 6);
     if (custMatches.length) groups.push({ label: 'Customers', rows: custMatches.map(c => ({
       icon: '🤝', title: c.name, sub: c.country || c.email || '',
       onClick: `navigateFromSearch('settings', () => { showStgTab('customers'); })`
     })) });
   }
 
-  const enqMatches = (app.enquiries || []).filter(e => (e.customer || '').toLowerCase().includes(q) || (e.itemsRequested || '').toLowerCase().includes(q)).slice(0, 6);
+  const enqMatches = (app.enquiries || []).filter(e => (e.customer || '').toLowerCase().includes(q) || (e.itemsRequested || '').toLowerCase().includes(q) || (e.country || '').toLowerCase().includes(q) || (e.contact || '').toLowerCase().includes(q) || (e.email || '').toLowerCase().includes(q)).slice(0, 6);
   if (enqMatches.length) groups.push({ label: 'Enquiries', rows: enqMatches.map(e => ({
     icon: '📋', title: procRole ? getProcurementSafeCustomerLabel(e.customer) : e.customer, sub: (ENQ_STAGES[e.stage] || {}).label || e.stage || '',
     onClick: `navigateFromSearch('procurement', () => openEnquiryDetail(${e.id}))`
@@ -12046,16 +12046,32 @@ function runUniversalSearch(qRaw) {
   })) });
 
   if (!procRole) {
-    const orderMatches = (app.customerOrders || []).filter(o => (o.customer || '').toLowerCase().includes(q) || (o.itemCode || '').toLowerCase().includes(q)).slice(0, 6);
-    if (orderMatches.length) groups.push({ label: 'Orders', rows: orderMatches.map(o => ({
-      icon: '📒', title: o.customer, sub: o.itemCode || '',
-      onClick: `navigateFromSearch('orders', null)`
+    const orderMatches = (app.orderGroups || []).filter(g => {
+      const lots = (app.customerOrders || []).filter(o => o.orderGroupId === g.id);
+      const haystack = [g.ref, g.customer, g.country, ...lots.map(o => o.itemCode)].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(q);
+    }).slice(0, 6);
+    if (orderMatches.length) groups.push({ label: 'Orders', rows: orderMatches.map(g => ({
+      icon: '📒', title: g.ref, sub: g.customer || '',
+      onClick: `navigateFromSearch('orders', () => openOrderGroupDetail(${g.id}))`
     })) });
 
-    const quoteMatches = (app.quotations || []).filter(qt => (qt.customer || '').toLowerCase().includes(q) || (qt.ref || '').toLowerCase().includes(q)).slice(0, 6);
+    // Was only matching on customer name and a free-text "Ref" field — but
+    // Ref is optional and separate from the actual tracking number
+    // (docNumber, e.g. "QT-15009") assigned to every quote/proforma. A
+    // search for the number printed on the document itself was silently
+    // finding nothing. Now matches the tracking number, the free-text ref,
+    // customer, and every item on the quote (name, ref code, client code).
+    const quoteMatches = (app.quotations || []).filter(qt => {
+      const haystack = [
+        qt.docNumber, docRef(qt), qt.ref, qt.customer,
+        ...(qt.items || []).flatMap(r => [r.item, r.refCode, r.clientCode])
+      ].filter(Boolean).join(' ').toLowerCase();
+      return haystack.includes(q);
+    }).slice(0, 6);
     if (quoteMatches.length) groups.push({ label: 'Quotations', rows: quoteMatches.map(qt => ({
-      icon: '🧾', title: qt.customer, sub: qt.ref || '',
-      onClick: `navigateFromSearch('quotations', null)`
+      icon: '🧾', title: docRef(qt), sub: qt.customer || '',
+      onClick: `navigateFromSearch('quotations', () => viewDoc('${qt.id}','quote'))`
     })) });
   }
 
