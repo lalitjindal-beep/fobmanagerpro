@@ -256,6 +256,8 @@ input[type=checkbox]{width:14px;height:14px;cursor:pointer;accent-color:var(--ac
 .form-note span:first-child{flex-shrink:0}
 .fg{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:11px}
 .fg-2{grid-template-columns:1fr 1fr}.fg-3{grid-template-columns:1fr 1fr 1fr}.fg-full{grid-column:1/-1}
+.fg-2>*{min-width:0}
+@media (max-width:640px){.fg-2,.fg-3{grid-template-columns:1fr}}
 .ff label{display:block;font-size:9.5px;font-weight:600;color:var(--text2);margin-bottom:3px;text-transform:uppercase}
 .ff input,.ff select,.ff textarea{width:100%;border:1px solid var(--border);border-radius:var(--r-sm);padding:5px 8px;font-family:var(--font);font-size:12px;font-weight:400;color:var(--text);background-color:var(--surface);outline:none;transition:border-color .15s,box-shadow .15s}
 .ff input:focus,.ff select:focus,.ff textarea:focus{border-color:var(--accent2);box-shadow:0 0 0 3px rgba(43,90,138,.08)}
@@ -295,25 +297,40 @@ select[style*="width:55px"],select[style*="width:70px"],select[style*="width:96p
 .qt th{background:var(--surface2);padding:6px 8px;text-align:left;font-size:9px;font-weight:600;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border)}
 .qt th.td-r{text-align:right}
 .qt th.td-c{text-align:center}
-.qt td{padding:6px 8px;border-bottom:1px solid #ece8e2;vertical-align:middle}
+.qt td{padding:6px 8px;border-bottom:1px solid #ece8e2;vertical-align:middle;overflow-wrap:break-word}
 .qt tr:last-child td{border-bottom:none}
 .qt input,.qt select{border:1px solid var(--border);border-radius:4px;padding:3px 6px;font-family:var(--font);font-size:11px;font-weight:400;background-color:var(--surface);outline:none}
 .qt input:focus,.qt select:focus{outline:none;border-color:var(--accent2);box-shadow:0 0 0 2px rgba(43,90,138,.08)}
 .qt-total td{font-weight:700;background:var(--green-bg);color:var(--green);font-family:var(--mono);font-size:12px}
 .qt-subrow td{border-bottom:1px solid #ece8e2;padding-top:0;background:var(--surface2)}
-/* Trading Account item/charge cards — replaces wide multi-column tables
-   that forced horizontal scrolling. Each row is its own card that wraps
-   its fields responsively, so nothing ever needs to scroll sideways. */
-.ta-cards{display:flex;flex-direction:column;gap:10px}
-.ta-card{border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface);padding:10px 12px}
-.ta-card.is-excluded{opacity:.55}
-.ta-card-top{display:flex;gap:8px;align-items:flex-end;margin-bottom:9px}
-.ta-card-top .ff{flex:1}
-.ta-card-fields{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:9px}
-.ta-card-computed{display:flex;flex-wrap:wrap;gap:8px 18px;margin-top:9px;padding-top:9px;border-top:1px dashed var(--border)}
-.ta-chip{font-size:10.5px;color:var(--text3)}
-.ta-chip b{display:block;font-size:12.5px;font-family:var(--mono);color:var(--text);margin-top:1px}
-.ta-card-include{display:flex;align-items:center;gap:5px;font-size:10.5px;color:var(--text2);white-space:nowrap}
+/* Trading Account item/charge rows — a grid-based "table" that keeps
+   everything on one line at normal widths but reflows to stacked pairs
+   on narrow screens instead of ever scrolling sideways. */
+.ta-table{border:1px solid var(--border);border-radius:var(--r-sm);background:var(--surface);overflow:hidden}
+.ta-thead{display:none}
+.ta-row{display:grid;gap:6px 8px;align-items:center;padding:7px 10px;border-bottom:1px solid #ece8e2}
+.ta-row:last-child{border-bottom:none}
+.ta-row.is-excluded{opacity:.55}
+.ta-row-items,.ta-thead-items{grid-template-columns:minmax(110px,1.6fr) 52px 78px 78px 66px 66px 74px 52px 24px}
+.ta-row-charges,.ta-thead-charges{grid-template-columns:minmax(110px,1.6fr) 82px 66px 78px 78px 74px 46px 24px}
+.ta-row-incentives,.ta-thead-incentives{grid-template-columns:minmax(110px,1.6fr) 66px 90px 24px}
+.ta-row input,.ta-row select{width:100%;font-size:11px;padding:4px 6px;border:1px solid var(--border);border-radius:4px;font-family:var(--font);background:var(--surface)}
+.ta-row input:focus,.ta-row select:focus{outline:none;border-color:var(--accent2);box-shadow:0 0 0 2px rgba(43,90,138,.08)}
+.ta-computed-val{font-size:11px;font-family:var(--mono);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ta-row .btn-danger.btn-xs{padding:2px 6px}
+.ta-card-include{display:flex;align-items:center;justify-content:center;gap:4px;font-size:10.5px;color:var(--text2);white-space:nowrap}
+.ta-mlabel{display:none}
+@media (min-width:900px){
+  .ta-thead{display:grid;gap:6px 8px;padding:6px 10px;background:var(--surface2);font-size:8.5px;font-weight:700;text-transform:uppercase;color:var(--text3);border-bottom:1px solid var(--border)}
+  .ta-thead span:not(:first-child){text-align:right}
+}
+@media (max-width:899px){
+  .ta-row-items,.ta-row-charges,.ta-row-incentives{grid-template-columns:repeat(auto-fill,minmax(120px,1fr));row-gap:8px}
+  .ta-row{padding:10px}
+  .ta-row .ta-mlabel{display:block;font-size:8.5px;font-weight:600;text-transform:uppercase;color:var(--text3);margin-bottom:2px}
+  .ta-computed-val{text-align:left}
+  .ta-card-include{justify-content:flex-start}
+}
 .stg-layout{display:grid;grid-template-columns:180px 1fr;gap:14px}
 .stg-nav{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);overflow:hidden;align-self:start;box-shadow:var(--shadow-xs)}
 .stg-nav-item{padding:10px 14px;cursor:pointer;font-size:11px;font-weight:600;color:var(--text2);border-bottom:1px solid var(--border);transition:var(--transition)}
@@ -1059,6 +1076,7 @@ table{min-width:820px}
   </div>
   <div class="filter-pills" id="mis-tabs" style="margin-bottom:14px">
     <button class="pill active" data-mtab="overview" onclick="showMisTab('overview')">📈 Overview</button>
+    <button class="pill" data-mtab="pipeline" onclick="showMisTab('pipeline')">🧭 Pipeline</button>
     <button class="pill" data-mtab="trend" onclick="showMisTab('trend')">📅 Sales Trend</button>
     <button class="pill" data-mtab="team" onclick="showMisTab('team')">👥 Team-wise</button>
     <button class="pill" data-mtab="targets" onclick="showMisTab('targets')">🎯 Targets</button>
@@ -4354,6 +4372,8 @@ function buildQModal() {
         <input id="q-customer" list="customer-list" value="${esc(data.customer)}" onchange="qAutofillCustomer()" placeholder="Start typing customer name..." autocomplete="off">
         <datalist id="customer-list">${customerOptions}</datalist>
       </div>
+      <div class="ff"><label>Country</label><input id="q-country" list="q-country-list" value="${esc(data.country || '')}" onchange="getQData()" placeholder="e.g. Poland"><datalist id="q-country-list"><option value="Poland"><option value="Iraq"><option value="Italy"><option value="Russia"><option value="USA"><option value="Ethiopia"><option value="Hungary"><option value="Israel"><option value="Spain"><option value="Germany"></datalist></div>
+      <div class="ff"><label>Marketing Person</label><select id="q-owner" onchange="getQData()">${getEnqOwnerOptions().map(t => `<option value="${esc(t.name)}" ${data.owner === t.name ? 'selected' : ''}>${esc(t.name)}</option>`).join('') || `<option>${esc(getCurrentUser().name || '')}</option>`}</select></div>
       <div class="ff"><label>Email</label><input id="q-email" value="${esc(data.email)}" onchange="getQData()" placeholder="email@domain.com"></div>
       <div class="ff"><label>Phone</label><input id="q-phone" value="${esc(data.phone)}" onchange="getQData()" placeholder="+91 1234567890"></div>
       <div class="ff fg-full"><label>Address</label><input id="q-address" value="${esc(data.address)}" onchange="getQData()" placeholder="Address"></div>
@@ -4491,6 +4511,8 @@ function fieldVal(id, editField, fallback) {
 }
 function getQData() {
   const cust = fieldVal('q-customer', 'customer');
+  const country = fieldVal('q-country', 'country');
+  const owner = fieldVal('q-owner', 'owner', getCurrentUser().name || getCurrentUser().email || '');
   const custEmail = fieldVal('q-email', 'email');
   const custPhone = fieldVal('q-phone', 'phone');
   const custAddr = fieldVal('q-address', 'address');
@@ -4511,7 +4533,7 @@ function getQData() {
   const charges = app._quoteCharges || [];
   const chargesTotal = charges.reduce((s, c) => s + (parseFloat(c.amount) || 0), 0);
   const total = itemsTotalAfterDiscount + chargesTotal;
-  return { items: app._quoteItems, charges, discount, discountAmount, itemsTotal, itemsTotalAfterDiscount, customer: cust, email: custEmail, phone: custPhone, address: custAddr, ref: ref, date: date, validity: valid, terms: terms, payment: payment, notes: notes, total: total, mode: app.quoteMode, docColumns: app._quoteDocColumns || { ...DEFAULT_DOC_COLUMNS } };
+  return { items: app._quoteItems, charges, discount, discountAmount, itemsTotal, itemsTotalAfterDiscount, customer: cust, country: country, owner: owner, email: custEmail, phone: custPhone, address: custAddr, ref: ref, date: date, validity: valid, terms: terms, payment: payment, notes: notes, total: total, mode: app.quoteMode, docColumns: app._quoteDocColumns || { ...DEFAULT_DOC_COLUMNS } };
 }
 // Toggled by the "Document Columns" checkboxes — controls what prints on
 // THIS quote/proforma's PDF and Excel, saved per-document since not every
@@ -7957,8 +7979,9 @@ function buildTAWorkbench() {
     </div>
 
     <div class="form-sec"><div class="form-sec-title">Items <span style="font-weight:400;color:var(--text3);font-size:10.5px">— Qty × Sale Rate = FOB Value; margin compares that to Qty × Purchase Price</span></div>
-    <div class="ta-cards">`;
-  if (!(ta.items || []).length) html += `<div style="font-size:11px;color:var(--text3);padding:4px 2px">No items yet — add one below.</div>`;
+    <div class="ta-table">
+    <div class="ta-thead ta-thead-items"><span>Item</span><span>Qty</span><span>PP ₹/u</span><span>Rate ${esc(fc)}/u</span><span>Ex Rate</span><span>FOB ${esc(fc)}</span><span>FOB ₹</span><span>Margin</span><span></span></div>`;
+  if (!(ta.items || []).length) html += `<div style="font-size:11px;color:var(--text3);padding:10px">No items yet — add one below.</div>`;
   (ta.items || []).forEach((it, i) => {
     const exr = parseFloat(it.exrate) || parseFloat(ta.exrate) || 0;
     const qty = parseFloat(it.qty) || 0, rate = parseFloat(it.saleRate) || 0, pp = parseFloat(it.ppInr) || 0;
@@ -7966,22 +7989,16 @@ function buildTAWorkbench() {
     const cogsInrRow = qty * pp;
     const marginPct = fobInrRow ? ((fobInrRow - cogsInrRow) / fobInrRow * 100) : 0;
     const noPP = !parseFloat(it.ppInr);
-    html += `<div class="ta-card">
-      <div class="ta-card-top">
-        <div class="ff"><label>Item</label><input value="${esc(it.item || '')}" onchange="taUpdItem(${i},'item',this.value)" placeholder="Item description"></div>
-        <button class="btn btn-danger btn-xs" onclick="taRemoveItem(${i})" title="Remove item">✕</button>
-      </div>
-      <div class="ta-card-fields">
-        <div class="ff"><label>Qty</label><input type="number" step="1" value="${it.qty || 0}" onchange="taUpdItem(${i},'qty',this.value)"></div>
-        <div class="ff"><label>Purchase Price ₹/unit</label><input type="number" step="0.01" value="${it.ppInr || 0}" onchange="taUpdItem(${i},'ppInr',this.value)" style="${noPP ? 'border-color:var(--red);background:var(--red-bg)' : ''}" title="${noPP ? 'No purchase price — margin for this line will be meaningless until this is filled in' : ''}"></div>
-        <div class="ff"><label>Sale Rate ${esc(fc)}/unit</label><input type="number" step="0.01" value="${it.saleRate || 0}" onchange="taUpdItem(${i},'saleRate',this.value)"></div>
-        <div class="ff"><label>Ex Rate <span style="text-transform:none;font-weight:400">(override)</span></label><input type="number" step="0.01" value="${it.exrate || ''}" placeholder="${ta.exrate || ''}" onchange="taUpdItem(${i},'exrate',this.value)"></div>
-      </div>
-      <div class="ta-card-computed">
-        <div class="ta-chip">FOB Value ${esc(fc)}<b>${sym}${fobFcRow.toFixed(2)}</b></div>
-        <div class="ta-chip">FOB Value ₹<b>₹${fobInrRow.toFixed(2)}</b></div>
-        <div class="ta-chip">Margin %<b style="color:${marginPct < 0 ? 'var(--red)' : 'var(--green)'}">${marginPct.toFixed(1)}%</b></div>
-      </div>
+    html += `<div class="ta-row ta-row-items">
+      <input value="${esc(it.item || '')}" onchange="taUpdItem(${i},'item',this.value)" placeholder="Item description">
+      <div><label class="ta-mlabel">Qty</label><input type="number" step="1" value="${it.qty || 0}" onchange="taUpdItem(${i},'qty',this.value)"></div>
+      <div><label class="ta-mlabel">Purchase Price ₹/unit</label><input type="number" step="0.01" value="${it.ppInr || 0}" onchange="taUpdItem(${i},'ppInr',this.value)" style="${noPP ? 'border-color:var(--red);background:var(--red-bg)' : ''}" title="${noPP ? 'No purchase price — margin for this line will be meaningless until this is filled in' : ''}"></div>
+      <div><label class="ta-mlabel">Sale Rate ${esc(fc)}/unit</label><input type="number" step="0.01" value="${it.saleRate || 0}" onchange="taUpdItem(${i},'saleRate',this.value)"></div>
+      <div><label class="ta-mlabel">Ex Rate (override)</label><input type="number" step="0.01" value="${it.exrate || ''}" placeholder="${ta.exrate || ''}" onchange="taUpdItem(${i},'exrate',this.value)"></div>
+      <div><label class="ta-mlabel">FOB Value ${esc(fc)}</label><span class="ta-computed-val">${sym}${fobFcRow.toFixed(2)}</span></div>
+      <div><label class="ta-mlabel">FOB Value ₹</label><span class="ta-computed-val">₹${fobInrRow.toFixed(2)}</span></div>
+      <div><label class="ta-mlabel">Margin %</label><span class="ta-computed-val" style="color:${marginPct < 0 ? 'var(--red)' : 'var(--green)'};font-weight:700">${marginPct.toFixed(1)}%</span></div>
+      <button class="btn btn-danger btn-xs" onclick="taRemoveItem(${i})" title="Remove item">✕</button>
     </div>`;
   });
   html += `</div>
@@ -7989,27 +8006,22 @@ function buildTAWorkbench() {
     </div>
 
     <div class="form-sec"><div class="form-sec-title">Charges &amp; Expenses <span style="font-weight:400;color:var(--text3);font-size:10.5px">— Billed = recovered from the customer (part of the invoice); Actual = what you really paid. Untick "Include" to leave a charge out of the margin calculation entirely (still kept here for the record).</span></div>
-    <div class="ta-cards">`;
-  if (!(ta.charges || []).length) html += `<div style="font-size:11px;color:var(--text3);padding:4px 2px">No charges yet — add one below.</div>`;
+    <div class="ta-table">
+    <div class="ta-thead ta-thead-charges"><span>Label</span><span>Type</span><span>Currency</span><span>Billed</span><span>Actual</span><span>Variance</span><span>Incl.</span><span></span></div>`;
+  if (!(ta.charges || []).length) html += `<div style="font-size:11px;color:var(--text3);padding:10px">No charges yet — add one below.</div>`;
   (ta.charges || []).forEach((c, i) => {
     const billed = parseFloat(c.billedAmount) || 0, actual = parseFloat(c.actualAmount) || 0;
     const variance = billed - actual;
     const included = c.includeInMargin !== false;
-    html += `<div class="ta-card${included ? '' : ' is-excluded'}">
-      <div class="ta-card-top">
-        <div class="ff"><label>Label</label><input value="${esc(c.label || '')}" onchange="taUpdCharge(${i},'label',this.value)" placeholder="e.g. Sea Freight"></div>
-        <label class="ta-card-include"><input type="checkbox" ${included ? 'checked' : ''} onchange="taUpdCharge(${i},'includeInMargin',this.checked)" title="Include this charge in the margin calculation"> Include</label>
-        <button class="btn btn-danger btn-xs" onclick="taRemoveCharge(${i})" title="Remove charge">✕</button>
-      </div>
-      <div class="ta-card-fields">
-        <div class="ff"><label>Type</label><select onchange="taUpdCharge(${i},'type',this.value)">${['freight', 'insurance', 'packing', 'commission', 'bank', 'inspection', 'other'].map(t => `<option value="${t}" ${c.type === t ? 'selected' : ''}>${t.charAt(0).toUpperCase() + t.slice(1)}</option>`).join('')}</select></div>
-        <div class="ff"><label>Currency</label><select onchange="taUpdCharge(${i},'currency',this.value)"><option value="INR" ${c.currency === 'INR' ? 'selected' : ''}>₹ INR</option><option value="FC" ${c.currency === 'FC' ? 'selected' : ''}>${esc(fc)}</option></select></div>
-        <div class="ff"><label>Billed to Customer</label><input type="number" step="0.01" value="${c.billedAmount || 0}" onchange="taUpdCharge(${i},'billedAmount',this.value)"></div>
-        <div class="ff"><label>Actual Cost</label><input type="number" step="0.01" value="${c.actualAmount || 0}" onchange="taUpdCharge(${i},'actualAmount',this.value)"></div>
-      </div>
-      <div class="ta-card-computed">
-        <div class="ta-chip">Variance <span style="text-transform:none;font-weight:400">(billed − actual)</span><b style="color:${variance < -0.01 ? 'var(--red)' : variance > 0.01 ? 'var(--green)' : 'var(--text3)'}">${variance >= 0 ? '+' : ''}${variance.toFixed(2)}</b></div>
-      </div>
+    html += `<div class="ta-row ta-row-charges${included ? '' : ' is-excluded'}">
+      <input value="${esc(c.label || '')}" onchange="taUpdCharge(${i},'label',this.value)" placeholder="e.g. Sea Freight">
+      <div><label class="ta-mlabel">Type</label><select onchange="taUpdCharge(${i},'type',this.value)">${['freight', 'insurance', 'packing', 'commission', 'bank', 'inspection', 'other'].map(t => `<option value="${t}" ${c.type === t ? 'selected' : ''}>${t.charAt(0).toUpperCase() + t.slice(1)}</option>`).join('')}</select></div>
+      <div><label class="ta-mlabel">Currency</label><select onchange="taUpdCharge(${i},'currency',this.value)"><option value="INR" ${c.currency === 'INR' ? 'selected' : ''}>₹ INR</option><option value="FC" ${c.currency === 'FC' ? 'selected' : ''}>${esc(fc)}</option></select></div>
+      <div><label class="ta-mlabel">Billed to Customer</label><input type="number" step="0.01" value="${c.billedAmount || 0}" onchange="taUpdCharge(${i},'billedAmount',this.value)"></div>
+      <div><label class="ta-mlabel">Actual Cost</label><input type="number" step="0.01" value="${c.actualAmount || 0}" onchange="taUpdCharge(${i},'actualAmount',this.value)"></div>
+      <div><label class="ta-mlabel">Variance (billed − actual)</label><span class="ta-computed-val" style="color:${variance < -0.01 ? 'var(--red)' : variance > 0.01 ? 'var(--green)' : 'var(--text3)'};font-weight:700">${variance >= 0 ? '+' : ''}${variance.toFixed(2)}</span></div>
+      <label class="ta-card-include" title="Include this charge in the margin calculation"><input type="checkbox" ${included ? 'checked' : ''} onchange="taUpdCharge(${i},'includeInMargin',this.checked)"><span class="ta-mlabel">Include</span></label>
+      <button class="btn btn-danger btn-xs" onclick="taRemoveCharge(${i})" title="Remove charge">✕</button>
     </div>`;
   });
   html += `</div>
@@ -8017,18 +8029,15 @@ function buildTAWorkbench() {
     </div>
 
     <div class="form-sec"><div class="form-sec-title">Other Income <span style="font-weight:400;color:var(--text3);font-size:10.5px">— Duty Drawback, RoDTEP, other export incentives. Pure income — adds to Money In with no cost side.</span></div>
-    <div class="ta-cards">`;
-  if (!(ta.incentives || []).length) html += `<div style="font-size:11px;color:var(--text3);padding:4px 2px">No other income yet — add one below.</div>`;
+    <div class="ta-table">
+    <div class="ta-thead ta-thead-incentives"><span>Label</span><span>Currency</span><span>Amount</span><span></span></div>`;
+  if (!(ta.incentives || []).length) html += `<div style="font-size:11px;color:var(--text3);padding:10px">No other income yet — add one below.</div>`;
   (ta.incentives || []).forEach((inc, i) => {
-    html += `<div class="ta-card">
-      <div class="ta-card-top">
-        <div class="ff"><label>Label</label><input value="${esc(inc.label || '')}" onchange="taUpdIncentive(${i},'label',this.value)" placeholder="e.g. Duty Drawback"></div>
-        <button class="btn btn-danger btn-xs" onclick="taRemoveIncentive(${i})" title="Remove">✕</button>
-      </div>
-      <div class="ta-card-fields">
-        <div class="ff"><label>Currency</label><select onchange="taUpdIncentive(${i},'currency',this.value)"><option value="INR" ${inc.currency === 'INR' ? 'selected' : ''}>₹ INR</option><option value="FC" ${inc.currency === 'FC' ? 'selected' : ''}>${esc(fc)}</option></select></div>
-        <div class="ff"><label>Amount</label><input type="number" step="0.01" value="${inc.amount || 0}" onchange="taUpdIncentive(${i},'amount',this.value)"></div>
-      </div>
+    html += `<div class="ta-row ta-row-incentives">
+      <input value="${esc(inc.label || '')}" onchange="taUpdIncentive(${i},'label',this.value)" placeholder="e.g. Duty Drawback">
+      <div><label class="ta-mlabel">Currency</label><select onchange="taUpdIncentive(${i},'currency',this.value)"><option value="INR" ${inc.currency === 'INR' ? 'selected' : ''}>₹ INR</option><option value="FC" ${inc.currency === 'FC' ? 'selected' : ''}>${esc(fc)}</option></select></div>
+      <div><label class="ta-mlabel">Amount</label><input type="number" step="0.01" value="${inc.amount || 0}" onchange="taUpdIncentive(${i},'amount',this.value)"></div>
+      <button class="btn btn-danger btn-xs" onclick="taRemoveIncentive(${i})" title="Remove">✕</button>
     </div>`;
   });
   html += `</div>
@@ -8059,11 +8068,11 @@ function buildTASummaryHTML(r, ta) {
   const colorFor = n => n > 0.01 ? 'var(--green)' : n < -0.01 ? 'var(--red)' : 'var(--text)';
   const varRow = (label, inAmt, outAmt) => {
     const v = inAmt - outAmt;
-    return `<tr><td>${label}</td><td class="td-r">${fmtInr(inAmt)}</td><td class="td-r">${fmtInr(outAmt)}</td><td class="td-r" style="color:${colorFor(v)};font-weight:700">${v >= 0 ? '+' : ''}${fmtInr(v)}</td></tr>`;
+    return `<tr><td>${label}</td><td class="td-r" style="white-space:nowrap">${fmtInr(inAmt)}</td><td class="td-r" style="white-space:nowrap">${fmtInr(outAmt)}</td><td class="td-r" style="white-space:nowrap;color:${colorFor(v)};font-weight:700">${v >= 0 ? '+' : ''}${fmtInr(v)}</td></tr>`;
   };
   // Primary currency setting swaps which column is shown first in every row.
   const c1 = ms.primaryCurrency === 'FC' ? fmtFc : fmtInr, c2 = ms.primaryCurrency === 'FC' ? fmtInr : fmtFc;
-  const amtRow = (label, inr, fc, bold) => `<tr${bold ? ' class="qt-total" style="font-weight:700"' : ''}><td>${label}</td><td class="td-r">${c1(ms.primaryCurrency === 'FC' ? fc : inr)}</td><td class="td-r">${c2(ms.primaryCurrency === 'FC' ? inr : fc)}</td></tr>`;
+  const amtRow = (label, inr, fc, bold) => `<tr${bold ? ' class="qt-total" style="font-weight:700"' : ''}><td>${label}</td><td class="td-r" style="white-space:nowrap">${c1(ms.primaryCurrency === 'FC' ? fc : inr)}</td><td class="td-r" style="white-space:nowrap">${c2(ms.primaryCurrency === 'FC' ? inr : fc)}</td></tr>`;
   const netColor = colorFor(r.netFinal.amt);
   const netBg = r.netFinal.amt < -0.01 ? 'var(--red-bg)' : 'var(--green-bg)';
   const salesBasisLabel = ms.salesBasis === 'total_invoice' ? 'of Total Realization' : 'of Goods (FOB) Value';
@@ -8072,7 +8081,7 @@ function buildTASummaryHTML(r, ta) {
     <div class="fg fg-2">
       <div>
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--green);margin-bottom:5px">💰 Money In (Receipts)</div>
-        <table class="qt" style="width:100%"><tbody>
+        <table class="qt" style="width:100%;table-layout:fixed"><colgroup><col style="width:56%"><col style="width:22%"><col style="width:22%"></colgroup><tbody>
           ${amtRow('Sales Value (Goods, FOB basis)', r.fobInr, r.fobFc)}
           ${amtRow('Freight Recovered from Customer', r.freightBilledInr, r.freightBilledFc)}
           ${amtRow('Insurance Recovered from Customer', r.insBilledInr, r.insBilledFc)}
@@ -8083,7 +8092,7 @@ function buildTASummaryHTML(r, ta) {
       </div>
       <div>
         <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--red);margin-bottom:5px">💸 Money Out (Payments)</div>
-        <table class="qt" style="width:100%"><tbody>
+        <table class="qt" style="width:100%;table-layout:fixed"><colgroup><col style="width:56%"><col style="width:22%"><col style="width:22%"></colgroup><tbody>
           ${amtRow('Purchase Cost (COGS)', r.cogsInr, r.cogsFc)}
           ${amtRow('Freight Paid to Shipping Line', r.freightActualInr, r.freightActualFc)}
           ${amtRow('Insurance Paid', r.insActualInr, r.insActualFc)}
@@ -8100,9 +8109,9 @@ function buildTASummaryHTML(r, ta) {
       <div style="font-size:11px;color:var(--text2)">${r.netFinal.pctSales.toFixed(1)}% <span style="color:var(--text3)">${salesBasisLabel}</span> &nbsp;·&nbsp; ${r.netFinal.pctCost.toFixed(1)}% markup on cost</div>
     </div>
 
-    <div style="margin-top:16px;overflow-x:auto">
+    <div style="margin-top:16px">
       <div style="font-size:10px;font-weight:700;text-transform:uppercase;color:var(--text3);margin-bottom:6px">Where In vs Out Didn't Match</div>
-      <table class="qt" style="width:100%;min-width:480px"><thead><tr><th>Item</th><th>Money In</th><th>Money Out</th><th>Variance</th></tr></thead><tbody>
+      <table class="qt" style="width:100%;table-layout:fixed"><colgroup><col style="width:34%"><col style="width:22%"><col style="width:22%"><col style="width:22%"></colgroup><thead><tr><th>Item</th><th class="td-r">Money In</th><th class="td-r">Money Out</th><th class="td-r">Variance</th></tr></thead><tbody>
         ${varRow('Goods (Sales vs Cost)', r.fobInr, r.cogsInr)}
         ${varRow('Freight', r.freightBilledInr, r.freightActualInr)}
         ${varRow('Insurance', r.insBilledInr, r.insActualInr)}
@@ -8649,8 +8658,12 @@ function openConvertToOrder(qid) {
       </div>
       <div class="ff" id="co-country-wrap">
         <label>Country</label>
-        <input id="co-country" list="oc-country-list" placeholder="e.g. Poland" value="">
+        <input id="co-country" list="oc-country-list" placeholder="e.g. Poland" value="${esc(q.country || '')}">
         <datalist id="oc-country-list"><option value="Poland"><option value="Iraq"><option value="Italy"><option value="Russia"><option value="USA"><option value="Ethiopia"><option value="Hungary"><option value="Israel"><option value="Spain"></datalist>
+      </div>
+      <div class="ff" id="co-owner-wrap">
+        <label>Marketing Person</label>
+        <select id="co-owner">${getEnqOwnerOptions().map(t => `<option value="${esc(t.name)}" ${(q.owner || '') === t.name ? 'selected' : ''}>${esc(t.name)}</option>`).join('') || `<option value="">-- None --</option>`}</select>
       </div>
     </div>`;
   openModal('modal-convert-order');
@@ -8660,6 +8673,8 @@ function toggleConvertMergeSelect() {
   document.getElementById('co-merge-wrap').style.display = action === 'merge' ? 'block' : 'none';
   const countryWrap = document.getElementById('co-country-wrap');
   if (countryWrap) countryWrap.style.display = action === 'merge' ? 'none' : 'block';
+  const ownerWrap = document.getElementById('co-owner-wrap');
+  if (ownerWrap) ownerWrap.style.display = action === 'merge' ? 'none' : 'block';
 }
 function confirmConvertToOrder() {
   const qid = app._convertQid;
@@ -8685,13 +8700,14 @@ function confirmConvertToOrder() {
     }
   } else {
     const country = document.getElementById('co-country')?.value?.trim() || '';
+    const owner = document.getElementById('co-owner')?.value || q.owner || '';
     const orderPrefix = (app.settings.orders?.prefix || 'ORD').trim();
     const orderNum = parseInt(app.settings.orders?.nextNumber) || 1;
     const orderRef = orderPrefix + '-' + String(orderNum).padStart(5, '0');
     if (!app.settings.orders) app.settings.orders = { prefix: 'ORD', nextNumber: 1 };
     app.settings.orders.nextNumber = orderNum + 1;
     group = {
-      id: uid(), customer: q.customer, ref: orderRef, createdDate: orderDate, status: 'open', country,
+      id: uid(), customer: q.customer, ref: orderRef, createdDate: orderDate, status: 'open', country, owner,
       sourceProformaIds: [q.id],
       // Additional charges (sea freight, packing, etc.) live at the order
       // level, not per item lot — they're not something to dispatch a
@@ -10064,7 +10080,7 @@ function showMisTab(tab) {
   renderMisActiveTab();
 }
 function renderMisActiveTab() {
-  const fns = { overview: renderMisOverview, trend: renderMisTrend, team: renderMisTeam, targets: renderMisTargets, territory: renderMisTerritory, items: renderMisItems, clients: renderMisClients, compare: renderMisCompare };
+  const fns = { overview: renderMisOverview, pipeline: renderMisPipeline, trend: renderMisTrend, team: renderMisTeam, targets: renderMisTargets, territory: renderMisTerritory, items: renderMisItems, clients: renderMisClients, compare: renderMisCompare };
   (fns[_misActiveTab] || renderMisOverview)();
 }
 function renderMIS() { renderMisActiveTab(); }
@@ -10134,6 +10150,277 @@ function renderMisOverview() {
       }</div>
     </div>
     <div style="font-size:9.5px;color:var(--text3);margin-top:12px">Sales figures combine multi-currency orders into ${misReportingCcy()} using the FX table in Settings → Defaults. Change the range at the top-right to recompute everything on this dashboard.</div>`;
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// ── MIS: PIPELINE — "how much is where" for management reporting ──────────
+// The other MIS tabs (Team/Territory/Clients/Items) only look at orders that
+// already exist — they can't answer "how many enquiries are still being
+// negotiated" or "how much is under production vs ready vs dispatched right
+// now". This tab answers exactly that: two funnels (Enquiries→Won/Lost, and
+// Ordered→Production→Ready→Dispatched), each sliceable by Country /
+// Marketing Person / Customer (and Product Category for the order side,
+// since that's tracked per order line, not per enquiry).
+// ══════════════════════════════════════════════════════════════════════════
+function misPipelineEnqDimFn(dim) {
+  if (dim === 'country') return e => e.country || 'Unspecified';
+  if (dim === 'owner') return e => e.owner || 'Unspecified';
+  return e => e.customer || 'Unspecified';
+}
+function misPipelineOrdDimFn(dim, groupById) {
+  if (dim === 'country') return l => (groupById[l.orderGroupId]?.country) || 'Unspecified';
+  if (dim === 'owner') return l => (groupById[l.orderGroupId]?.owner) || 'Unassigned';
+  if (dim === 'category') return l => l.category || 'Unspecified';
+  return l => l.customer || 'Unspecified';
+}
+function misPipelineQuoteDimFn(dim) {
+  if (dim === 'country') return q => q.country || 'Unspecified';
+  if (dim === 'owner') return q => q.owner || 'Unspecified';
+  return q => q.customer || 'Unspecified';
+}
+function renderMisPipeline() {
+  const el = document.getElementById('mis-content');
+  const enqDim = document.getElementById('mis-pipe-enq-dim')?.value || 'country';
+  const qteDim = document.getElementById('mis-pipe-qte-dim')?.value || 'country';
+  const ordDim = document.getElementById('mis-pipe-ord-dim')?.value || 'country';
+
+  // ── Enquiry funnel (from the Customer Enquiry Tracker) ──
+  const enquiries = app.enquiries.filter(e => e.stage !== 'legacy');
+  const enqKeyFn = misPipelineEnqDimFn(enqDim);
+  const enqGroups = {};
+  enquiries.forEach(e => {
+    const k = enqKeyFn(e);
+    if (!enqGroups[k]) enqGroups[k] = { new: 0, sent_to_procurement: 0, pricing_received: 0, quoted: 0, follow_up: 0, won: 0, lost: 0 };
+    if (enqGroups[k][e.stage] != null) enqGroups[k][e.stage]++;
+  });
+  const enqRows = Object.entries(enqGroups).map(([name, s]) => {
+    const open = s.new + s.sent_to_procurement + s.pricing_received + s.quoted + s.follow_up;
+    const closed = s.won + s.lost;
+    return { name, ...s, open, winRate: closed ? Math.round(s.won / closed * 100) : null };
+  }).sort((a, b) => (b.open + b.won + b.lost) - (a.open + a.won + a.lost));
+  const enqTotals = enqRows.reduce((t, r) => { ['new', 'sent_to_procurement', 'pricing_received', 'quoted', 'follow_up', 'open', 'won', 'lost'].forEach(k => t[k] = (t[k] || 0) + r[k]); return t; }, {});
+  enqTotals.winRate = (enqTotals.won + enqTotals.lost) ? Math.round(enqTotals.won / (enqTotals.won + enqTotals.lost) * 100) : null;
+
+  // ── Quotation/Proforma funnel — every document raised, whether or not it
+  // started life as a tracked Enquiry (there's no link between the two
+  // records, so this is deliberately a separate count, not merged into the
+  // Enquiry table above). Pending here means "sent, no outcome recorded yet".
+  const quotes = app.quotations || [];
+  const qteKeyFn = misPipelineQuoteDimFn(qteDim);
+  const qteGroups = {};
+  quotes.forEach(q => {
+    const k = qteKeyFn(q);
+    if (!qteGroups[k]) qteGroups[k] = { pending: 0, won: 0, lost: 0, valueWon: 0, valueTotal: 0 };
+    const g = qteGroups[k];
+    const st = q.status || 'pending';
+    if (g[st] != null) g[st]++;
+    const val = misConvert(q.total || 0, q.items?.[0]?.currency || 'EUR');
+    g.valueTotal += val;
+    if (st === 'won') g.valueWon += val;
+  });
+  const qteRows = Object.entries(qteGroups).map(([name, s]) => {
+    const closed = s.won + s.lost;
+    return { name, ...s, winRate: closed ? Math.round(s.won / closed * 100) : null };
+  }).sort((a, b) => b.valueTotal - a.valueTotal);
+  const qteTotals = qteRows.reduce((t, r) => { ['pending', 'won', 'lost', 'valueWon', 'valueTotal'].forEach(k => t[k] = (t[k] || 0) + r[k]); return t; }, {});
+  qteTotals.winRate = (qteTotals.won + qteTotals.lost) ? Math.round(qteTotals.won / (qteTotals.won + qteTotals.lost) * 100) : null;
+
+  // ── Order fulfillment funnel (Ordered → Under Production → Ready → Dispatched) ──
+  const groupById = {}; app.orderGroups.forEach(g => groupById[g.id] = g);
+  const ordKeyFn = misPipelineOrdDimFn(ordDim, groupById);
+  const ordGroups = {};
+  app.customerOrders.forEach(l => {
+    const k = ordKeyFn(l);
+    if (!ordGroups[k]) ordGroups[k] = { ordered: 0, dispatched: 0, ready: 0, underProduction: 0, valueOrdered: 0, valueDispatched: 0 };
+    const st = getLotStatus(l);
+    const g = ordGroups[k];
+    g.ordered += st.ordered; g.dispatched += st.dispatched; g.ready += st.readyForDispatch; g.underProduction += st.underProduction;
+    const rate = parseFloat(l.rate) || 0;
+    g.valueOrdered += misConvert(st.ordered * rate, l.currency);
+    g.valueDispatched += misConvert(st.dispatched * rate, l.currency);
+  });
+  const ordRows = Object.entries(ordGroups).map(([name, s]) => ({ name, ...s, balance: Math.max(0, s.ordered - s.dispatched), pctDone: s.ordered ? Math.round(s.dispatched / s.ordered * 100) : 0 })).sort((a, b) => b.valueOrdered - a.valueOrdered);
+  const ordTotals = ordRows.reduce((t, r) => { ['ordered', 'dispatched', 'ready', 'underProduction', 'balance', 'valueOrdered', 'valueDispatched'].forEach(k => t[k] = (t[k] || 0) + r[k]); return t; }, {});
+  ordTotals.pctDone = ordTotals.ordered ? Math.round(ordTotals.dispatched / ordTotals.ordered * 100) : 0;
+
+  const dimLabel = { country: 'Country', owner: 'Marketing Person', customer: 'Customer', category: 'Product Category' };
+  const dimOptsFor = (selId, current, includeCategory) => `<select id="${selId}" onchange="renderMisPipeline()" style="height:30px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 8px;font-size:11.5px">
+      <option value="country" ${current === 'country' ? 'selected' : ''}>By Country</option>
+      <option value="owner" ${current === 'owner' ? 'selected' : ''}>By Marketing Person</option>
+      <option value="customer" ${current === 'customer' ? 'selected' : ''}>By Customer</option>
+      ${includeCategory ? `<option value="category" ${current === 'category' ? 'selected' : ''}>By Product Category</option>` : ''}
+    </select>`;
+
+  const enqRowHTML = r => `<tr>
+    <td>${esc(r.name)}</td>
+    <td class="td-r">${r.new || ''}</td><td class="td-r">${r.sent_to_procurement || ''}</td><td class="td-r">${r.pricing_received || ''}</td><td class="td-r">${r.quoted || ''}</td><td class="td-r">${r.follow_up || ''}</td>
+    <td class="td-r" style="font-weight:700">${r.open}</td>
+    <td class="td-r" style="color:var(--green)">${r.won || ''}</td>
+    <td class="td-r" style="color:var(--red)">${r.lost || ''}</td>
+    <td class="td-r">${r.winRate == null ? '—' : r.winRate + '%'}</td>
+  </tr>`;
+  const qteRowHTML = r => `<tr>
+    <td>${esc(r.name)}</td>
+    <td class="td-r">${r.pending || ''}</td>
+    <td class="td-r" style="color:var(--green)">${r.won || ''}</td>
+    <td class="td-r" style="color:var(--red)">${r.lost || ''}</td>
+    <td class="td-r">${r.winRate == null ? '—' : r.winRate + '%'}</td>
+    <td class="td-r">${misFmt(r.valueWon)}</td>
+    <td class="td-r">${misFmt(r.valueTotal)}</td>
+  </tr>`;
+  const ordRowHTML = r => `<tr>
+    <td>${esc(r.name)}</td>
+    <td class="td-r">${r.ordered.toLocaleString()}</td>
+    <td class="td-r" style="color:var(--amber);font-weight:600">${r.underProduction > 0 ? r.underProduction.toLocaleString() : '—'}</td>
+    <td class="td-r" style="color:var(--green);font-weight:600">${r.ready > 0 ? r.ready.toLocaleString() : '—'}</td>
+    <td class="td-r">${r.dispatched.toLocaleString()}</td>
+    <td class="td-r">${r.balance > 0 ? r.balance.toLocaleString() : '—'}</td>
+    <td class="td-r">${misFmt(r.valueOrdered)}</td>
+    <td class="td-r">${r.pctDone}%</td>
+  </tr>`;
+
+  el.innerHTML = `
+    <div class="mis-card">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+        <h3 style="margin:0">📋 Enquiry Pipeline — ${dimLabel[enqDim]}</h3>
+        <div style="display:flex;gap:8px;align-items:center">${dimOptsFor('mis-pipe-enq-dim', enqDim, false)}<button class="btn btn-secondary btn-xs" onclick="exportMisPipelineExcel('enquiry')">⬇️ Excel</button></div>
+      </div>
+      <p style="font-size:10.5px;color:var(--text3);margin:2px 0 8px">Where every live enquiry currently sits, broken down by ${dimLabel[enqDim].toLowerCase()}. "Legacy" (old vendor-tool) records are excluded.</p>
+      <div class="table-wrap"><table class="qt" style="width:100%;font-size:11px"><thead><tr>
+        <th>${dimLabel[enqDim]}</th><th class="td-r">🆕 New</th><th class="td-r">📤 With Shammi</th><th class="td-r">💰 Costing Recd</th><th class="td-r">📨 Quoted <span style="font-weight:400">(Negotiation)</span></th><th class="td-r">⏳ Awaiting Cust.</th><th class="td-r">Open Total</th><th class="td-r">✅ Won</th><th class="td-r">❌ Lost</th><th class="td-r">Win Rate</th>
+      </tr></thead><tbody>
+        ${enqRows.map(enqRowHTML).join('') || `<tr><td colspan="10" style="color:var(--text3);text-align:center;padding:16px">No enquiries on file</td></tr>`}
+        ${enqRows.length ? `<tr class="qt-total" style="font-weight:700"><td>TOTAL</td><td class="td-r">${enqTotals.new || ''}</td><td class="td-r">${enqTotals.sent_to_procurement || ''}</td><td class="td-r">${enqTotals.pricing_received || ''}</td><td class="td-r">${enqTotals.quoted || ''}</td><td class="td-r">${enqTotals.follow_up || ''}</td><td class="td-r">${enqTotals.open}</td><td class="td-r" style="color:var(--green)">${enqTotals.won}</td><td class="td-r" style="color:var(--red)">${enqTotals.lost}</td><td class="td-r">${enqTotals.winRate == null ? '—' : enqTotals.winRate + '%'}</td></tr>` : ''}
+      </tbody></table></div>
+    </div>
+
+    <div class="mis-card" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+        <h3 style="margin:0">📨 Quotation Pipeline — ${dimLabel[qteDim]}</h3>
+        <div style="display:flex;gap:8px;align-items:center">${dimOptsFor('mis-pipe-qte-dim', qteDim, false)}<button class="btn btn-secondary btn-xs" onclick="exportMisPipelineExcel('quote')">⬇️ Excel</button></div>
+      </div>
+      <p style="font-size:10.5px;color:var(--text3);margin:2px 0 8px">Every Quotation/Proforma on file, broken down by ${dimLabel[qteDim].toLowerCase()} — covers quotes raised directly as well as ones started from an Enquiry, since the two aren't linked one-to-one.</p>
+      <div class="table-wrap"><table class="qt" style="width:100%;font-size:11px"><thead><tr>
+        <th>${dimLabel[qteDim]}</th><th class="td-r">⚪ Pending</th><th class="td-r">✅ Won</th><th class="td-r">❌ Lost</th><th class="td-r">Win Rate</th><th class="td-r">Value Won (${misSym()})</th><th class="td-r">Total Quoted (${misSym()})</th>
+      </tr></thead><tbody>
+        ${qteRows.map(qteRowHTML).join('') || `<tr><td colspan="7" style="color:var(--text3);text-align:center;padding:16px">No quotations on file</td></tr>`}
+        ${qteRows.length ? `<tr class="qt-total" style="font-weight:700"><td>TOTAL</td><td class="td-r">${qteTotals.pending || ''}</td><td class="td-r" style="color:var(--green)">${qteTotals.won}</td><td class="td-r" style="color:var(--red)">${qteTotals.lost}</td><td class="td-r">${qteTotals.winRate == null ? '—' : qteTotals.winRate + '%'}</td><td class="td-r">${misFmt(qteTotals.valueWon)}</td><td class="td-r">${misFmt(qteTotals.valueTotal)}</td></tr>` : ''}
+      </tbody></table></div>
+    </div>
+
+    <div class="mis-card" style="margin-top:12px">
+      <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:4px">
+        <h3 style="margin:0">🏭 Order Fulfillment Pipeline — ${dimLabel[ordDim]}</h3>
+        <div style="display:flex;gap:8px;align-items:center">${dimOptsFor('mis-pipe-ord-dim', ordDim, true)}<button class="btn btn-secondary btn-xs" onclick="exportMisPipelineExcel('order')">⬇️ Excel</button></div>
+      </div>
+      <p style="font-size:10.5px;color:var(--text3);margin:2px 0 8px">Every placed order line, broken down by ${dimLabel[ordDim].toLowerCase()}, split into what's under production, ready to ship, and already dispatched. Covers all orders on file, open or closed.</p>
+      <div class="table-wrap"><table class="qt" style="width:100%;font-size:11px"><thead><tr>
+        <th>${dimLabel[ordDim]}</th><th class="td-r">Ordered Qty</th><th class="td-r">🏭 Under Production</th><th class="td-r">📦 Ready</th><th class="td-r">🚚 Dispatched</th><th class="td-r">Balance</th><th class="td-r">Order Value (${misSym()})</th><th class="td-r">% Fulfilled</th>
+      </tr></thead><tbody>
+        ${ordRows.map(ordRowHTML).join('') || `<tr><td colspan="8" style="color:var(--text3);text-align:center;padding:16px">No orders on file</td></tr>`}
+        ${ordRows.length ? `<tr class="qt-total" style="font-weight:700"><td>TOTAL</td><td class="td-r">${ordTotals.ordered.toLocaleString()}</td><td class="td-r" style="color:var(--amber)">${ordTotals.underProduction.toLocaleString()}</td><td class="td-r" style="color:var(--green)">${ordTotals.ready.toLocaleString()}</td><td class="td-r">${ordTotals.dispatched.toLocaleString()}</td><td class="td-r">${ordTotals.balance.toLocaleString()}</td><td class="td-r">${misFmt(ordTotals.valueOrdered)}</td><td class="td-r">${ordTotals.pctDone}%</td></tr>` : ''}
+      </tbody></table></div>
+    </div>
+    <div style="font-size:9.5px;color:var(--text3);margin-top:10px">"Marketing Person" on quotations and orders comes from whoever created/owns that document (editable on the Quotation form and in Order Details). Values are converted to ${misReportingCcy()} using the FX table in Settings → Defaults.</div>`;
+}
+async function exportMisPipelineExcel(which) {
+  const wb = new ExcelJS.Workbook();
+  wb.creator = 'FOB Manager Pro';
+  const NAVY = 'FF1E3A5F';
+  if (which === 'enquiry') {
+    const enqDim = document.getElementById('mis-pipe-enq-dim')?.value || 'country';
+    const dimLabel = { country: 'Country', owner: 'Marketing Person', customer: 'Customer' }[enqDim];
+    const enquiries = app.enquiries.filter(e => e.stage !== 'legacy');
+    const enqKeyFn = misPipelineEnqDimFn(enqDim);
+    const enqGroups = {};
+    enquiries.forEach(e => {
+      const k = enqKeyFn(e);
+      if (!enqGroups[k]) enqGroups[k] = { new: 0, sent_to_procurement: 0, pricing_received: 0, quoted: 0, follow_up: 0, won: 0, lost: 0 };
+      if (enqGroups[k][e.stage] != null) enqGroups[k][e.stage]++;
+    });
+    const rows = Object.entries(enqGroups).map(([name, s]) => {
+      const open = s.new + s.sent_to_procurement + s.pricing_received + s.quoted + s.follow_up;
+      const closed = s.won + s.lost;
+      return { name, ...s, open, winRate: closed ? Math.round(s.won / closed * 100) : null };
+    }).sort((a, b) => (b.open + b.won + b.lost) - (a.open + a.won + a.lost));
+    if (!rows.length) { notify('No enquiries to export', 'warning'); return; }
+    const ws = wb.addWorksheet('Enquiry Pipeline', { pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+    ws.columns = [{ width: 26 }, { width: 9 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 12 }, { width: 10 }, { width: 8 }, { width: 8 }, { width: 9 }];
+    ws.mergeCells(1, 1, 1, 10);
+    ws.getCell(1, 1).value = 'ENQUIRY PIPELINE by ' + dimLabel.toUpperCase() + ' — Generated ' + new Date().toLocaleDateString();
+    ws.getCell(1, 1).font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
+    ws.getRow(1).eachCell(c => c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } });
+    ws.getRow(1).height = 22;
+    ws.addRow([]);
+    const head = ws.addRow([dimLabel, 'New', 'With Procurement', 'Costing Received', 'Quoted (Negotiation)', 'Awaiting Customer', 'Open Total', 'Won', 'Lost', 'Win Rate %']);
+    head.eachCell(c => { c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } }; });
+    rows.forEach(r => ws.addRow([r.name, r.new, r.sent_to_procurement, r.pricing_received, r.quoted, r.follow_up, r.open, r.won, r.lost, r.winRate == null ? '' : r.winRate]));
+    await downloadExcelWorkbook(wb, 'Enquiry_Pipeline_' + today() + '.xlsx');
+    notify('Enquiry pipeline Excel generated!', 'success');
+  } else if (which === 'quote') {
+    const qteDim = document.getElementById('mis-pipe-qte-dim')?.value || 'country';
+    const dimLabel = { country: 'Country', owner: 'Marketing Person', customer: 'Customer' }[qteDim];
+    const quotes = app.quotations || [];
+    const qteKeyFn = misPipelineQuoteDimFn(qteDim);
+    const qteGroups = {};
+    quotes.forEach(q => {
+      const k = qteKeyFn(q);
+      if (!qteGroups[k]) qteGroups[k] = { pending: 0, won: 0, lost: 0, valueWon: 0, valueTotal: 0 };
+      const g = qteGroups[k];
+      const st = q.status || 'pending';
+      if (g[st] != null) g[st]++;
+      const val = misConvert(q.total || 0, q.items?.[0]?.currency || 'EUR');
+      g.valueTotal += val;
+      if (st === 'won') g.valueWon += val;
+    });
+    const rows = Object.entries(qteGroups).map(([name, s]) => {
+      const closed = s.won + s.lost;
+      return { name, ...s, winRate: closed ? Math.round(s.won / closed * 100) : null };
+    }).sort((a, b) => b.valueTotal - a.valueTotal);
+    if (!rows.length) { notify('No quotations to export', 'warning'); return; }
+    const ws = wb.addWorksheet('Quotation Pipeline', { pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+    ws.columns = [{ width: 26 }, { width: 10 }, { width: 8 }, { width: 8 }, { width: 10 }, { width: 16 }, { width: 16 }];
+    ws.mergeCells(1, 1, 1, 7);
+    ws.getCell(1, 1).value = 'QUOTATION PIPELINE by ' + dimLabel.toUpperCase() + ' — Generated ' + new Date().toLocaleDateString();
+    ws.getCell(1, 1).font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
+    ws.getRow(1).eachCell(c => c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } });
+    ws.getRow(1).height = 22;
+    ws.addRow([]);
+    const head = ws.addRow([dimLabel, 'Pending', 'Won', 'Lost', 'Win Rate %', 'Value Won (' + misReportingCcy() + ')', 'Total Quoted (' + misReportingCcy() + ')']);
+    head.eachCell(c => { c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } }; });
+    rows.forEach(r => ws.addRow([r.name, r.pending, r.won, r.lost, r.winRate == null ? '' : r.winRate, Math.round(r.valueWon), Math.round(r.valueTotal)]));
+    await downloadExcelWorkbook(wb, 'Quotation_Pipeline_' + today() + '.xlsx');
+    notify('Quotation pipeline Excel generated!', 'success');
+  } else {
+    const ordDim = document.getElementById('mis-pipe-ord-dim')?.value || 'country';
+    const dimLabel = { country: 'Country', owner: 'Marketing Person', customer: 'Customer', category: 'Product Category' }[ordDim];
+    const groupById = {}; app.orderGroups.forEach(g => groupById[g.id] = g);
+    const ordKeyFn = misPipelineOrdDimFn(ordDim, groupById);
+    const ordGroups = {};
+    app.customerOrders.forEach(l => {
+      const k = ordKeyFn(l);
+      if (!ordGroups[k]) ordGroups[k] = { ordered: 0, dispatched: 0, ready: 0, underProduction: 0, valueOrdered: 0 };
+      const st = getLotStatus(l);
+      const g = ordGroups[k];
+      g.ordered += st.ordered; g.dispatched += st.dispatched; g.ready += st.readyForDispatch; g.underProduction += st.underProduction;
+      g.valueOrdered += misConvert(st.ordered * (parseFloat(l.rate) || 0), l.currency);
+    });
+    const rows = Object.entries(ordGroups).map(([name, s]) => ({ name, ...s, balance: Math.max(0, s.ordered - s.dispatched), pctDone: s.ordered ? Math.round(s.dispatched / s.ordered * 100) : 0 })).sort((a, b) => b.valueOrdered - a.valueOrdered);
+    if (!rows.length) { notify('No orders to export', 'warning'); return; }
+    const ws = wb.addWorksheet('Order Pipeline', { pageSetup: { orientation: 'landscape', fitToPage: true, fitToWidth: 1, fitToHeight: 0 } });
+    ws.columns = [{ width: 26 }, { width: 12 }, { width: 14 }, { width: 10 }, { width: 12 }, { width: 10 }, { width: 16 }, { width: 10 }];
+    ws.mergeCells(1, 1, 1, 8);
+    ws.getCell(1, 1).value = 'ORDER FULFILLMENT PIPELINE by ' + dimLabel.toUpperCase() + ' — Generated ' + new Date().toLocaleDateString();
+    ws.getCell(1, 1).font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
+    ws.getRow(1).eachCell(c => c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } });
+    ws.getRow(1).height = 22;
+    ws.addRow([]);
+    const head = ws.addRow([dimLabel, 'Ordered Qty', 'Under Production', 'Ready', 'Dispatched', 'Balance', 'Order Value (' + misReportingCcy() + ')', '% Fulfilled']);
+    head.eachCell(c => { c.font = { bold: true, color: { argb: 'FFFFFFFF' } }; c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: NAVY } }; });
+    rows.forEach(r => ws.addRow([r.name, r.ordered, r.underProduction, r.ready, r.dispatched, r.balance, Math.round(r.valueOrdered), r.pctDone]));
+    await downloadExcelWorkbook(wb, 'Order_Pipeline_' + today() + '.xlsx');
+    notify('Order pipeline Excel generated!', 'success');
+  }
 }
 
 function renderMisTrend() {
@@ -12474,7 +12761,7 @@ function autofillCustomerFields(name, fieldMap) {
   });
 }
 function qAutofillCustomer() {
-  autofillCustomerFields(document.getElementById('q-customer')?.value, { email: 'q-email', phone: 'q-phone', address: 'q-address' });
+  autofillCustomerFields(document.getElementById('q-customer')?.value, { country: 'q-country', email: 'q-email', phone: 'q-phone', address: 'q-address' });
   getQData();
   qAddItemPreview(); // customer changed — refresh the "last quoted to them" preview too
 }
