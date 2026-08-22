@@ -914,11 +914,11 @@ table{min-width:820px}
 <button class="ai-fab" id="ai-fab" onclick="toggleAIChat()" title="Ask the AI Assistant">🤖</button>
 <div class="ai-chat-panel" id="ai-chat-panel">
   <div class="ai-chat-head">
-    <div style="display:flex;align-items:center;gap:8px"><span style="font-size:17px">🤖</span><div><div style="font-weight:700;font-size:12.5px">AI Assistant</div><div style="font-size:9.5px;color:var(--text3)">Ask how to use the app, or general export/trade questions</div></div></div>
+    <div style="display:flex;align-items:center;gap:8px"><span style="font-size:17px">🤖</span><div><div style="font-weight:700;font-size:12.5px">AI Assistant</div><div style="font-size:9.5px;color:var(--text3)">App help, live business totals, general trade questions</div></div></div>
     <button class="modal-close" style="width:24px;height:24px" onclick="toggleAIChat(false)">✕</button>
   </div>
   <div class="ai-chat-body" id="ai-chat-body">
-    <div class="ai-msg ai-msg-bot">Hi! I'm here to help you use FOB Manager Pro — ask me things like "how do I convert a quote to an order" or "what does under production mean". I can also help with general export/shipping/INCOTERMS questions. I don't have access to your live inventory or order data — for anything specific to your numbers, use 🔎 Search or the relevant tab directly.</div>
+    <div class="ai-msg ai-msg-bot">Hi! Ask me how to use FOB Manager Pro (e.g. "how do I convert a quote to an order"), general export/shipping/INCOTERMS questions, or business totals like "how much is under production for Poland" — I can see live aggregate totals (revenue, order status, enquiry counts, by country/marketing person). I don't have row-level detail like individual prices or customer contacts, so for that use 🔎 Search or the relevant tab directly.</div>
   </div>
   <div class="ai-chat-input-row">
     <textarea id="ai-chat-input" placeholder="Ask a question…" rows="1" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendAIChatMessage();}" oninput="this.style.height='auto';this.style.height=Math.min(80,this.scrollHeight)+'px'"></textarea>
@@ -2640,6 +2640,27 @@ function updateGitHubConfig(key, value) {
   GITHUB_CONFIG[key] = value;
   saveGitHubConfig();
   notify('✅ GitHub config saved!', 'success');
+}
+
+// ── AI Assistant config — separate from GitHub's, same storage pattern.
+// This file runs as a standalone app the team hosts themselves (not inside
+// claude.ai), so there's no built-in bridge to the Anthropic API here —
+// unlike a Claude.ai artifact, a plain HTML file has no automatic proxy or
+// auth for api.anthropic.com. The only way to make real calls from a
+// standalone page is a personal API key, sent directly from the browser.
+let AI_CONFIG = { apiKey: '' };
+function loadAIConfig() {
+  try {
+    const saved = localStorage.getItem('ai_config');
+    if (saved) { const c = JSON.parse(saved); if (c.apiKey) AI_CONFIG.apiKey = c.apiKey; }
+  } catch (e) {}
+}
+loadAIConfig();
+function saveAIConfig() { try { localStorage.setItem('ai_config', JSON.stringify(AI_CONFIG)); } catch (e) {} }
+function updateAIConfig(key, value) {
+  AI_CONFIG[key] = value;
+  saveAIConfig();
+  notify('✅ AI Assistant key saved!', 'success');
 }
 
 function compressImage(file, maxWidth = 400, maxHeight = 400, quality = 0.6) {
@@ -13133,6 +13154,17 @@ function renderSettings() {
       
     case 'system':
       // Add GitHub config to system settings
+      const aiConfigHTML = `
+        <div class="form-sec">
+          <div class="form-sec-title">🤖 AI Assistant</div>
+          <div style="font-size:10px;color:var(--text3);margin-bottom:8px">
+            This app runs standalone (not inside claude.ai), so the AI Assistant chat needs its own API key to work — it makes a direct call to Anthropic from your browser.
+            <a href="https://console.anthropic.com/settings/keys" target="_blank" style="color:var(--accent2)">Get an API key</a>
+          </div>
+          <div class="ff"><label>Anthropic API Key</label><input id="s-ai-key" type="password" value="${esc(AI_CONFIG.apiKey)}" placeholder="sk-ant-api03-..." onchange="updateAIConfig('apiKey',this.value)"></div>
+          <div style="margin-top:6px;font-size:9px;color:var(--text3)">Stored locally in your browser only — never synced to Firebase or shared with teammates. <strong>Security note:</strong> since this is a client-side call, anyone with access to this browser/device could view the key via developer tools. Only use a key you're comfortable having on a shared/team machine, and rotate it if that's ever a concern.</div>
+        </div>
+      `;
       const gitHubConfigHTML = `
         <div class="form-sec">
           <div class="form-sec-title">📸 GitHub Image Storage</div>
@@ -13147,7 +13179,6 @@ function renderSettings() {
           <div style="margin-top:6px;font-size:9px;color:var(--text3)">Token needs <strong>repo</strong> scope. Stored locally in your browser.</div>
         </div>
       `;
-      
       const columnHTML = `<div class="form-sec"><div class="form-sec-title">Visible Columns</div><div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:8px;padding:4px 0">${Object.entries(cols).map(([key,val]) => `<label style="display:flex;align-items:center;gap:6px;font-size:12px;font-weight:500;color:var(--text2)"><input type="checkbox" ${val?'checked':''} onchange="toggleColumn('${key}', this.checked)">${key.charAt(0).toUpperCase()+key.slice(1).replace(/([A-Z])/g,' $1')}</label>`).join('')}</div><div style="margin-top:6px;font-size:10px;color:var(--text3)">Uncheck to hide columns from the inventory table.</div></div>`;
       const decimalHTML = `<div class="form-sec"><div class="form-sec-title">FOB Display Precision</div><div style="display:flex;gap:10px;align-items:center;padding:6px 0"><label style="font-size:12px;font-weight:500">Decimal places:</label><select onchange="setFOBDecimals(parseInt(this.value))" style="padding:4px 8px;border:1px solid var(--border);border-radius:4px">${[0,1,2,3,4,5,6].map(d => `<option value="${d}" ${decimals===d?'selected':''}>${d}</option>`).join('')}</select><span style="font-size:11px;color:var(--text3)">Example: ${curSym('EUR')}${(123.456789).toFixed(decimals)}</span></div></div>`;
       const passHTML = `<div class="form-sec"><div class="form-sec-title">System Password</div><div style="display:flex;gap:8px;align-items:center"><input id="s-sys-password" type="password" value="${esc(s.system.password)}" style="border:1px solid var(--border);border-radius:4px;padding:4px 8px;flex:1" onchange="s_set('system.password',this.value)"><button class="btn btn-secondary btn-sm" onclick="document.getElementById('s-sys-password').type=document.getElementById('s-sys-password').type==='password'?'text':'password'">👁️</button></div><div style="font-size:10px;color:var(--text3);margin-top:4px">Leave empty to disable lock screen.</div></div>`;
@@ -13162,7 +13193,7 @@ function renderSettings() {
           <span style="font-size:10.5px;color:var(--text3)">${_hasPendingChanges ? '⏳ Changes pending' : '✓ Up to date as of last check'}</span>
         </div>
       </div>`;
-      content.innerHTML = `<h2>⚙️ System Settings</h2>${gitHubConfigHTML}${syncHTML}${nameHTML}${passHTML}${decimalHTML}${columnHTML}`;
+      content.innerHTML = `<h2>⚙️ System Settings</h2>${aiConfigHTML}${gitHubConfigHTML}${syncHTML}${nameHTML}${passHTML}${decimalHTML}${columnHTML}`;
       break;
       
     case 'data_mgmt':
@@ -13678,11 +13709,13 @@ function filterHelp() {
 
 // ══════════════════════════════════════════════════════════════════════════
 // ── AI ASSISTANT — floating chat ────────────────────────────────────────
-// Scoped deliberately to "how do I use this app" + general export/trade
-// knowledge — it does NOT get access to live inventory, pricing, or order
-// data, so there's no risk of sensitive business data leaving the app
-// through this feature. For anything data-specific, Universal Search or
-// the relevant tab is still the right tool.
+// This file runs as a standalone app (not as a claude.ai artifact), so
+// there's no automatic bridge to the Anthropic API — it needs a real API
+// key, entered in Settings → System → AI Assistant, sent directly from the
+// browser. Also wired into live business data: buildAILiveDataSummary()
+// computes a fresh set of aggregate totals (not row-level detail — see its
+// own comment) and feeds them into every message so questions like "how
+// much is under production for Poland" can actually be answered.
 // ══════════════════════════════════════════════════════════════════════════
 let _aiChatHistory = [];
 let _aiChatBusy = false;
@@ -13692,12 +13725,59 @@ function toggleAIChat(force) {
   panel.classList.toggle('open', open);
   if (open) setTimeout(() => document.getElementById('ai-chat-input')?.focus(), 50);
 }
+// Aggregate-only snapshot of the live business data — order/enquiry/quote
+// totals, and value broken down by country and by marketing person, the
+// same figures MIS Overview and Pipeline already show. Deliberately NOT a
+// row-level dump (no per-customer contact details, no per-item pricing
+// list) — with a 50k-item inventory that would be both huge and a much
+// bigger privacy footprint than "how much revenue from Poland" needs.
+function buildAILiveDataSummary() {
+  try {
+    const sales = misGetSales();
+    const totalRevenue = misSum(sales);
+    const ccy = misReportingCcy(), sym = misSym();
+    const enquiries = app.enquiries.filter(e => e.stage !== 'legacy');
+    const openEnq = enquiries.filter(e => ENQ_OPEN_STAGES.includes(e.stage)).length;
+    const wonEnq = enquiries.filter(e => e.stage === 'won').length;
+    const lostEnq = enquiries.filter(e => e.stage === 'lost').length;
+    const pendingQuotes = app.quotations.filter(q => (q.status || 'pending') === 'pending').length;
+
+    let underProd = 0, ready = 0, dispatched = 0;
+    app.customerOrders.forEach(l => { const st = getLotStatus(l); underProd += st.underProduction; ready += st.readyForDispatch; dispatched += st.dispatched; });
+
+    const byCountry = {}; sales.forEach(s => { const c = s.country || 'Unspecified'; byCountry[c] = (byCountry[c] || 0) + s.value; });
+    const topCountries = Object.entries(byCountry).sort((a, b) => b[1] - a[1]).slice(0, 10).map(([c, v]) => `${c}: ${sym}${Math.round(v).toLocaleString()}`).join(', ') || 'no orders yet';
+
+    const byOwner = {}; sales.forEach(s => { const o = s.owner || 'Unassigned'; byOwner[o] = (byOwner[o] || 0) + s.value; });
+    const topOwners = Object.entries(byOwner).sort((a, b) => b[1] - a[1]).map(([o, v]) => `${o}: ${sym}${Math.round(v).toLocaleString()}`).join(', ') || 'no orders yet';
+
+    return `LIVE BUSINESS SNAPSHOT (computed just now, values in ${ccy}):
+- Orders on file: ${sales.length}, combined value ${sym}${Math.round(totalRevenue).toLocaleString()}
+- Fulfillment: ${Math.round(underProd).toLocaleString()} units under production, ${Math.round(ready).toLocaleString()} ready for dispatch, ${Math.round(dispatched).toLocaleString()} already dispatched
+- Enquiries: ${openEnq} open, ${wonEnq} won, ${lostEnq} lost
+- Quotations: ${app.quotations.length} total, ${pendingQuotes} still pending
+- Inventory: ${app.items.length.toLocaleString()} items, ${(app.customers || []).length} customers on file
+- Order value by country: ${topCountries}
+- Order value by marketing person: ${topOwners}
+This snapshot is aggregate totals only — no individual prices, customer contact details, or item-level cost data. If asked for something more granular than this, say so plainly and point to Universal Search (Ctrl/Cmd+K) or the relevant tab instead of guessing.`;
+  } catch (err) {
+    return 'Live data snapshot unavailable right now (an error occurred computing it) — answer from general knowledge only, and mention that live figures could not be loaded.';
+  }
+}
 async function sendAIChatMessage() {
   if (_aiChatBusy) return;
   const input = document.getElementById('ai-chat-input');
   const text = input.value.trim();
   if (!text) return;
   const body = document.getElementById('ai-chat-body');
+
+  if (!AI_CONFIG.apiKey) {
+    body.insertAdjacentHTML('beforeend', `<div class="ai-msg ai-msg-user">${esc(text)}</div><div class="ai-msg ai-msg-error">⚠️ No API key set up yet. Go to <b>Settings → System → 🤖 AI Assistant</b>, add your Anthropic API key, then ask again.</div>`);
+    input.value = ''; input.style.height = 'auto';
+    body.scrollTop = body.scrollHeight;
+    return;
+  }
+
   input.value = '';
   input.style.height = 'auto';
   body.insertAdjacentHTML('beforeend', `<div class="ai-msg ai-msg-user">${esc(text)}</div>`);
@@ -13710,10 +13790,17 @@ async function sendAIChatMessage() {
   body.insertAdjacentHTML('beforeend', `<div class="ai-msg-typing" id="${typingId}"><span></span><span></span><span></span></div>`);
   body.scrollTop = body.scrollHeight;
   try {
-    const systemPrimer = `You are the in-app help assistant for FOB Manager Pro, an internal export-business management tool used by JCBL India (a manufacturer/exporter of forged and cast iron/steel agricultural and tractor parts). Its modules: Inventory (FOB price calculator from Purchase Price, Margin%, FOB Expense%, Exchange Rate), Quotations/Proforma (with discount, charges, country, marketing person, convert-to-order), Orders (order groups → item lots → Ready/Dispatched/Under-Production tracking, Container Stuffing Planner, Shipping Documents), Trading Account (per-order profitability), Payments (per-currency client ledgers), Customer Enquiry Tracker (New→Sent to Procurement→Costing→Quoted→Awaiting Customer→Won/Lost), MIS Dashboard (Overview/Pipeline/Trend/Team/Targets/Territory/Items/Clients/Compare), Samples, Quality Issues, CBAM compliance, Team/Settings, and Universal Search (Ctrl/Cmd+K). Answer questions about how to use these features clearly and concisely, in plain language, as if talking to the person actually using the app day-to-day. You may also answer general export/shipping/INCOTERMS/trade-documentation questions using your general knowledge. You do NOT have access to this user's live inventory, pricing, order, or customer data — if asked something that needs their actual numbers, say so plainly and point them to Universal Search (Ctrl/Cmd+K) or the relevant tab instead of guessing. Keep answers short — a few sentences or a short list, not an essay.`;
+    const systemPrimer = `You are the in-app assistant for FOB Manager Pro, an internal export-business management tool used by JCBL India (a manufacturer/exporter of forged and cast iron/steel agricultural and tractor parts). Its modules: Inventory (FOB price calculator from Purchase Price, Margin%, FOB Expense%, Exchange Rate), Quotations/Proforma (with discount, charges, country, marketing person, convert-to-order), Orders (order groups → item lots → Ready/Dispatched/Under-Production tracking, Container Stuffing Planner, Shipping Documents), Trading Account (per-order profitability), Payments (per-currency client ledgers), Customer Enquiry Tracker (New→Sent to Procurement→Costing→Quoted→Awaiting Customer→Won/Lost), MIS Dashboard (Overview/Pipeline/Trend/Team/Targets/Territory/Items/Clients/Compare), Samples, Quality Issues, CBAM compliance, Team/Settings, and Universal Search (Ctrl/Cmd+K). Answer "how do I..." questions clearly and concisely, as if talking to the person actually using the app day-to-day. You may also answer general export/shipping/INCOTERMS/trade-documentation questions using your general knowledge, and business questions using the live snapshot below. Keep answers short — a few sentences or a short list, not an essay.
+
+${buildAILiveDataSummary()}`;
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': AI_CONFIG.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
       body: JSON.stringify({
         model: 'claude-sonnet-4-6',
         max_tokens: 1000,
@@ -13721,6 +13808,13 @@ async function sendAIChatMessage() {
         messages: _aiChatHistory.slice(-12)
       })
     });
+    if (!response.ok) {
+      const errBody = await response.json().catch(() => ({}));
+      const apiMsg = errBody?.error?.message;
+      if (response.status === 401) throw new Error('That API key was rejected — double-check it in Settings → System → AI Assistant.');
+      if (response.status === 429) throw new Error("You've hit the API rate/usage limit — wait a moment and try again.");
+      throw new Error(apiMsg || `Request failed (HTTP ${response.status}).`);
+    }
     const data = await response.json();
     document.getElementById(typingId)?.remove();
     const replyText = (data.content || []).filter(b => b.type === 'text').map(b => b.text).join('\n').trim() || "Sorry, I didn't get a usable reply — try asking again.";
@@ -13728,7 +13822,8 @@ async function sendAIChatMessage() {
     _aiChatHistory.push({ role: 'assistant', content: replyText });
   } catch (err) {
     document.getElementById(typingId)?.remove();
-    body.insertAdjacentHTML('beforeend', `<div class="ai-msg ai-msg-error">⚠️ Couldn't reach the AI Assistant right now. Check your connection and try again.</div>`);
+    const msg = (err && err.message) ? err.message : "Couldn't reach the AI Assistant right now. Check your connection and try again.";
+    body.insertAdjacentHTML('beforeend', `<div class="ai-msg ai-msg-error">⚠️ ${esc(msg)}</div>`);
   } finally {
     _aiChatBusy = false;
     sendBtn.disabled = false;
