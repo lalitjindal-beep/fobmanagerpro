@@ -73,6 +73,11 @@ body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:1
 .view{display:none;padding:20px 24px;min-height:calc(100vh - 56px)}
 .view.active{display:block}
 .toolbar{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:12px 16px;margin-bottom:12px;display:flex;align-items:center;gap:8px;flex-wrap:wrap;box-shadow:var(--shadow-xs)}
+.view-toggle{display:flex;border:1px solid var(--border);border-radius:var(--r-sm);overflow:hidden}
+.view-toggle button{border:none;background:var(--surface);color:var(--text2);font-size:11px;font-weight:600;padding:6px 12px;cursor:pointer;font-family:var(--font)}
+.view-toggle button+button{border-left:1px solid var(--border)}
+.view-toggle button.active{background:var(--accent2);color:#fff}
+.view-toggle button:hover:not(.active){background:var(--surface2)}
 #fab-scroll-top{position:fixed;right:20px;bottom:24px;z-index:500;width:46px;height:46px;border-radius:50%;background:var(--primary,#2563eb);color:#fff;border:none;box-shadow:0 4px 14px rgba(0,0,0,.25);font-size:18px;cursor:pointer;display:none;align-items:center;justify-content:center;transition:opacity .15s ease}
 #fab-scroll-top.show{display:flex}
 #fab-scroll-top:active{transform:scale(.94)}
@@ -642,12 +647,22 @@ table{min-width:820px}
 .enq-acct-stat{font-size:10.5px;color:var(--text2)}
 .enq-acct-stat b{color:var(--text)}
 .enq-sla-badge{padding:2px 8px;border-radius:var(--r-full);font-size:9px;font-weight:700;white-space:nowrap}
-.mis-tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;flex:1;min-width:130px;box-shadow:var(--shadow-xs);overflow:hidden}
+.mis-tile{background:var(--surface);border:1px solid var(--border);border-radius:var(--r-lg);padding:14px 16px;flex:1;min-width:130px;box-shadow:var(--shadow-xs);position:relative}
 .mis-tile .n{font-size:20px;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;display:block}
 .mis-tile .l{font-size:9.5px;color:var(--text2);text-transform:uppercase;font-weight:600;letter-spacing:.02em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .mis-tile .delta{font-size:9.5px;font-weight:700;margin-top:2px}
 .mis-tile .delta.up{color:var(--green)}.mis-tile .delta.down{color:var(--red)}
 .mis-tile-top{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+/* Custom hover tooltip — a small floating card above the tile showing the
+   full, unrounded figure (and a breakdown, where one's provided) instead of
+   the plain OS tooltip you'd get from a title="" attribute. */
+.mis-tip-bubble{position:absolute;left:50%;bottom:calc(100% + 9px);transform:translateX(-50%) translateY(4px);min-width:150px;max-width:260px;background:#1E2A3A;color:#fff;padding:9px 12px;border-radius:9px;font-size:11px;line-height:1.6;text-align:left;box-shadow:0 10px 24px rgba(20,30,45,.25);opacity:0;visibility:hidden;pointer-events:none;transition:opacity .14s ease,transform .14s ease;z-index:60;white-space:normal}
+.mis-tip-bubble b{color:#fff;font-family:var(--mono)}
+.mis-tip-bubble .tip-row{display:flex;justify-content:space-between;gap:14px;padding:1px 0}
+.mis-tip-bubble .tip-row span:first-child{color:#B8C4D4}
+.mis-tip-bubble .tip-total{margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.16);font-weight:700}
+.mis-tip-bubble::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:6px solid transparent;border-top-color:#1E2A3A}
+.mis-tile:hover .mis-tip-bubble{opacity:1;visibility:visible;transform:translateX(-50%) translateY(0)}
 .mis-icon{width:28px;height:28px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:13px;line-height:1}
 .mis-icon.blue{background:var(--blue-bg);color:var(--accent2)}
 .mis-icon.green{background:var(--green-bg);color:var(--green)}
@@ -987,7 +1002,7 @@ table{min-width:820px}
 </div>
 
 <!-- Other views -->
-<div id="view-quotations" class="view"><div class="toolbar"><strong style="color:var(--text);font-size:12.5px;font-weight:700;letter-spacing:-.02em">🧾 Quotations &amp; Proforma</strong><input id="q-search" placeholder="Search anything — ref, customer, country, item, status, who saved it…" style="height:32px;width:300px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 10px;font-size:11.5px;font-family:var(--font)" oninput="renderQList()" autocomplete="off"><div style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-secondary btn-sm" onclick="openTrash()">🗑️ Trash</button><button class="btn btn-secondary btn-sm" onclick="switchView('inventory')">← Back</button></div></div><div id="quotations-list"></div></div>
+<div id="view-quotations" class="view"><div class="toolbar"><strong style="color:var(--text);font-size:12.5px;font-weight:700;letter-spacing:-.02em">🧾 Quotations &amp; Proforma</strong><input id="q-search" placeholder="Search anything — ref, customer, country, item, status, who saved it…" style="height:32px;width:300px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 10px;font-size:11.5px;font-family:var(--font)" oninput="renderQList()" autocomplete="off"><div class="view-toggle" id="q-view-toggle"><button data-mode="cards" onclick="setQuotesViewMode('cards')">🗂️ Cards</button><button data-mode="table" onclick="setQuotesViewMode('table')">📊 Table</button></div><div style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-secondary btn-sm" onclick="openTrash()">🗑️ Trash</button><button class="btn btn-secondary btn-sm" onclick="switchView('inventory')">← Back</button></div></div><div id="quotations-list"></div></div>
 <div id="view-dispatch" class="view"><div class="toolbar"><strong style="color:var(--text);font-size:12.5px;font-weight:700;letter-spacing:-.02em">🚚 Dispatch Plans</strong><div style="margin-left:auto;display:flex;gap:8px"><button class="btn btn-primary btn-sm" onclick="openContainerPlanner()">📦 Container Load Planner</button><button class="btn btn-secondary btn-sm" onclick="switchView('inventory')">← Back</button></div></div><div id="dispatch-list"></div></div>
 <div id="view-orders" class="view">
   <div class="toolbar">
@@ -3568,14 +3583,15 @@ ${pendingApproval ? `<div class="approval-request"><div class="req-header">⏳ P
 
 <div class="panel-card">
 <h3>⚙️ FOB Calculator ${!canEditPrice ? '<span style="color:var(--text3);font-size:8px">(PP locked)</span>' : ''}</h3>
-<div class="field-row"><div class="field-group"><div class="field-label">Purchase Price (PP)</div><input class="field-input ib" id="cPP-${id}" type="number" step="0.01" value="${row.pp || 0}" oninput="calcUpdate(${id})" onclick="event.stopPropagation()" ${ppDisabled}></div><div class="field-unit">INR</div></div>
+<div class="field-row"><div class="field-group"><div class="field-label">Purchase Price (PP)</div><input class="field-input ib" id="cPP-${id}" type="number" step="0.01" value="${row.pp || 0}" data-orig="${row.pp || 0}" oninput="calcUpdate(${id})" onclick="event.stopPropagation()" ${ppDisabled}><div id="ppDelta-${id}" style="font-size:9.5px;font-weight:700;margin-top:3px;min-height:12px"></div></div><div class="field-unit">INR</div></div>
 <div class="field-row"><div class="field-group"><div class="field-label">Margin %</div><input class="field-input ib" id="cMG-${id}" type="number" step="0.1" value="${row.marg || 0}" oninput="calcUpdate(${id})" onclick="event.stopPropagation()" ${marginDisabled}></div><div class="field-unit">%</div></div>
 <div class="field-row"><div class="field-group"><div class="field-label">FOB Expense %</div><input class="field-input ib" id="cFB-${id}" type="number" step="0.1" value="${row.fob || 0}" oninput="calcUpdate(${id})" onclick="event.stopPropagation()" ${fobDisabled}></div><div class="field-unit">%</div></div>
 <div class="field-row"><div class="field-group"><div class="field-label">Exchange Rate (INR/${row.currency || 'EUR'})</div><input class="field-input ib" id="cEX-${id}" type="number" step="0.5" value="${row.exrate || 0}" oninput="calcUpdate(${id})" onclick="event.stopPropagation()" ${exrateDisabled}></div><div class="field-unit">INR</div></div>
 ${!canEditPrice ? `<div style="background:var(--amber-bg);padding:6px 10px;border-radius:4px;font-size:10px;color:var(--amber);margin:6px 0">🔒 PP locked. To change PP, click "Request Price Change"</div>` : ''}
 <div class="res-div"></div>
 <div class="res-line"><span class="res-lbl">Selling Price (INR)</span><span class="res-val" id="rSP-${id}">${fmtI(sp)}</span></div>
-<div class="res-line" style="margin-top:4px"><span class="res-lbl">FOB India Price</span><span class="res-val big" id="rEU-${id}">${sym}${eur.toFixed(decimals)}</span></div>
+<div class="res-line" style="margin-top:4px"><span class="res-lbl">FOB India Price</span><span class="res-val big" id="rEU-${id}" data-orig="${eur}" data-sym="${sym}" data-decimals="${decimals}">${sym}${eur.toFixed(decimals)}</span></div>
+<div id="fobDelta-${id}" style="font-size:9.5px;font-weight:700;text-align:right;min-height:12px;margin-top:-2px;margin-bottom:2px"></div>
 ${tot !== null ? `<div class="res-line"><span class="res-lbl">Total (${qty.toLocaleString()} pcs)</span><span class="res-val tot" id="rTO-${id}">${sym}${tot.toFixed(2)}</span></div>` : ''}
 <div class="formula-box" id="rFM-${id}">
 SP = PP × (1 + (Marg+FOB)/100)<br>
@@ -3662,19 +3678,30 @@ function updF(id, field, value) {
   // Check for duplicate item code
   if (field === 'item') {
     const newCode = String(value).trim();
-    const existing = getItemByCode(newCode);
-    if (existing && existing.id !== id) {
-      notify(`⚠️ Item code "${newCode}" already exists! Please use a unique code.`, 'error');
-      const input = document.getElementById('itemCode-' + id);
-      if (input) {
-        input.classList.add('dup-error');
-        setTimeout(() => input.classList.remove('dup-error'), 3000);
+    if (newCode === '') {
+      // Cleared back to blank — don't leave it empty and don't leave
+      // auto-generation permanently switched off just because the field
+      // passed through an empty state on the way to being cleared.
+      // Regenerate from the category right now and stay in auto mode.
+      row._autoCode = true;
+      value = generateItemCode(row.category);
+      notify('Item code cleared — auto-generated ' + value, 'success');
+    } else {
+      const existing = getItemByCode(newCode);
+      if (existing && existing.id !== id) {
+        notify(`⚠️ Item code "${newCode}" already exists! Please use a unique code.`, 'error');
+        const input = document.getElementById('itemCode-' + id);
+        if (input) {
+          input.classList.add('dup-error');
+          setTimeout(() => input.classList.remove('dup-error'), 3000);
+        }
+        return;
       }
-      return;
+      // The user is now typing their own code by hand, so stop auto-syncing
+      // it to the category prefix.
+      row._autoCode = false;
+      value = newCode;
     }
-    // The user is now typing their own code by hand, so stop auto-syncing
-    // it to the category prefix.
-    row._autoCode = false;
   }
   
   if (field === 'pp' && !hasPermission('canEditPrice') && user.role !== 'admin') {
@@ -3711,7 +3738,8 @@ function calcUpdate(id) {
   if (!row) return;
   const user = getCurrentUser();
   const decimals = app.settings.system.fobDecimals || 4;
-  const pp = parseFloat(document.getElementById('cPP-' + id)?.value) || 0;
+  const ppInput = document.getElementById('cPP-' + id);
+  const pp = parseFloat(ppInput?.value) || 0;
   const marg = parseFloat(document.getElementById('cMG-' + id)?.value) || 0;
   const fob = parseFloat(document.getElementById('cFB-' + id)?.value) || 0;
   const exr = parseFloat(document.getElementById('cEX-' + id)?.value) || 0;
@@ -3721,6 +3749,26 @@ function calcUpdate(id) {
     return;
   }
   if (hasPermission('canEditPrice') || user.role === 'admin') row.pp = pp;
+  // Live "vs the price before you started editing" indicator — compares
+  // against data-orig (set once, when the panel was rendered), not against
+  // row.pp, since row.pp is updated on every keystroke above and would
+  // otherwise always show "no change".
+  const ppDeltaEl = document.getElementById('ppDelta-' + id);
+  if (ppDeltaEl) {
+    const orig = parseFloat(ppInput?.dataset.orig) || 0;
+    if (!orig) {
+      ppDeltaEl.innerHTML = '';
+    } else {
+      const diffVal = pp - orig;
+      if (Math.abs(diffVal) < 0.005) {
+        ppDeltaEl.innerHTML = `<span style="color:var(--text3);font-weight:400">No change from ₹${orig.toLocaleString()}</span>`;
+      } else {
+        const diffPct = (diffVal / orig) * 100;
+        const up = diffVal > 0; // for a cost field, up = more expensive = shown as red
+        ppDeltaEl.innerHTML = `<span style="color:${up ? 'var(--red)' : 'var(--green)'}">${up ? '▲' : '▼'} ${Math.abs(diffPct).toFixed(1)}% (${up ? '+' : '−'}₹${Math.abs(diffVal).toLocaleString(undefined, { maximumFractionDigits: 2 })}) vs ₹${orig.toLocaleString()}</span>`;
+      }
+    }
+  }
   if (hasPermission('canEditMargin') || user.role === 'admin') {
     if (marg !== row.marg) {
       row.marginHistory = row.marginHistory || [];
@@ -3739,6 +3787,27 @@ function calcUpdate(id) {
   const s = (i, v) => { const el = document.getElementById(i); if (el) el.innerHTML = v; };
   s('rSP-' + id, fmtI(sp));
   s('rEU-' + id, sym + eur.toFixed(decimals));
+  // Live "vs the FOB price before you started editing" indicator — reacts
+  // to PP, Margin%, FOB Expense%, or Exchange Rate, since any of them can
+  // move the final FOB India Price. Unlike PP (a cost — up is bad), this is
+  // the offered price, so up = green, down = red.
+  const fobDeltaEl = document.getElementById('fobDelta-' + id);
+  const rEuEl = document.getElementById('rEU-' + id);
+  if (fobDeltaEl && rEuEl) {
+    const origEur = parseFloat(rEuEl.dataset.orig) || 0;
+    if (!origEur) {
+      fobDeltaEl.innerHTML = '';
+    } else {
+      const diffVal = eur - origEur;
+      if (Math.abs(diffVal) < 0.0001) {
+        fobDeltaEl.innerHTML = `<span style="color:var(--text3);font-weight:400">No change from ${sym}${origEur.toFixed(decimals)}</span>`;
+      } else {
+        const diffPct = (diffVal / origEur) * 100;
+        const up = diffVal > 0;
+        fobDeltaEl.innerHTML = `<span style="color:${up ? 'var(--green)' : 'var(--red)'}">${up ? '▲' : '▼'} ${Math.abs(diffPct).toFixed(1)}% (${up ? '+' : '−'}${sym}${Math.abs(diffVal).toFixed(decimals)}) vs ${sym}${origEur.toFixed(decimals)}</span>`;
+      }
+    }
+  }
   if (qty > 0) s('rTO-' + id, sym + (eur * qty).toFixed(2));
   s('rFM-' + id, `SP = PP × (1+(Marg+FOB)/100)<br>= ₹${(row.pp || 0).toLocaleString()} × (1+(${row.marg}+${row.fob})/100)<br>= ${fmtI(sp)}<br>FOB = ${fmtI(sp)} ÷ ${row.exrate} = <strong>${sym}${eur.toFixed(decimals)}</strong>`);
   const t = (i, v) => { const el = document.getElementById(i); if (el) el.textContent = v; };
@@ -4413,9 +4482,14 @@ function buildQModal() {
     </div>
     <div class="table-wrap">
     <table class="qt" style="min-width:1080px;font-size:11px"><thead><tr><th style="width:26px">#</th><th style="min-width:130px">Item</th><th style="min-width:90px">Category</th><th style="min-width:110px">Type</th><th style="white-space:nowrap">Qty</th><th style="white-space:nowrap">PP</th><th style="white-space:nowrap">Marg%</th><th style="white-space:nowrap">FOB%</th><th style="white-space:nowrap">Ex Rate</th><th style="white-space:nowrap">Cur</th><th style="white-space:nowrap;min-width:100px">FOB</th><th style="white-space:nowrap">Total</th><th style="width:24px"></th></tr></thead><tbody>`;
+  // This table redraws on nearly every keystroke in the quote form, and with
+  // a large inventory a per-row getItem() (a full linear scan) turns into a
+  // very noticeable typing lag. Indexing once per redraw keeps it instant
+  // regardless of inventory size.
+  const _itemByIdQ = new Map(app.items.map(r => [r.id, r]));
   items.forEach((r, i) => {
     const sym = curSym(r.currency || 'EUR');
-    const liveItem = getItem(r.id);
+    const liveItem = _itemByIdQ.get(r.id);
     const isStale = liveItem && ((liveItem.type || '') !== (r.type || '') || (liveItem.material || '') !== (r.material || '') || (liveItem.category || '') !== (r.category || ''));
     // Margin floor check — flags the line before it ever reaches the client.
     const floor = marginFloorFor(r.category);
@@ -4854,15 +4928,98 @@ function renderQList() {
   const active = list.filter(q => !q.convertedOrderGroupId).sort(byPriorityThenDate);
 
   let html = winLossSummaryHTML();
-  if (active.length) {
-    html += `<div class="doc-section-header"><h3>🧾 Quotations &amp; Proforma</h3><span class="doc-section-count">${active.length}</span></div>`;
-    html += '<div class="doc-list">' + active.map(q => buildQuoteCard2HTML(q)).join('') + '</div>';
-  }
-  if (converted.length) {
-    html += `<div class="doc-section-header"><h3>📦 Converted to Orders</h3><span class="doc-section-count">${converted.length}</span></div>`;
-    html += '<div class="doc-list">' + converted.map(q => buildQuoteCard2HTML(q)).join('') + '</div>';
+  const mode = app.settings.system.quotesViewMode || 'cards';
+  document.querySelectorAll('#q-view-toggle button').forEach(b => b.classList.toggle('active', b.dataset.mode === mode));
+  if (mode === 'table') {
+    if (active.length) {
+      html += `<div class="doc-section-header"><h3>🧾 Quotations &amp; Proforma</h3><span class="doc-section-count">${active.length}</span></div>`;
+      html += renderQTable(active);
+    }
+    if (converted.length) {
+      html += `<div class="doc-section-header"><h3>📦 Converted to Orders</h3><span class="doc-section-count">${converted.length}</span></div>`;
+      html += renderQTable(converted);
+    }
+  } else {
+    if (active.length) {
+      html += `<div class="doc-section-header"><h3>🧾 Quotations &amp; Proforma</h3><span class="doc-section-count">${active.length}</span></div>`;
+      html += '<div class="doc-list">' + active.map(q => buildQuoteCard2HTML(q)).join('') + '</div>';
+    }
+    if (converted.length) {
+      html += `<div class="doc-section-header"><h3>📦 Converted to Orders</h3><span class="doc-section-count">${converted.length}</span></div>`;
+      html += '<div class="doc-list">' + converted.map(q => buildQuoteCard2HTML(q)).join('') + '</div>';
+    }
   }
   el.innerHTML = html;
+}
+function setQuotesViewMode(mode) {
+  app.settings.system.quotesViewMode = mode;
+  persist();
+  renderQList();
+}
+// Compact, scannable table view — same idea as the Orders tab's table:
+// one line per document with the fields you actually cross-check against
+// (ref, quote/PI no., country, customer) instead of a full card each.
+// Click a row to expand its item lines, same interaction as Orders.
+function renderQTable(list) {
+  let html = '<div class="table-wrap"><table><thead><tr><th style="width:22px"></th><th style="width:110px">Ref</th><th style="width:75px">Type</th><th style="width:90px">Country</th><th>Customer</th><th style="width:100px">Marketing Person</th><th style="width:85px">Date</th><th class="td-c" style="width:55px">Items</th><th class="td-r" style="width:100px">Value</th><th style="width:100px">Status</th><th style="width:150px"></th></tr></thead><tbody>';
+  list.forEach(q => {
+    const sym = curSym(q.items?.[0]?.currency || 'EUR');
+    const status = q.status || 'pending';
+    const sm = Q_STATUS_META[status] || Q_STATUS_META.pending;
+    const isConverted = !!q.convertedOrderGroupId;
+    const custCountry = findCustomerByName(q.customer)?.country || q.country || '';
+    html += `<tr class="order-row" onclick="toggleQuoteRowExpand('${q.id}')" style="cursor:pointer">
+      <td id="qarrow-${q.id}">▶</td>
+      <td style="white-space:nowrap"><strong>${esc(docRef(q))}</strong></td>
+      <td style="white-space:nowrap">${q.mode === 'proforma' ? '🧾 Proforma' : '📄 Quote'}</td>
+      <td>${esc(custCountry || '—')}</td>
+      <td style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:180px">${esc(q.customer || '—')}</td>
+      <td style="white-space:nowrap">${esc(q.owner || '—')}</td>
+      <td style="font-size:10.5px;white-space:nowrap">${new Date(q.date || q.savedAt).toLocaleDateString()}</td>
+      <td class="td-c">${q.items?.length || 0}</td>
+      <td class="td-r" style="white-space:nowrap;font-weight:600">${sym}${(q.total || 0).toFixed(2)}</td>
+      <td style="white-space:nowrap"><span class="doc-status-pill" style="background:${sm.bg};color:${sm.color}">${sm.label}</span>${isConverted ? ' <span class="doc-status-pill" style="background:var(--purple-bg);color:var(--purple)">✅</span>' : ''}</td>
+      <td style="white-space:nowrap" onclick="event.stopPropagation()">
+        <button class="btn btn-info btn-xs" onclick="viewDoc('${q.id}','quote')" title="View">👁️</button>
+        <button class="btn btn-secondary btn-xs" onclick="editQuote('${q.id}')" title="Edit">✏️</button>
+        ${isConverted
+      ? `<button class="btn btn-purple btn-xs" onclick="switchView('orders');setTimeout(()=>openOrderGroupDetail(${q.convertedOrderGroupId}),50)" title="View Order">✅</button>`
+      : `<button class="btn btn-warning btn-xs" onclick="openConvertToOrder('${q.id}')" title="Convert to Order">➡️</button>`}
+      </td>
+    </tr>
+    <tr id="qexp-${q.id}" style="display:none"><td colspan="11" style="padding:0;background:var(--surface2)"><div style="padding:10px 16px">${buildQuoteItemsMatrix(q)}</div></td></tr>`;
+  });
+  html += '</tbody></table></div>';
+  return html;
+}
+function toggleQuoteRowExpand(id) {
+  const row = document.getElementById('qexp-' + id);
+  const arrow = document.getElementById('qarrow-' + id);
+  if (!row) return;
+  const showing = row.style.display !== 'none';
+  row.style.display = showing ? 'none' : 'table-row';
+  if (arrow) arrow.textContent = showing ? '▶' : '▼';
+}
+function buildQuoteItemsMatrix(q) {
+  const items = q.items || [];
+  if (!items.length) return '<div style="color:var(--text3);font-size:11px">No items on this document</div>';
+  let html = '<table class="qt"><thead><tr><th>Item</th><th>Category</th><th class="td-r">Qty</th><th class="td-r">Rate</th><th class="td-r">Total</th></tr></thead><tbody>';
+  items.forEach(it => {
+    const sym = curSym(it.currency || 'EUR');
+    const total = (parseFloat(it.qty) || 0) * (parseFloat(it.fobEur) || 0);
+    html += `<tr>
+      <td style="font-family:var(--mono);color:var(--accent2)">${esc(it.item || '—')}</td>
+      <td><span class="cat-badge ${catCls(it.category)}">${esc(it.category || '—')}</span></td>
+      <td class="td-r">${(parseFloat(it.qty) || 0).toLocaleString()}</td>
+      <td class="td-r">${sym}${(parseFloat(it.fobEur) || 0).toFixed(2)}</td>
+      <td class="td-r" style="font-weight:600">${sym}${total.toFixed(2)}</td>
+    </tr>`;
+  });
+  html += '</tbody></table>';
+  if (q.charges?.length) {
+    html += '<div style="margin-top:6px;font-size:10.5px;color:var(--text3)">+ ' + q.charges.map(c => esc(c.label) + ': ' + curSym(c.currency || 'EUR') + (parseFloat(c.amount) || 0).toFixed(2)).join(', ') + '</div>';
+  }
+  return html;
 }
 const Q_STATUS_META = {
   pending: { label: 'Pending', color: 'var(--text3)', bg: 'var(--surface2)' },
@@ -6308,8 +6465,9 @@ function buildContainerPlannerUI() {
   const capacity = document.getElementById('cp-capacity') ? (parseFloat(document.getElementById('cp-capacity').value) || CONTAINER_PRESETS[type].capacity) : CONTAINER_PRESETS[type].capacity;
 
   const rawRows = getPendingSummaryRows(custFilter, '').filter(r => r.totalReady > 0.0001);
+  const _itemByIdCP = new Map(app.items.map(r => [r.id, r]));
   const rows = rawRows.map(r => {
-    const item = getItem(r.itemId);
+    const item = _itemByIdCP.get(r.itemId);
     return { ...r, unitWeight: (item && parseFloat(item.weight)) || 0, type: (item && item.type) || '', priority: customerItemHasPendingPriority(r.customer, r.itemId) };
   }).sort((a, b) => (b.priority - a.priority) || a.customer.localeCompare(b.customer));
   app._cpRows = rows;
@@ -10011,8 +10169,20 @@ function misSym() { return curSym(misReportingCcy()); }
 
 function misGetSales() {
   const quoteById = {}; (app.quotations || []).forEach(q => quoteById[q.id] = q);
+  // Both of these were previously re-scanned per order-group / per lot (an
+  // O(groups × lots) filter and an O(lots × all-inventory-items) lookup) —
+  // fine with a handful of orders, but with a large inventory (this app
+  // regularly runs with 50,000+ items) and a growing order history, that
+  // adds up to real, felt lag on every MIS render. Indexing both once up
+  // front makes the whole function O(groups + lots + items) instead.
+  const itemById = new Map(app.items.map(r => [r.id, r]));
+  const lotsByGroup = new Map();
+  app.customerOrders.forEach(o => {
+    if (!lotsByGroup.has(o.orderGroupId)) lotsByGroup.set(o.orderGroupId, []);
+    lotsByGroup.get(o.orderGroupId).push(o);
+  });
   return app.orderGroups.map(g => {
-    const lines = app.customerOrders.filter(o => o.orderGroupId === g.id);
+    const lines = lotsByGroup.get(g.id) || [];
     if (!lines.length) return null;
     const valueByCcy = {};
     let converted = 0, qty = 0;
@@ -10022,7 +10192,7 @@ function misGetSales() {
       valueByCcy[l.currency] = (valueByCcy[l.currency] || 0) + val;
       converted += misConvert(val, l.currency);
       qty += parseFloat(l.qty) || 0;
-      const item = getItem(l.itemId);
+      const item = itemById.get(l.itemId);
       if (item?.salesperson) spWeight[item.salesperson] = (spWeight[item.salesperson] || 0) + val;
     });
     // Additional charges (sea freight, packing, etc.) count toward real
@@ -10091,6 +10261,17 @@ function misFilterRange(sales, range) {
 function misSum(sales) { return sales.reduce((s, r) => s + r.value, 0); }
 function misGroupBy(sales, keyFn) { const m = {}; sales.forEach(s => { const k = keyFn(s) || 'Unspecified'; (m[k] = m[k] || []).push(s); }); return m; }
 function misFmt(n) { return misSym() + Math.round(n || 0).toLocaleString(); }
+// Builds one KPI tile with an optional rich hover tooltip (tipRowsHTML —
+// pre-built "tip-row" lines, e.g. a per-currency or per-stage breakdown).
+// Tiles built without tipRowsHTML still get a plain "label + full value"
+// bubble automatically, via fitMisTileNumbers.
+function misTileHTML(icon, iconClass, label, valueHTML, deltaHTML, tipRowsHTML) {
+  const bubble = tipRowsHTML ? `<div class="mis-tip-bubble"><div style="color:#B8C4D4;font-size:10px;margin-bottom:3px">${esc(label)}</div>${tipRowsHTML}</div>` : '';
+  return `<div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon ${iconClass}">${icon}</div><div class="l">${esc(label)}</div></div><div class="n">${valueHTML}</div>${deltaHTML || ''}${bubble}</div>`;
+}
+function misTipRow(label, value, isTotal) {
+  return `<div class="tip-row${isTotal ? ' tip-total' : ''}"><span>${esc(label)}</span><b>${esc(value)}</b></div>`;
+}
 function misPctDelta(cur, prev) { if (!prev) return cur > 0 ? null : 0; return ((cur - prev) / prev) * 100; }
 
 // Targets — stored per person per calendar month; quarter/year figures are
@@ -10197,9 +10378,13 @@ function renderMisActiveTab() {
 // Big currency figures (₹12,34,56,789) don't all fit at the tile's default
 // font size, and letting them wrap or ellipsis-truncate both hide real
 // digits from a management report. Instead, shrink each tile's number just
-// enough to fit on one line — same idea as PowerPoint's autofit text.
+// enough to fit on one line — same idea as PowerPoint's autofit text —
+// and give every tile a nicely styled hover bubble with its full value,
+// so nothing ever relies on the browser's plain title="" tooltip.
 function fitMisTileNumbers() {
-  document.querySelectorAll('.mis-tile .n').forEach(elN => {
+  document.querySelectorAll('.mis-tile').forEach(tile => {
+    const elN = tile.querySelector('.n');
+    if (!elN) return;
     elN.style.fontSize = '';
     let size = parseFloat(getComputedStyle(elN).fontSize) || 20;
     let guard = 0;
@@ -10207,6 +10392,13 @@ function fitMisTileNumbers() {
       size -= 1;
       elN.style.fontSize = size + 'px';
       guard++;
+    }
+    if (!tile.querySelector('.mis-tip-bubble')) {
+      const label = tile.querySelector('.l')?.textContent || '';
+      const bubble = document.createElement('div');
+      bubble.className = 'mis-tip-bubble';
+      bubble.innerHTML = (label ? `<div style="color:#B8C4D4;font-size:10px;margin-bottom:2px">${esc(label)}</div>` : '') + `<b style="font-size:13px">${esc(elN.textContent)}</b>`;
+      tile.appendChild(bubble);
     }
   });
 }
@@ -10242,6 +10434,19 @@ function renderMisOverview() {
   const winRateDelta = (winRate != null && winRatePrev != null) ? winRate - winRatePrev : null;
 
   const deltaHTML = (pct, isPoints) => pct == null ? `<div class="delta" style="color:var(--text3);font-weight:400">No prior-period data</div>` : `<div class="delta ${pct >= 0 ? 'up' : 'down'}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}${isPoints ? ' pts' : '%'} vs previous period</div>`;
+
+  // Per-currency breakdown for the Total Revenue tooltip — the tile itself
+  // only has room for one converted figure, but the hover bubble can show
+  // exactly what that's made of before conversion.
+  const ccyTotals = {};
+  sales.forEach(s => Object.entries(s.valueByCcy || {}).forEach(([ccy, v]) => ccyTotals[ccy] = (ccyTotals[ccy] || 0) + v));
+  const revenueTip = Object.entries(ccyTotals).sort((a, b) => b[1] - a[1]).map(([ccy, v]) => misTipRow(ccy, curSym(ccy) + Math.round(v).toLocaleString())).join('')
+    + misTipRow('Converted total', misSym() + totalValue.toLocaleString(undefined, { maximumFractionDigits: 2 }), true);
+  const totalQty = sales.reduce((s, r) => s + r.qty, 0);
+  const ordersTip = misTipRow('Orders', orderCount) + misTipRow('Total units', totalQty.toLocaleString()) + misTipRow('Avg order value', misFmt(orderCount ? totalValue / orderCount : 0), true);
+  const enqTip = ['new', 'sent_to_procurement', 'pricing_received', 'quoted', 'follow_up'].map(k => misTipRow(ENQ_STAGES[k]?.label?.replace(/^\S+\s/, '') || k, enqCur.filter(e => e.stage === k).length)).join('')
+    + misTipRow('Total open', enqCur.length - wonCur - lostCur, true);
+  const winTip = misTipRow('Won', wonCur) + misTipRow('Lost', lostCur) + misTipRow('Win rate', winRate === null ? '—' : winRate + '%', true);
 
   // Revenue Over Time — trailing N months, independent of the page-level range picker (same idea as the reference dashboard's own chart-local period control)
   const span = parseInt(document.getElementById('mis-ov-span')?.value) || 6;
@@ -10290,12 +10495,20 @@ function renderMisOverview() {
     return `<div class="mis-bar-row"><div class="mis-bar-label">${c}</div><div class="mis-bar-bg"><div class="mis-bar-fill" style="width:${pct}%;background:${color.bg};color:${color.text}"></div></div><div class="mis-bar-val">${count}</div></div>`;
   }).join('');
 
+  const topCats = Object.entries(categories).sort((a, b) => b[1] - a[1]).slice(0, 3);
+  const itemsTip = topCats.map(([c, n]) => misTipRow(c, n)).join('') + misTipRow('Total items', totalItems.toLocaleString(), true);
+  const qStatusCounts = { pending: 0, won: 0, lost: 0 };
+  app.quotations.forEach(q => { const s = q.status || 'pending'; if (qStatusCounts[s] != null) qStatusCounts[s]++; });
+  const quotesTip = misTipRow('Pending', qStatusCounts.pending) + misTipRow('Won', qStatusCounts.won) + misTipRow('Lost', qStatusCounts.lost) + misTipRow('Total', app.quotations.length, true);
+  const openEnqByStage = ENQ_OPEN_STAGES.map(k => misTipRow(ENQ_STAGES[k]?.label?.replace(/^\S+\s/, '') || k, app.enquiries.filter(e => e.stage === k).length)).join('') + misTipRow('Total open', openEnqAll, true);
+  const dupTip = dupCount > 0 ? misTipRow('Duplicate groups', dupCount, true) + `<div style="margin-top:4px;color:#B8C4D4;font-size:10px">Click through to Inventory → Duplicates to review</div>` : `<div style="color:#B8C4D4">No duplicates found — inventory is clean.</div>`;
+
   el.innerHTML = `
     <div class="srow" style="margin-bottom:16px">
-      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon blue">💰</div><div class="l">Total Revenue</div></div><div class="n">${misFmt(totalValue)}</div>${deltaHTML(revenueDelta)}</div>
-      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon green">📦</div><div class="l">Total Orders</div></div><div class="n">${orderCount}</div>${deltaHTML(dealsDelta)}</div>
-      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon purple">📥</div><div class="l">New Enquiries</div></div><div class="n">${enqCur.length}</div>${deltaHTML(newEnqDelta)}</div>
-      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon amber">🎯</div><div class="l">Win Rate</div></div><div class="n">${winRate === null ? '—' : winRate + '%'}</div>${deltaHTML(winRateDelta, true)}</div>
+      ${misTileHTML('💰', 'blue', 'Total Revenue', misFmt(totalValue), deltaHTML(revenueDelta), revenueTip)}
+      ${misTileHTML('📦', 'green', 'Total Orders', orderCount, deltaHTML(dealsDelta), ordersTip)}
+      ${misTileHTML('📥', 'purple', 'New Enquiries', enqCur.length, deltaHTML(newEnqDelta), enqTip)}
+      ${misTileHTML('🎯', 'amber', 'Win Rate', winRate === null ? '—' : winRate + '%', deltaHTML(winRateDelta, true), winTip)}
     </div>
 
     <div class="mis-grid">
@@ -10346,11 +10559,11 @@ function renderMisOverview() {
     </div>
 
     <div class="srow" style="margin-top:12px">
-      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon blue">📋</div><div class="l">Total Items</div></div><div class="n">${totalItems.toLocaleString()}</div></div>
-      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon green">💶</div><div class="l">Inventory FOB Value</div></div><div class="n">€${inventoryValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div></div>
-      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon amber">📥</div><div class="l">Open Enquiries (all time)</div></div><div class="n">${openEnqAll}</div></div>
-      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon purple">📄</div><div class="l">Quotations</div></div><div class="n">${app.quotations.length}</div></div>
-      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon amber">⚠️</div><div class="l">Duplicate Items</div></div><div class="n" style="color:${dupCount > 0 ? 'var(--amber)' : 'var(--green)'}">${dupCount}</div></div>
+      ${misTileHTML('📋', 'blue', 'Total Items', totalItems.toLocaleString(), '', itemsTip)}
+      ${misTileHTML('💶', 'green', 'Inventory FOB Value', '€' + inventoryValue.toLocaleString(undefined, { maximumFractionDigits: 0 }), '', misTipRow('Exact value', '€' + inventoryValue.toLocaleString(undefined, { maximumFractionDigits: 2 }), true))}
+      ${misTileHTML('📥', 'amber', 'Open Enquiries (all time)', openEnqAll, '', openEnqByStage)}
+      ${misTileHTML('📄', 'purple', 'Quotations', app.quotations.length, '', quotesTip)}
+      ${misTileHTML('⚠️', 'amber', 'Duplicate Items', `<span style="color:${dupCount > 0 ? 'var(--amber)' : 'var(--green)'}">${dupCount}</span>`, '', dupTip)}
     </div>
     <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:9.5px;color:var(--text3);margin-top:12px">
       <span>Sales figures combine multi-currency orders into ${misReportingCcy()} using the FX table in Settings → Defaults. Change the range at the top-right to recompute everything on this dashboard.</span>
