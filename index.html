@@ -673,6 +673,25 @@ table{min-width:820px}
 .mis-target-row{display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)}
 .mis-target-row .name{min-width:90px;font-weight:600;font-size:11.5px}
 .mis-target-row .pct{min-width:48px;text-align:right;font-size:11px;font-weight:700}
+/* Overview dashboard v2 — card header w/ dropdown, avatar-led team rows,
+   goal-progress rows. Mirrors a standard SaaS sales-dashboard layout. */
+.mis-card-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;gap:8px}
+.mis-card-head h3{margin:0}
+.mis-card-head select{height:28px;border:1px solid var(--border);border-radius:var(--r-sm);padding:0 8px;font-size:11px;background:var(--surface)}
+.mis-avatar{width:30px;height:30px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff}
+.team-perf-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border)}
+.team-perf-row:last-child{border-bottom:none}
+.team-perf-row .tp-name{flex:1;min-width:0;font-weight:600;font-size:11.5px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.team-perf-row .tp-col{min-width:64px;text-align:right;font-size:11px;color:var(--text2);font-family:var(--mono)}
+.team-perf-row .tp-score{min-width:100px;display:flex;align-items:center;gap:6px}
+.team-perf-row .tp-score .mis-progress{width:56px;flex:none}
+.goal-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border)}
+.goal-row:last-child{border-bottom:none}
+.goal-row .gl-label{min-width:120px;font-size:11.5px;font-weight:600}
+.goal-row .gl-frac{font-size:9.5px;color:var(--text3);margin-top:1px;font-weight:400}
+.goal-row .gl-pct{min-width:40px;text-align:right;font-size:11.5px;font-weight:700}
+.mis-link{font-size:11px;color:var(--accent2);font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:3px;cursor:pointer}
+.mis-link:hover{text-decoration:underline}
 .prefix-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px}
 .prefix-row{display:flex;align-items:center;gap:7px;padding:6px 10px;background:var(--surface2);border-radius:var(--r-sm);border:1px solid var(--border)}
 .prefix-row .cat-badge{flex:1}
@@ -8720,10 +8739,17 @@ function confirmConvertToOrder() {
     };
     app.orderGroups.push(group);
   }
+  // If the quote had a discount applied, the per-item FOB rate on its own
+  // overstates what was actually agreed — the order (and everything that
+  // reads off it: MIS, Trading Account, Payments) needs to reflect the
+  // POST-discount rate, or its totals won't match the Quote/Proforma PDF
+  // the customer actually has. A uniform ratio keeps each item's relative
+  // share of the discount the same as its share of the quote's value.
+  const discRatio = (q.itemsTotal || 0) > 0 ? (q.itemsTotalAfterDiscount != null ? q.itemsTotalAfterDiscount : q.itemsTotal) / q.itemsTotal : 1;
   q.items.forEach(item => {
     app.customerOrders.push({
       id: uid(), customer: q.customer, itemId: item.id, itemCode: item.item, category: item.category, type: item.type,
-      qty: item.qty, rate: item.fobEur, currency: item.currency, orderDate: orderDate,
+      qty: item.qty, rate: (item.fobEur || 0) * discRatio, currency: item.currency, orderDate: orderDate,
       poRef: q.ref, remarks: item.remarks || '', readyQty: 0,
       orderGroupId: group.id, sourceProformaId: q.id, sourceProformaRef: q.ref,
       // Cost basis at the time this order was actually placed — locked in
@@ -9984,6 +10010,7 @@ function misReportingCcy() { return app.settings.mis?.reportingCurrency || 'EUR'
 function misSym() { return curSym(misReportingCcy()); }
 
 function misGetSales() {
+  const quoteById = {}; (app.quotations || []).forEach(q => quoteById[q.id] = q);
   return app.orderGroups.map(g => {
     const lines = app.customerOrders.filter(o => o.orderGroupId === g.id);
     if (!lines.length) return null;
@@ -10012,9 +10039,17 @@ function misGetSales() {
     });
     let inferred = null, best = -1;
     Object.entries(spWeight).forEach(([sp, v]) => { if (v > best) { best = v; inferred = sp; } });
+    // Owner attribution, most to least reliable: (1) Sales Owner set
+    // directly on the order, (2) the Marketing Person on the quote/proforma
+    // this order was converted from — covers orders placed before Sales
+    // Owner existed as a field, (3) a weighted guess from the item's Team
+    // field, (4) Unassigned as a last resort.
+    let quoteOwner = null;
+    for (const qid of (g.sourceProformaIds || [])) { const q = quoteById[qid]; if (q?.owner) { quoteOwner = q.owner; break; } }
+    const owner = g.owner || quoteOwner || inferred || 'Unassigned';
     return {
       id: g.id, ref: g.ref, customer: g.customer, country: g.country || 'Unspecified',
-      date: g.createdDate, owner: g.owner || inferred || 'Unassigned', ownerInferred: !g.owner,
+      date: g.createdDate, owner, ownerInferred: !g.owner,
       valueByCcy, value: converted, qty, lines, status: g.status
     };
   }).filter(Boolean);
@@ -10036,6 +10071,19 @@ function misRangeDates(range) {
   if (range === 'last12m') { const d = new Date(y, m - 11, 1); return [d.toISOString().slice(0, 10), today()]; }
   return [null, null]; // all time
 }
+// The equivalent period immediately before the selected range — e.g. for
+// "This Quarter" it's last quarter, for "This Year" it's last year. Powers
+// the "vs previous period" deltas on the Overview KPI tiles. Returns
+// [null, null] for 'all' since there's no meaningful "previous" for it.
+function misPreviousRangeDates(range) {
+  const now = new Date(), y = now.getFullYear(), m = now.getMonth();
+  if (range === 'mtd') { const from = new Date(y, m - 1, 1), to = new Date(y, m, 0); return [from.toISOString().slice(0, 10), to.toISOString().slice(0, 10)]; }
+  if (range === 'qtd') { const q = Math.floor(m / 3); const from = new Date(y, (q - 1) * 3, 1), to = new Date(y, q * 3, 0); return [from.toISOString().slice(0, 10), to.toISOString().slice(0, 10)]; }
+  if (range === 'ytd') return [(y - 1) + '-01-01', (y - 1) + '-12-31'];
+  if (range === 'last12m') { const to = new Date(y, m - 11, 0), from = new Date(y, m - 22, 1); return [from.toISOString().slice(0, 10), to.toISOString().slice(0, 10)]; }
+  return [null, null];
+}
+function misInDateRange(dateStr, from, to) { return (!from || (dateStr || '') >= from) && (!to || (dateStr || '') <= to); }
 function misFilterRange(sales, range) {
   const [from, to] = misRangeDates(range);
   return sales.filter(s => (!from || s.date >= from) && (!to || s.date <= to));
@@ -10072,6 +10120,68 @@ function svgBarChart(data, opts = {}) {
   });
   return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:${h}px">${bars}</svg>`;
 }
+// Bar chart for plain counts (not currency) — same visual as svgBarChart but
+// labels each bar with its raw number instead of a "Xk" money abbreviation.
+// Used for the enquiry funnel, where "58" enquiries shouldn't render as "0k".
+function svgCountBarChart(data, opts = {}) {
+  const w = opts.width || 760, h = opts.height || 190, pad = 30, gap = 8;
+  const max = Math.max(1, ...data.map(d => d.value));
+  const n = data.length || 1;
+  const barW = Math.max(4, (w - pad * 2) / n - gap);
+  let bars = '';
+  data.forEach((d, i) => {
+    const bh = max ? (d.value / max) * (h - pad * 2 - 14) : 0;
+    const x = pad + i * (barW + gap);
+    const y = h - pad - bh;
+    bars += `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${bh.toFixed(1)}" rx="3" fill="${d.color || 'var(--accent2)'}" opacity="0.9"><title>${esc(d.label)}: ${d.value}</title></rect>`;
+    if (n <= 16) bars += `<text x="${(x + barW / 2).toFixed(1)}" y="${h - pad + 13}" font-size="8.5" fill="var(--text3)" text-anchor="middle">${esc(d.label)}</text>`;
+    bars += `<text x="${(x + barW / 2).toFixed(1)}" y="${(y - 5).toFixed(1)}" font-size="10.5" font-weight="700" fill="var(--text)" text-anchor="middle">${d.value}</text>`;
+  });
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:${h}px">${bars}</svg>`;
+}
+// $1.4M / ₹12k style compact number for chart axes — same rounding logic
+// wherever a big currency figure needs to fit in a small axis label.
+function misAbbrev(v) {
+  const a = Math.abs(v || 0);
+  if (a >= 1000000) return (v / 1000000).toFixed(1).replace(/\.0$/, '') + 'M';
+  if (a >= 1000) return (v / 1000).toFixed(0) + 'K';
+  return Math.round(v || 0).toString();
+}
+// Smooth-ish line/area chart — "Revenue Over Time" style. `data` is
+// [{label, value}], rendered oldest→newest left to right, with a light
+// gradient fill under the line and a value tooltip on each point.
+function svgLineChart(data, opts = {}) {
+  const w = opts.width || 760, h = opts.height || 220, padL = 46, padR = 14, padT = 16, padB = 26;
+  const max = Math.max(1, ...data.map(d => d.value)) * 1.08; // headroom so the peak point isn't clipped against the top edge
+  const n = data.length || 1;
+  const innerW = w - padL - padR, innerH = h - padT - padB;
+  const stepX = n > 1 ? innerW / (n - 1) : 0;
+  const xFor = i => padL + i * stepX;
+  const yFor = v => padT + innerH * (1 - (max ? v / max : 0));
+  const pts = data.map((d, i) => [xFor(i), yFor(d.value)]);
+  const linePath = pts.map((p, i) => (i === 0 ? 'M' : 'L') + p[0].toFixed(1) + ',' + p[1].toFixed(1)).join(' ');
+  const areaPath = (pts.length ? linePath + ` L ${xFor(n - 1).toFixed(1)},${(h - padB).toFixed(1)} L ${padL.toFixed(1)},${(h - padB).toFixed(1)} Z` : '');
+  const divisions = 4;
+  let gridLines = '', yLabels = '';
+  for (let i = 0; i <= divisions; i++) {
+    const v = max * i / divisions, y = yFor(v);
+    gridLines += `<line x1="${padL.toFixed(1)}" y1="${y.toFixed(1)}" x2="${(w - padR).toFixed(1)}" y2="${y.toFixed(1)}" stroke="var(--border)" stroke-width="1"/>`;
+    yLabels += `<text x="${(padL - 8).toFixed(1)}" y="${(y + 3).toFixed(1)}" font-size="8.5" fill="var(--text3)" text-anchor="end">${misSym()}${misAbbrev(v)}</text>`;
+  }
+  const xLabelEvery = n <= 12 ? 1 : Math.ceil(n / 12);
+  const xLabels = data.map((d, i) => (i % xLabelEvery === 0) ? `<text x="${xFor(i).toFixed(1)}" y="${(h - 8).toFixed(1)}" font-size="8" fill="var(--text3)" text-anchor="middle">${esc(d.label)}</text>` : '').join('');
+  const dots = pts.map((p, i) => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3" fill="var(--accent2)" stroke="var(--surface)" stroke-width="1.5"><title>${esc(data[i].label)}: ${misFmt(data[i].value)}</title></circle>`).join('');
+  return `<svg viewBox="0 0 ${w} ${h}" style="width:100%;height:${h}px">
+    <defs><linearGradient id="misAreaGrad" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="var(--accent2)" stop-opacity="0.24"/>
+      <stop offset="100%" stop-color="var(--accent2)" stop-opacity="0.02"/>
+    </linearGradient></defs>
+    ${gridLines}${yLabels}
+    ${areaPath ? `<path d="${areaPath}" fill="url(#misAreaGrad)"/>` : ''}
+    ${linePath ? `<path d="${linePath}" fill="none" stroke="var(--accent2)" stroke-width="2.5"/>` : ''}
+    ${dots}${xLabels}
+  </svg>`;
+}
 
 let _misActiveTab = 'overview';
 function showMisTab(tab) {
@@ -10082,41 +10192,95 @@ function showMisTab(tab) {
 function renderMisActiveTab() {
   const fns = { overview: renderMisOverview, pipeline: renderMisPipeline, trend: renderMisTrend, team: renderMisTeam, targets: renderMisTargets, territory: renderMisTerritory, items: renderMisItems, clients: renderMisClients, compare: renderMisCompare };
   (fns[_misActiveTab] || renderMisOverview)();
+  requestAnimationFrame(fitMisTileNumbers);
+}
+// Big currency figures (₹12,34,56,789) don't all fit at the tile's default
+// font size, and letting them wrap or ellipsis-truncate both hide real
+// digits from a management report. Instead, shrink each tile's number just
+// enough to fit on one line — same idea as PowerPoint's autofit text.
+function fitMisTileNumbers() {
+  document.querySelectorAll('.mis-tile .n').forEach(elN => {
+    elN.style.fontSize = '';
+    let size = parseFloat(getComputedStyle(elN).fontSize) || 20;
+    let guard = 0;
+    while (elN.scrollWidth > elN.clientWidth + 1 && size > 11 && guard < 20) {
+      size -= 1;
+      elN.style.fontSize = size + 'px';
+      guard++;
+    }
+  });
 }
 function renderMIS() { renderMisActiveTab(); }
 function misRange() { return document.getElementById('mis-range')?.value || 'ytd'; }
 
 function renderMisOverview() {
   const el = document.getElementById('mis-content');
+  const range = misRange();
   const allSales = misGetSales();
-  const sales = misFilterRange(allSales, misRange());
+  const sales = misFilterRange(allSales, range);
   const totalValue = misSum(sales);
   const orderCount = sales.length;
-  const avgOrder = orderCount ? totalValue / orderCount : 0;
 
-  // Compare current calendar month vs previous, and this year vs last, regardless of the range picker — these two are always useful at a glance.
+  // Every KPI tile compares the selected range against the equivalent
+  // period right before it (this quarter vs last quarter, this year vs
+  // last year, etc.) — one consistent rule instead of hardcoded MoM/YoY.
+  const [curFrom, curTo] = misRangeDates(range);
+  const [prevFrom, prevTo] = misPreviousRangeDates(range);
+  const prevSales = allSales.filter(s => misInDateRange(s.date, prevFrom, prevTo));
+  const revenueDelta = misPctDelta(totalValue, misSum(prevSales));
+  const dealsDelta = misPctDelta(orderCount, prevSales.length);
+
+  const enqAll = app.enquiries.filter(e => e.stage !== 'legacy');
+  const enqCur = enqAll.filter(e => misInDateRange(e.dateReceived, curFrom, curTo));
+  const enqPrev = enqAll.filter(e => misInDateRange(e.dateReceived, prevFrom, prevTo));
+  const newEnqDelta = misPctDelta(enqCur.length, enqPrev.length);
+
+  const wonCur = enqCur.filter(e => e.stage === 'won').length, lostCur = enqCur.filter(e => e.stage === 'lost').length;
+  const winRate = (wonCur + lostCur) ? Math.round(wonCur / (wonCur + lostCur) * 100) : null;
+  const wonPrev = enqPrev.filter(e => e.stage === 'won').length, lostPrev = enqPrev.filter(e => e.stage === 'lost').length;
+  const winRatePrev = (wonPrev + lostPrev) ? Math.round(wonPrev / (wonPrev + lostPrev) * 100) : null;
+  const winRateDelta = (winRate != null && winRatePrev != null) ? winRate - winRatePrev : null;
+
+  const deltaHTML = (pct, isPoints) => pct == null ? `<div class="delta" style="color:var(--text3);font-weight:400">No prior-period data</div>` : `<div class="delta ${pct >= 0 ? 'up' : 'down'}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}${isPoints ? ' pts' : '%'} vs previous period</div>`;
+
+  // Revenue Over Time — trailing N months, independent of the page-level range picker (same idea as the reference dashboard's own chart-local period control)
+  const span = parseInt(document.getElementById('mis-ov-span')?.value) || 6;
+  const monthKeys = misLastNMonthKeys(span);
+  const byMonth = misGroupBy(allSales, s => misPeriodMonth(s.date));
+  const lineData = monthKeys.map(k => ({ label: misMonthLabel(k), value: misSum(byMonth[k] || []) }));
+
+  // Enquiry funnel by stage, respecting the selected range
+  const funnelDefs = [['new', 'New'], ['sent_to_procurement', 'With Procurement'], ['pricing_received', 'Costing Recd'], ['quoted', 'Quoted'], ['won', 'Won']];
+  const funnelData = funnelDefs.map(([k, label]) => ({ label, value: enqCur.filter(e => e.stage === k).length, color: k === 'won' ? 'var(--green)' : 'var(--accent2)' }));
+
+  // Team performance — top 5 by value within the selected range
+  const byPerson = misGroupBy(sales, s => s.owner);
+  const teamRows = Object.entries(byPerson).filter(([name]) => name !== 'Unassigned').map(([name, arr]) => {
+    const value = misSum(arr);
+    const wonE = enqCur.filter(e => e.owner === name && e.stage === 'won').length;
+    const lostE = enqCur.filter(e => e.owner === name && e.stage === 'lost').length;
+    const wr = (wonE + lostE) ? Math.round(wonE / (wonE + lostE) * 100) : null;
+    return { name, count: arr.length, value, wr };
+  }).sort((a, b) => b.value - a.value).slice(0, 5);
+  const maxTeamValue = Math.max(1, ...teamRows.map(r => r.value));
+  const avatarColors = ['#2B5A8A', '#3FA76B', '#8A5CC9', '#D98A2B', '#D14B4B'];
+  const initialsOf = name => (name || '?').trim().split(/\s+/).map(w => w[0]).slice(0, 2).join('').toUpperCase();
+
+  // Goal progress — each team member's revenue-target attainment, current month
   const now = new Date();
-  const thisMonthKey = misPeriodMonth(today());
-  const prevMonthDate = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-  const prevMonthKey = prevMonthDate.getFullYear() + '-' + String(prevMonthDate.getMonth() + 1).padStart(2, '0');
-  const thisMonthVal = misSum(allSales.filter(s => misPeriodMonth(s.date) === thisMonthKey));
-  const prevMonthVal = misSum(allSales.filter(s => misPeriodMonth(s.date) === prevMonthKey));
-  const momDelta = misPctDelta(thisMonthVal, prevMonthVal);
-  const thisYearKey = String(now.getFullYear()), lastYearKey = String(now.getFullYear() - 1);
-  const thisYearVal = misSum(allSales.filter(s => misPeriodYear(s.date) === thisYearKey));
-  const lastYearVal = misSum(allSales.filter(s => misPeriodYear(s.date) === lastYearKey));
-  const yoyDelta = misPctDelta(thisYearVal, lastYearVal);
+  const curMonthKey = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  const monthSales = allSales.filter(s => misPeriodMonth(s.date) === curMonthKey);
+  const monthByPerson = misGroupBy(monthSales, s => s.owner);
+  const nonSalesNames = new Set((app.settings.team || []).filter(t => t.role === 'procurement').map(t => t.name));
+  const goalRows = (app.settings.team || []).filter(t => t.active !== false && !nonSalesNames.has(t.name) && getTarget(t.name, curMonthKey) > 0)
+    .map(t => { const target = getTarget(t.name, curMonthKey), ach = misSum(monthByPerson[t.name] || []); return { name: t.name, ach, target, pct: target ? Math.min(150, ach / target * 100) : 0 }; })
+    .sort((a, b) => b.pct - a.pct).slice(0, 4);
 
   const items = app.items;
   const totalItems = items.length;
   const inventoryValue = items.reduce((s, r) => s + calcFOB(r.pp, r.marg, r.fob, r.exrate) * (parseFloat(r.qty) || 0), 0);
   const dupCount = findDuplicates().duplicateIds.size;
-  const openEnq = app.enquiries.filter(e => ENQ_OPEN_STAGES.includes(e.stage)).length;
-  const wonEnq = app.enquiries.filter(e => e.stage === 'won').length;
-  const lostEnq = app.enquiries.filter(e => e.stage === 'lost' && !e.legacy).length;
-  const winRate = (wonEnq + lostEnq) ? Math.round((wonEnq / (wonEnq + lostEnq)) * 100) : null;
-
-  const deltaHTML = (pct) => pct == null ? '' : `<div class="delta ${pct >= 0 ? 'up' : 'down'}">${pct >= 0 ? '▲' : '▼'} ${Math.abs(pct).toFixed(1)}%</div>`;
+  const openEnqAll = app.enquiries.filter(e => ENQ_OPEN_STAGES.includes(e.stage)).length;
 
   const categories = {};
   items.forEach(r => { const c = r.category || 'OTHER'; categories[c] = (categories[c] || 0) + 1; });
@@ -10127,29 +10291,71 @@ function renderMisOverview() {
   }).join('');
 
   el.innerHTML = `
-    <div class="srow" style="margin-bottom:6px">
-      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon blue">💰</div><div class="l">Sales (selected range)</div></div><div class="n">${misFmt(totalValue)}</div></div>
-      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon purple">📦</div><div class="l">Orders</div></div><div class="n">${orderCount}</div></div>
-      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon amber">🧾</div><div class="l">Avg Order Value</div></div><div class="n">${misFmt(avgOrder)}</div></div>
-      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon blue">📅</div><div class="l">This Month</div></div><div class="n">${misFmt(thisMonthVal)}</div>${deltaHTML(momDelta)}</div>
-      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon green">📈</div><div class="l">This Year</div></div><div class="n">${misFmt(thisYearVal)}</div>${deltaHTML(yoyDelta)}</div>
-      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon purple">🎯</div><div class="l">Enquiry Win Rate</div></div><div class="n">${winRate === null ? '—' : winRate + '%'}</div></div>
-    </div>
     <div class="srow" style="margin-bottom:16px">
+      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon blue">💰</div><div class="l">Total Revenue</div></div><div class="n">${misFmt(totalValue)}</div>${deltaHTML(revenueDelta)}</div>
+      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon green">📦</div><div class="l">Total Orders</div></div><div class="n">${orderCount}</div>${deltaHTML(dealsDelta)}</div>
+      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon purple">📥</div><div class="l">New Enquiries</div></div><div class="n">${enqCur.length}</div>${deltaHTML(newEnqDelta)}</div>
+      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon amber">🎯</div><div class="l">Win Rate</div></div><div class="n">${winRate === null ? '—' : winRate + '%'}</div>${deltaHTML(winRateDelta, true)}</div>
+    </div>
+
+    <div class="mis-grid">
+      <div class="mis-card">
+        <div class="mis-card-head"><h3>📈 Revenue Over Time</h3>
+          <select id="mis-ov-span" onchange="renderMisOverview()"><option value="6" ${span === 6 ? 'selected' : ''}>Last 6 Months</option><option value="12" ${span === 12 ? 'selected' : ''}>Last 12 Months</option></select>
+        </div>
+        ${svgLineChart(lineData)}
+      </div>
+      <div class="mis-card">
+        <div class="mis-card-head"><h3>📊 Enquiry Funnel <span style="font-weight:400;color:var(--text3);font-size:10.5px">(selected range)</span></h3></div>
+        ${funnelData.some(d => d.value > 0) ? svgCountBarChart(funnelData) : '<div style="color:var(--text3);font-size:11px;padding:40px 0;text-align:center">No enquiries in this range</div>'}
+      </div>
+    </div>
+
+    <div class="mis-grid" style="margin-top:12px">
+      <div class="mis-card">
+        <div class="mis-card-head"><h3>👥 Team Performance <span style="font-weight:400;color:var(--text3);font-size:10.5px">(selected range)</span></h3></div>
+        ${teamRows.map((r, i) => `<div class="team-perf-row">
+          <div class="mis-avatar" style="background:${avatarColors[i % avatarColors.length]}">${initialsOf(r.name)}</div>
+          <div class="tp-name">${esc(r.name)}</div>
+          <div class="tp-col">${r.count} order${r.count === 1 ? '' : 's'}</div>
+          <div class="tp-col">${misFmt(r.value)}</div>
+          <div class="tp-score"><div class="mis-progress"><div class="fill" style="width:${(r.value / maxTeamValue * 100).toFixed(0)}%;background:var(--accent2)"></div></div>${r.wr == null ? '—' : r.wr + '%'}</div>
+        </div>`).join('') || '<div style="color:var(--text3);font-size:11px;padding:16px;text-align:center">No orders in this range</div>'}
+        <div style="margin-top:10px;text-align:center"><span class="mis-link" onclick="showMisTab('team')">View Full Team Report →</span></div>
+      </div>
+      <div class="mis-card">
+        <div class="mis-card-head"><h3>🎯 Goal Progress <span style="font-weight:400;color:var(--text3);font-size:10.5px">(${misMonthLabel(curMonthKey)})</span></h3></div>
+        ${goalRows.map(g => { const color = g.pct >= 100 ? 'var(--green)' : g.pct >= 60 ? 'var(--amber)' : 'var(--red)'; return `<div class="goal-row">
+          <div style="flex:1;min-width:0">
+            <div class="gl-label">${esc(g.name)}</div>
+            <div class="gl-frac">${misFmt(g.ach)} / ${misFmt(g.target)}</div>
+          </div>
+          <div class="mis-progress" style="max-width:140px"><div class="fill" style="width:${Math.min(100, g.pct).toFixed(0)}%;background:${color}"></div></div>
+          <div class="gl-pct" style="color:${color}">${g.pct.toFixed(0)}%</div>
+        </div>`; }).join('') || '<div style="color:var(--text3);font-size:11px;padding:16px;text-align:center">No revenue targets set for this month yet.</div>'}
+        <div style="margin-top:10px;text-align:center"><span class="mis-link" onclick="showMisTab('targets')">Set/Edit Targets →</span></div>
+      </div>
+    </div>
+
+    <div class="mis-grid" style="margin-top:12px">
+      <div class="mis-card"><h3>📂 Category Distribution</h3>${catRows || '<div style="color:var(--text3);font-size:11px;padding:8px">No categories yet</div>'}</div>
+      <div class="mis-card"><h3>🏆 Top 5 Customers <span style="font-weight:400;color:var(--text3);font-size:10.5px">(selected range)</span></h3>${
+    Object.entries(misGroupBy(sales, s => s.customer)).map(([c, arr]) => [c, misSum(arr)]).sort((a, b) => b[1] - a[1]).slice(0, 5)
+      .map(([c, v]) => `<div class="mis-bar-row"><div class="mis-bar-label">${esc(c)}</div><div class="mis-bar-bg"><div class="mis-bar-fill" style="width:${totalValue ? (v / totalValue * 100) : 0}%;background:var(--accent-light);color:var(--accent2)"></div></div><div class="mis-bar-val">${misFmt(v)}</div></div>`).join('') || '<div style="color:var(--text3);font-size:11px;padding:8px">No sales in range</div>'
+    }</div>
+    </div>
+
+    <div class="srow" style="margin-top:12px">
       <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon blue">📋</div><div class="l">Total Items</div></div><div class="n">${totalItems.toLocaleString()}</div></div>
       <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon green">💶</div><div class="l">Inventory FOB Value</div></div><div class="n">€${inventoryValue.toLocaleString(undefined, { maximumFractionDigits: 0 })}</div></div>
-      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon amber">📥</div><div class="l">Open Enquiries</div></div><div class="n">${openEnq}</div></div>
+      <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon amber">📥</div><div class="l">Open Enquiries (all time)</div></div><div class="n">${openEnqAll}</div></div>
       <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon purple">📄</div><div class="l">Quotations</div></div><div class="n">${app.quotations.length}</div></div>
       <div class="mis-tile"><div class="mis-tile-top"><div class="mis-icon amber">⚠️</div><div class="l">Duplicate Items</div></div><div class="n" style="color:${dupCount > 0 ? 'var(--amber)' : 'var(--green)'}">${dupCount}</div></div>
     </div>
-    <div class="mis-grid">
-      <div class="mis-card"><h3>📂 Category Distribution</h3>${catRows || '<div style="color:var(--text3);font-size:11px;padding:8px">No categories yet</div>'}</div>
-      <div class="mis-card"><h3>🏆 Top 5 Customers (selected range)</h3>${
-        Object.entries(misGroupBy(sales, s => s.customer)).map(([c, arr]) => [c, misSum(arr)]).sort((a, b) => b[1] - a[1]).slice(0, 5)
-          .map(([c, v]) => `<div class="mis-bar-row"><div class="mis-bar-label">${esc(c)}</div><div class="mis-bar-bg"><div class="mis-bar-fill" style="width:${totalValue ? (v / totalValue * 100) : 0}%;background:var(--accent-light);color:var(--accent2)"></div></div><div class="mis-bar-val">${misFmt(v)}</div></div>`).join('') || '<div style="color:var(--text3);font-size:11px;padding:8px">No sales in range</div>'
-      }</div>
-    </div>
-    <div style="font-size:9.5px;color:var(--text3);margin-top:12px">Sales figures combine multi-currency orders into ${misReportingCcy()} using the FX table in Settings → Defaults. Change the range at the top-right to recompute everything on this dashboard.</div>`;
+    <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;font-size:9.5px;color:var(--text3);margin-top:12px">
+      <span>Sales figures combine multi-currency orders into ${misReportingCcy()} using the FX table in Settings → Defaults. Change the range at the top-right to recompute everything on this dashboard.</span>
+      <span style="white-space:nowrap">🔄 Updated just now</span>
+    </div>`;
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -10470,13 +10676,30 @@ function renderMisTeam() {
     name, value: misSum(arr), count: arr.length, avg: misSum(arr) / arr.length,
     inferred: arr.every(s => s.ownerInferred)
   })).sort((a, b) => b.value - a.value);
+  const unassigned = sales.filter(s => s.owner === 'Unassigned');
+  const teamOpts = getEnqOwnerOptions();
+  const unassignedHTML = unassigned.length ? `
+    <div class="mis-card" style="margin-top:12px;border-left:3px solid var(--amber)">
+      <h3>⚠️ ${unassigned.length} Order${unassigned.length > 1 ? 's' : ''} With No Sales Owner Set</h3>
+      <p style="font-size:10.5px;color:var(--text3);margin:2px 0 8px">These count as "Unassigned" above. Pick a name for each to fix attribution — it updates the order immediately, same as setting it in Order Details.</p>
+      <table class="mis-table"><thead><tr><th>Ref</th><th>Customer</th><th>Value</th><th>Assign To</th></tr></thead><tbody>
+      ${unassigned.map(s => `<tr>
+        <td>${esc(s.ref || '—')}</td><td>${esc(s.customer || '—')}</td><td>${misFmt(s.value)}</td>
+        <td><select style="height:26px;font-size:11px;border:1px solid var(--border);border-radius:4px" onchange="if(this.value){setOrderGroupOwner('${s.id}',this.value);renderMisTeam();}">
+          <option value="">-- Select --</option>
+          ${teamOpts.map(t => `<option value="${esc(t.name)}">${esc(t.name)}</option>`).join('')}
+        </select></td>
+      </tr>`).join('')}
+      </tbody></table>
+    </div>` : '';
   el.innerHTML = `
     <div class="mis-card"><h3>👥 Sales by Team Member (selected range)</h3>
       <table class="mis-table"><thead><tr><th>Person</th><th>Orders</th><th>Total Sales</th><th>Avg Order</th><th>% of Total</th></tr></thead><tbody>
-      ${rows.map(r => `<tr><td>${esc(r.name)}${r.inferred ? ' <span style="color:var(--text3);font-size:9px">(inferred)</span>' : ''}</td><td>${r.count}</td><td>${misFmt(r.value)}</td><td>${misFmt(r.avg)}</td><td>${total ? (r.value / total * 100).toFixed(1) : 0}%</td></tr>`).join('') || `<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:16px">No orders in this range</td></tr>`}
+      ${rows.map(r => `<tr><td>${esc(r.name)}${r.inferred && r.name !== 'Unassigned' ? ' <span style="color:var(--text3);font-size:9px">(inferred)</span>' : ''}</td><td>${r.count}</td><td>${misFmt(r.value)}</td><td>${misFmt(r.avg)}</td><td>${total ? (r.value / total * 100).toFixed(1) : 0}%</td></tr>`).join('') || `<tr><td colspan="5" style="color:var(--text3);text-align:center;padding:16px">No orders in this range</td></tr>`}
       </tbody></table>
     </div>
-    <div style="font-size:9.5px;color:var(--text3);margin-top:8px">"Owner" comes from the order's Sales Owner (set in Order Details) if assigned, otherwise it's inferred from the item's Team field on the order lines. Set Sales Owner explicitly on orders for fully accurate attribution.</div>`;
+    ${unassignedHTML}
+    <div style="font-size:9.5px;color:var(--text3);margin-top:8px">"Owner" comes from the order's Sales Owner (Order Details) if set, otherwise the Marketing Person on the quote it was converted from, otherwise a guess from the item's Team field. Set Sales Owner explicitly for fully accurate attribution.</div>`;
 }
 
 function renderMisTargets() {
@@ -10710,6 +10933,7 @@ function renderCustomer360() {
       <div class="mis-card"><h3>🔁 Enquiry Outcomes</h3>${enqRows}</div>
       <div class="mis-card"><h3>⚠️ Quality Issues</h3>${qRows}</div>
     </div>`;
+  requestAnimationFrame(fitMisTileNumbers);
 }
 
 // ══════════════════════════════════════════════════════════════════════════
@@ -12347,6 +12571,7 @@ function renderTeamDashboard() {
     </h3>
     <div id="activity-list-container" style="display:${_teamActivityCollapsed ? 'none' : 'block'}" onclick="event.stopPropagation()">${activityHTML}${expandBtn}<div style="margin-top:4px"><button class="btn btn-danger btn-xs" onclick="clearActivityLog()">🗑️ Clear All</button></div></div>
   </div>`;
+  requestAnimationFrame(fitMisTileNumbers);
 }
 
 function setFOBDecimals(val) {
